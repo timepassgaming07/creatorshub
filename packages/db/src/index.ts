@@ -27,3 +27,8 @@ export type { Database, TenantTransaction } from './client.js'
 
 export { MigrationError, runMigrations } from './migrate.js'
 export type { MigrationResult } from './migrate.js'
+
+export { CrossTenantWriteError, assertSameWorkspace, insertValues, scoped } from './repository.js'
+export type { RepositoryScope, TenantTable } from './repository.js'
+
+export * as workspaceMembers from './repositories/workspace-members.js'

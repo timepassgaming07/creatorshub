@@ -17,11 +17,16 @@ describe('public surface', () => {
 
   it('is exactly the intended set', () => {
     expect(exported).toEqual([
+      'CrossTenantWriteError',
       'DatabaseConfigError',
       'MigrationError',
+      'assertSameWorkspace',
       'createDatabase',
+      'insertValues',
       'loadDatabaseConfig',
       'runMigrations',
+      'scoped',
+      'workspaceMembers',
     ])
   })
 
@@ -43,5 +48,12 @@ describe('public surface', () => {
 
   it('exposes tenant-scoped access as the only way in', () => {
     expect(typeof publicApi.createDatabase).toBe('function')
+  })
+
+  // Repositories are reachable, but only as namespaces whose every function
+  // takes a RepositoryScope. There is no exported way to build one of those
+  // outside withWorkspace, so a repository cannot be driven unscoped.
+  it('exposes repositories only as scoped namespaces', () => {
+    expect(typeof publicApi.workspaceMembers.listMembers).toBe('function')
   })
 })
