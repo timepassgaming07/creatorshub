@@ -1,10 +1,20 @@
 {
   "extends": "@creatorhub/config/tsconfig/library.json",
+  // rootDir is the package root, not ./src, because `scripts` sits alongside
+  // `src` and both are typechecked. Omitting it entirely inherits the shared
+  // preset's value, which resolves against packages/config and fails on every
+  // file. tsconfig.build.json narrows it back to ./src, and that is the one
+  // that emits.
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
     "types": ["node"]
   },
-  "include": ["src/**/*"],
+  // `scripts` is typechecked and linted but not built. Leaving it out entirely
+  // would put it outside the project service, where type-aware lint rules
+  // silently do not run. drizzle.config.ts is absent on purpose: the shared
+  // ESLint base already admits root-level config files via allowDefaultProject,
+  // and naming it in both places is an error.
+  "include": ["src/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
 }

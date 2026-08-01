@@ -110,6 +110,13 @@ jobs:
       - name: Integration tests
         run: pnpm test:integration
 
+      # Item 1.5. Fails the build when any table lacks workspace_id, lacks an
+      # RLS policy, or has RLS enabled without FORCE. It reads the catalogue of
+      # a freshly migrated database rather than the Drizzle schema, so a table
+      # created by hand-written SQL or by the auth library is still checked.
+      - name: Tenancy enforcement
+        run: pnpm check:tenancy
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
