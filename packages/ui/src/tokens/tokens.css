@@ -1,0 +1,284 @@
+/**
+ * Design tokens — the only source of visual truth.
+ *
+ * Implements docs/design/design-system.md §2. A component that reaches for a raw
+ * hex value or an arbitrary pixel spacing fails lint; that rule is what stops a
+ * design system decaying into a suggestion.
+ *
+ * Written as CSS custom properties rather than a JavaScript object so that dark
+ * mode and, later, per-creator storefront themes are token swaps at runtime
+ * rather than code changes. Tailwind v4 reads these through @theme.
+ *
+ * Typeface families are deliberately unresolved. Brand lock is open item 4 in the
+ * milestone scope; the *system* is defined now so screens are not blocked, and
+ * substituting a family is a one-token change.
+ */
+
+:root {
+  /* ---------------------------------------------------------------------
+   * Typography
+   * ------------------------------------------------------------------- */
+
+  --font-display: ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* A modular scale, so hierarchy is systematic rather than arbitrary.
+   * Each entry pairs size with line height and tracking. */
+  --text-display-lg: 3rem; /* 48px */
+  --text-display-lg-leading: 3.25rem; /* 52px */
+  --text-display-lg-tracking: -0.02em;
+
+  --text-display: 2.25rem; /* 36px */
+  --text-display-leading: 2.5rem; /* 40px */
+  --text-display-tracking: -0.02em;
+
+  --text-title-lg: 1.75rem; /* 28px */
+  --text-title-lg-leading: 2.125rem; /* 34px */
+  --text-title-lg-tracking: -0.01em;
+
+  --text-title: 1.375rem; /* 22px */
+  --text-title-leading: 1.75rem; /* 28px */
+  --text-title-tracking: -0.01em;
+
+  --text-heading: 1.125rem; /* 18px */
+  --text-heading-leading: 1.625rem; /* 26px */
+  --text-heading-tracking: -0.005em;
+
+  --text-body-lg: 1rem; /* 16px */
+  --text-body-lg-leading: 1.625rem; /* 26px */
+
+  --text-body: 0.875rem; /* 14px — the interface default */
+  --text-body-leading: 1.375rem; /* 22px */
+
+  --text-caption: 0.8125rem; /* 13px — the floor for real content */
+  --text-caption-leading: 1.125rem; /* 18px */
+  --text-caption-tracking: 0.005em;
+
+  --text-micro: 0.6875rem; /* 11px — labels only, never content */
+  --text-micro-leading: 1rem; /* 16px */
+  --text-micro-tracking: 0.02em;
+
+  /* Money and identifiers use tabular figures. A column of misaligned digits
+   * reads as imprecision, and imprecision about money reads as untrustworthy. */
+  --text-numeric-lg: 2rem; /* 32px */
+  --text-numeric-lg-leading: 2.25rem; /* 36px */
+  --text-numeric: 0.9375rem; /* 15px */
+  --text-numeric-leading: 1.25rem; /* 20px */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* ---------------------------------------------------------------------
+   * Spacing — a single 4px scale. No arbitrary values, ever.
+   * ------------------------------------------------------------------- */
+
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.25rem; /* 20 */
+  --space-6: 1.5rem; /* 24 */
+  --space-8: 2rem; /* 32 */
+  --space-10: 2.5rem; /* 40 */
+  --space-12: 3rem; /* 48 */
+  --space-16: 4rem; /* 64 */
+  --space-20: 5rem; /* 80 */
+  --space-24: 6rem; /* 96 */
+  --space-32: 8rem; /* 128 */
+
+  /* ---------------------------------------------------------------------
+   * Colour — semantic roles only.
+   *
+   * A component never names a colour; it names a role. That indirection is what
+   * makes dark mode and storefront theming tractable.
+   *
+   * Direction: low-chroma warm-neutral foundation, one confident accent. Not
+   * purple gradients, not cream-and-terracotta. Near-monochrome surfaces with
+   * colour reserved for meaning, so the little colour that appears communicates.
+   *
+   * These values are a working foundation pending brand lock. Contrast ratios
+   * are verified by the axe checks in CI, in both themes.
+   * ------------------------------------------------------------------- */
+
+  --surface-base: oklch(99% 0.003 85);
+  --surface-raised: oklch(100% 0 0);
+  --surface-overlay: oklch(100% 0 0);
+  --surface-sunken: oklch(96.5% 0.004 85);
+
+  --content-primary: oklch(23% 0.008 75);
+  --content-secondary: oklch(46% 0.008 75);
+  --content-tertiary: oklch(53% 0.008 75);
+  --content-inverse: oklch(99% 0.003 85);
+
+  --border-subtle: oklch(92.5% 0.004 80);
+  --border-default: oklch(87% 0.005 80);
+  /* Boundary of an interactive control. WCAG 1.4.11 requires 3:1 for anything
+   * that identifies a component; a decorative hairline is exempt, an input
+   * outline is not. Kept separate so the two roles cannot drift together. */
+  --border-control: oklch(63% 0.005 80);
+  --border-strong: oklch(45% 0.02 250);
+
+  --accent: oklch(47% 0.115 252);
+  --accent-hover: oklch(41% 0.12 252);
+  --accent-subtle: oklch(96% 0.02 252);
+  --accent-content: oklch(99% 0.003 85);
+
+  --positive: oklch(48% 0.11 150);
+  --positive-subtle: oklch(96% 0.03 150);
+  --caution: oklch(54% 0.12 75);
+  --caution-subtle: oklch(96.5% 0.04 85);
+  --critical: oklch(51% 0.17 25);
+  --critical-subtle: oklch(96.5% 0.03 25);
+  --info: oklch(52% 0.09 240);
+  --info-subtle: oklch(96.5% 0.025 240);
+
+  /* ---------------------------------------------------------------------
+   * Radius
+   * ------------------------------------------------------------------- */
+
+  --radius-sm: 0.25rem; /* 4 — inputs, badges */
+  --radius-md: 0.5rem; /* 8 — cards, buttons */
+  --radius-lg: 0.75rem; /* 12 — panels, dialogs */
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------
+   * Elevation — restrained on purpose. Depth carries hierarchy, not decoration.
+   * A hairline border is usually the better answer than a shadow.
+   * ------------------------------------------------------------------- */
+
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px oklch(23% 0.008 75 / 0.05), 0 1px 3px oklch(23% 0.008 75 / 0.04);
+  --elevation-2: 0 2px 4px oklch(23% 0.008 75 / 0.05), 0 4px 12px oklch(23% 0.008 75 / 0.07);
+  --elevation-3: 0 4px 8px oklch(23% 0.008 75 / 0.06), 0 12px 32px oklch(23% 0.008 75 / 0.1);
+
+  /* ---------------------------------------------------------------------
+   * Motion — explains state, never decorates. If you cannot name the state
+   * change a transition represents, remove the transition.
+   * ------------------------------------------------------------------- */
+
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 360ms;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------------------------------------------------------------------
+   * Focus — never removed, never subtle.
+   * ------------------------------------------------------------------- */
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--border-strong);
+
+  /* ---------------------------------------------------------------------
+   * Layout
+   * ------------------------------------------------------------------- */
+
+  --layout-content-max: 80rem; /* 1280 */
+  --layout-reading-max: 45rem; /* 720 — long-form reading regions */
+}
+
+/**
+ * Dark mode — designed alongside light, not derived by inversion.
+ *
+ * Surfaces are true dark neutrals; pure black is avoided because it makes
+ * elevation impossible to read. Elevation is conveyed by lightening surfaces,
+ * since shadows barely register on dark. Accent and semantic colours are
+ * re-tuned per theme rather than reused.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface-base: oklch(17% 0.006 265);
+    --surface-raised: oklch(21% 0.007 265);
+    --surface-overlay: oklch(24% 0.008 265);
+    --surface-sunken: oklch(14.5% 0.005 265);
+
+    --content-primary: oklch(96% 0.004 265);
+    --content-secondary: oklch(75% 0.006 265);
+    --content-tertiary: oklch(61% 0.007 265);
+    --content-inverse: oklch(17% 0.006 265);
+
+    --border-subtle: oklch(27% 0.008 265);
+    --border-default: oklch(34% 0.009 265);
+    --border-strong: oklch(72% 0.09 250);
+
+    --accent: oklch(70% 0.12 252);
+    --accent-hover: oklch(78% 0.11 252);
+    --accent-subtle: oklch(27% 0.05 252);
+    --accent-content: oklch(17% 0.006 265);
+
+    --positive: oklch(72% 0.14 150);
+    --positive-subtle: oklch(26% 0.05 150);
+    --caution: oklch(78% 0.13 80);
+    --caution-subtle: oklch(28% 0.05 80);
+    --critical: oklch(70% 0.16 25);
+    --critical-subtle: oklch(28% 0.07 25);
+    --info: oklch(73% 0.11 240);
+    --info-subtle: oklch(27% 0.05 240);
+
+    --elevation-1: 0 1px 2px oklch(0% 0 0 / 0.3), 0 1px 3px oklch(0% 0 0 / 0.2);
+    --elevation-2: 0 2px 4px oklch(0% 0 0 / 0.3), 0 4px 12px oklch(0% 0 0 / 0.28);
+    --elevation-3: 0 4px 8px oklch(0% 0 0 / 0.35), 0 12px 32px oklch(0% 0 0 / 0.4);
+  }
+}
+
+/** Explicit user override, which persists. Respects the choice over the system. */
+:root[data-theme='dark'] {
+  --surface-base: oklch(17% 0.006 265);
+  --surface-raised: oklch(21% 0.007 265);
+  --surface-overlay: oklch(24% 0.008 265);
+  --surface-sunken: oklch(14.5% 0.005 265);
+
+  --content-primary: oklch(96% 0.004 265);
+  --content-secondary: oklch(75% 0.006 265);
+  --content-tertiary: oklch(61% 0.007 265);
+  --content-inverse: oklch(17% 0.006 265);
+
+  --border-subtle: oklch(27% 0.008 265);
+  --border-default: oklch(34% 0.009 265);
+  --border-control: oklch(52% 0.009 265);
+  --border-strong: oklch(72% 0.09 250);
+
+  --accent: oklch(70% 0.12 252);
+  --accent-hover: oklch(78% 0.11 252);
+  --accent-subtle: oklch(27% 0.05 252);
+  --accent-content: oklch(17% 0.006 265);
+
+  --positive: oklch(72% 0.14 150);
+  --positive-subtle: oklch(26% 0.05 150);
+  --caution: oklch(78% 0.13 80);
+  --caution-subtle: oklch(28% 0.05 80);
+  --critical: oklch(70% 0.16 25);
+  --critical-subtle: oklch(28% 0.07 25);
+  --info: oklch(73% 0.11 240);
+  --info-subtle: oklch(27% 0.05 240);
+}
+
+/**
+ * Reduced motion collapses every transition to an opacity change at the shortest
+ * duration. Designed in, not retrofitted.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms;
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,156 @@
+/**
+ * Tailwind v4 theme wiring.
+ *
+ * Maps the semantic tokens in tokens.css onto Tailwind's @theme so that
+ * utilities are generated *from* the design system rather than alongside it.
+ * The effect is that `bg-surface-raised` exists and `bg-[#fff]` fails lint —
+ * there is no utility for a colour the system does not name.
+ *
+ * Import order matters: tokens.css must define the custom properties before
+ * @theme references them.
+ */
+
+@import 'tailwindcss';
+@import './tokens.css';
+
+@theme inline {
+  /* Colour — semantic roles only. There is deliberately no `blue-500`. */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-sunken: var(--surface-sunken);
+
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary: var(--content-tertiary);
+  --color-content-inverse: var(--content-inverse);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-control: var(--border-control);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-content: var(--accent-content);
+
+  --color-positive: var(--positive);
+  --color-positive-subtle: var(--positive-subtle);
+  --color-caution: var(--caution);
+  --color-caution-subtle: var(--caution-subtle);
+  --color-critical: var(--critical);
+  --color-critical-subtle: var(--critical-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+
+  /* Typography */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  --text-display-lg: var(--text-display-lg);
+  --text-display-lg--line-height: var(--text-display-lg-leading);
+  --text-display-lg--letter-spacing: var(--text-display-lg-tracking);
+
+  --text-display: var(--text-display);
+  --text-display--line-height: var(--text-display-leading);
+  --text-display--letter-spacing: var(--text-display-tracking);
+
+  --text-title-lg: var(--text-title-lg);
+  --text-title-lg--line-height: var(--text-title-lg-leading);
+  --text-title-lg--letter-spacing: var(--text-title-lg-tracking);
+
+  --text-title: var(--text-title);
+  --text-title--line-height: var(--text-title-leading);
+  --text-title--letter-spacing: var(--text-title-tracking);
+
+  --text-heading: var(--text-heading);
+  --text-heading--line-height: var(--text-heading-leading);
+  --text-heading--letter-spacing: var(--text-heading-tracking);
+
+  --text-body-lg: var(--text-body-lg);
+  --text-body-lg--line-height: var(--text-body-lg-leading);
+
+  --text-body: var(--text-body);
+  --text-body--line-height: var(--text-body-leading);
+
+  --text-caption: var(--text-caption);
+  --text-caption--line-height: var(--text-caption-leading);
+  --text-caption--letter-spacing: var(--text-caption-tracking);
+
+  --text-micro: var(--text-micro);
+  --text-micro--line-height: var(--text-micro-leading);
+  --text-micro--letter-spacing: var(--text-micro-tracking);
+
+  --text-numeric-lg: var(--text-numeric-lg);
+  --text-numeric-lg--line-height: var(--text-numeric-lg-leading);
+  --text-numeric: var(--text-numeric);
+  --text-numeric--line-height: var(--text-numeric-leading);
+
+  /* Spacing — the 4px scale, and nothing between its steps. */
+  --spacing-0: var(--space-0);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  --spacing-20: var(--space-20);
+  --spacing-24: var(--space-24);
+  --spacing-32: var(--space-32);
+
+  /* Radius */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  /* Elevation */
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
+
+  /* Motion */
+  --ease-out: var(--ease-out);
+  --ease-in: var(--ease-in);
+  --ease-in-out: var(--ease-in-out);
+  --ease-spring: var(--ease-spring);
+
+  /* Breakpoints — named for intent, not device. */
+  --breakpoint-regular: 48rem; /* 768 */
+  --breakpoint-wide: 80rem; /* 1280 */
+}
+
+/**
+ * Base layer.
+ *
+ * Focus is defined once, globally, rather than per component. The design system
+ * says the ring is never removed and never made subtle; defining it here means
+ * a component would have to actively fight the system to lose it.
+ */
+@layer base {
+  *:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  body {
+    background-color: var(--surface-base);
+    color: var(--content-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: var(--text-body-leading);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Money and identifiers align vertically wherever they appear. */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
