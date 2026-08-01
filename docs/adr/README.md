@@ -17,7 +17,7 @@ their second week: *"why is it like this?"*
 | [0004](./0004-nextjs-app-router.md) | Next.js App Router as the web framework | Accepted |
 | [0005](./0005-postgres-and-drizzle.md) | PostgreSQL with Drizzle ORM | Accepted |
 | [0006](./0006-self-hosted-auth.md) | Self-hosted authentication | Accepted |
-| [0007](./0007-payment-provider-port.md) | Provider-agnostic payments, Stripe Connect first | Accepted |
+| [0007](./0007-payment-provider-port.md) | Provider-agnostic payments | Accepted, first adapter amended by [0016](./0016-razorpay-first-adapter.md) |
 | [0008](./0008-double-entry-ledger.md) | Double-entry ledger as the financial source of truth | Accepted |
 | [0009](./0009-postgres-queue-and-outbox.md) | Postgres-backed jobs with a transactional outbox | Accepted |
 | [0010](./0010-ai-gateway.md) | AI as a platform module, not a feature | Accepted |
@@ -26,6 +26,7 @@ their second week: *"why is it like this?"*
 | [0013](./0013-monorepo.md) | pnpm workspaces with Turborepo | Accepted |
 | [0014](./0014-hosting.md) | Managed hosting with a portability constraint | Accepted |
 | [0015](./0015-local-postgres.md) | Postgres in Docker Compose locally, Testcontainers in tests | Accepted |
+| [0016](./0016-razorpay-first-adapter.md) | Razorpay is the first payment adapter, and the entity is Indian | Accepted |
 
 ## Format
 
