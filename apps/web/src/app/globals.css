@@ -1,0 +1,11 @@
+/**
+ * Application stylesheet.
+ *
+ * Everything visual comes from the design system. This file exists to import it
+ * and should stay close to empty — a rule added here is a rule that lives outside
+ * the token system, which is how a design system stops being the source of truth.
+ */
+@import '@creatorhub/ui/styles.css';
+
+@source "../../src";
+@source "../../../../packages/ui/src";
