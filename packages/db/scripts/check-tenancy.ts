@@ -14,6 +14,7 @@
 import postgres from 'postgres'
 
 import { runMigrations } from '../src/migrate.js'
+import { AUTH_TABLES_WITHOUT_WORKSPACE } from '../src/schema/auth.js'
 import { NON_TENANT_TABLES } from '../src/schema/identity.js'
 import {
   findTenancyViolations,
@@ -47,7 +48,11 @@ async function main(): Promise<void> {
     // shape the check uses is what keeps tenancy-check.ts free of a driver
     // dependency, so it stays unit-testable against a fake.
     const violations = await findTenancyViolations(sql as unknown as CatalogueReader, {
-      exempt: { ...NON_TENANT_TABLES, ...NULLABLE_WORKSPACE_ALLOWED },
+      exempt: {
+        ...NON_TENANT_TABLES,
+        ...AUTH_TABLES_WITHOUT_WORKSPACE,
+        ...NULLABLE_WORKSPACE_ALLOWED,
+      },
     })
 
     process.stdout.write(`${formatViolations(violations)}\n`)

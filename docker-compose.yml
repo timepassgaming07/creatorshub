@@ -17,9 +17,12 @@ services:
       # application never connects as this role; see the init script for why.
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
-      # Passed through to the init script, which creates the two application
-      # roles. Defaults are local-only and are not secrets.
+      # Passed through to the init script, which creates the three application
+      # roles: migrator owns the schema, app serves requests under RLS, and auth
+      # serves the pre-tenant sign-in path (ADR-0017). Defaults are local-only
+      # and are not secrets.
       CREATORHUB_APP_PASSWORD: ${CREATORHUB_APP_PASSWORD:-creatorhub_local}
+      CREATORHUB_AUTH_PASSWORD: ${CREATORHUB_AUTH_PASSWORD:-creatorhub_local}
       CREATORHUB_MIGRATOR_PASSWORD: ${CREATORHUB_MIGRATOR_PASSWORD:-creatorhub_local}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'

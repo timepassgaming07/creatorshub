@@ -47,6 +47,16 @@ export type TestDatabase = {
   readonly migrationUrl: string
 
   /**
+   * Connects as `creatorhub_auth`. Reaches the authentication tables and no
+   * business table (ADR-0017).
+   *
+   * Separate from `databaseUrl` so a test can prove the separation in both
+   * directions: that authentication cannot read tenant data, and that the
+   * application cannot read credentials.
+   */
+  readonly authUrl: string
+
+  /**
    * Connects as the superuser.
    *
    * Exists so a test can prove RLS is doing real work: a superuser bypasses
@@ -86,6 +96,7 @@ export async function startTestDatabase(): Promise<TestDatabase> {
     .withPassword(SUPERUSER_PASSWORD)
     .withEnvironment({
       CREATORHUB_APP_PASSWORD: ROLE_PASSWORD,
+      CREATORHUB_AUTH_PASSWORD: ROLE_PASSWORD,
       CREATORHUB_MIGRATOR_PASSWORD: ROLE_PASSWORD,
     })
     .withCopyFilesToContainer([
@@ -103,6 +114,7 @@ export async function startTestDatabase(): Promise<TestDatabase> {
   return {
     databaseUrl: connectionUrl(container, 'creatorhub_app', ROLE_PASSWORD),
     migrationUrl: connectionUrl(container, 'creatorhub_migrator', ROLE_PASSWORD),
+    authUrl: connectionUrl(container, 'creatorhub_auth', ROLE_PASSWORD),
     superuserUrl: connectionUrl(container, SUPERUSER, SUPERUSER_PASSWORD),
     stop: async () => {
       await container.stop()

@@ -17,6 +17,7 @@ psql -v ON_ERROR_STOP=1 \
   --dbname "$POSTGRES_DB" \
   --set db_name="$POSTGRES_DB" \
   --set app_password="$CREATORHUB_APP_PASSWORD" \
+  --set auth_password="$CREATORHUB_AUTH_PASSWORD" \
   --set migrator_password="$CREATORHUB_MIGRATOR_PASSWORD" <<'SQL'
 
 -- creatorhub_migrator owns the schema and runs migrations.
@@ -24,9 +25,18 @@ psql -v ON_ERROR_STOP=1 \
 -- The split is what makes ADR-0012's second isolation layer testable: a
 -- superuser ignores RLS policies silently, so a suite connecting as one would
 -- pass whether the policies were correct, broken, or absent.
+--
+-- creatorhub_auth is the third role, for authentication only (ADR-0017).
+-- Authentication is pre-tenant: sign-in has an email and nothing else, so it
+-- must read a user row before any workspace is known, which the RLS policies
+-- from item 1.3 correctly forbid. Rather than widening creatorhub_app, which
+-- every repository uses, the auth path gets its own role with grants on the
+-- authentication tables and no privilege on any business table. The migration
+-- that creates those tables issues the grants.
 
 CREATE ROLE creatorhub_migrator WITH LOGIN PASSWORD :'migrator_password';
 CREATE ROLE creatorhub_app WITH LOGIN PASSWORD :'app_password' NOBYPASSRLS;
+CREATE ROLE creatorhub_auth WITH LOGIN PASSWORD :'auth_password' NOBYPASSRLS;
 
 -- Postgres 15 and later do not grant CREATE on public to anyone by default.
 -- Ownership is what gives the migrator its DDL privilege.
@@ -43,6 +53,7 @@ ALTER SCHEMA public OWNER TO creatorhub_migrator;
 GRANT CREATE ON DATABASE :"db_name" TO creatorhub_migrator;
 
 GRANT USAGE ON SCHEMA public TO creatorhub_app;
+GRANT USAGE ON SCHEMA public TO creatorhub_auth;
 
 -- Every table the migrator creates from here on grants data-plane access to the
 -- application role automatically. Without this, each migration would have to
@@ -50,7 +61,14 @@ GRANT USAGE ON SCHEMA public TO creatorhub_app;
 --
 -- Grants are not the tenancy control and are not treated as one. RLS is
 -- (ADR-0012). Where a table needs less than this, the migration revokes
--- explicitly, which is how ledger_entries loses UPDATE and DELETE (ADR-0008).
+-- explicitly, which is how ledger_entries loses UPDATE and DELETE (ADR-0008),
+-- and how the authentication tables are kept away from the application role
+-- (ADR-0017).
+--
+-- Deliberately no default privileges for creatorhub_auth. It is granted table by
+-- table in the migration that creates the authentication tables, so a business
+-- table added in a later slice is unreachable by the auth role by default rather
+-- than by remembering to revoke.
 ALTER DEFAULT PRIVILEGES FOR ROLE creatorhub_migrator IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO creatorhub_app;
 
