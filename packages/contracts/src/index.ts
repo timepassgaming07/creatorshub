@@ -38,3 +38,19 @@ export {
 } from './money.js'
 
 export type { BasisPoints, CurrencyCode, Money, MoneyWire } from './money.js'
+
+export {
+  InvalidIdentifierError,
+  requestId,
+  requestIdSchema,
+  userId,
+  userIdSchema,
+  workspaceId,
+  workspaceIdSchema,
+} from './identifiers.js'
+
+export type { RequestId, UserId, WorkspaceId } from './identifiers.js'
+
+export { withWorkspaceId, workspaceContext } from './workspace-context.js'
+
+export type { WorkspaceContext } from './workspace-context.js'

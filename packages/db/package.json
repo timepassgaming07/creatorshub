@@ -19,14 +19,20 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@creatorhub/contracts": "workspace:*"
+    "@creatorhub/contracts": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.9",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@creatorhub/config": "workspace:*",
+    "@testcontainers/postgresql": "12.0.4",
     "@types/node": "24.13.3",
+    "drizzle-kit": "0.31.10",
     "eslint": "9.39.5",
     "typescript": "6.0.3",
     "vitest": "4.1.10"

@@ -10,10 +10,20 @@
  * independently underneath. Two layers, deliberately redundant, because a leak
  * then requires two failures at once.
  *
- * Contents arrive in slice 1 (users, workspaces, members, audit log, RLS,
- * the repository base) and grow per the implementation plan. This file is
- * intentionally near-empty until then rather than pre-built against a schema
- * that does not exist.
+ * What is deliberately absent from this file is the point of it. There is no
+ * export of the `postgres` client, the Drizzle instance, or any function that
+ * returns either. The `exports` map in package.json makes deep imports
+ * unresolvable, so the omission cannot be worked around from outside.
+ * `index.test.ts` fails if a driver handle ever appears here.
+ *
+ * The test harness is not exported either. It starts containers, and nothing in
+ * a production bundle should be able to reach it.
  */
+export { DatabaseConfigError, loadDatabaseConfig } from './config.js'
+export type { DatabaseConfig } from './config.js'
 
-export {}
+export { createDatabase } from './client.js'
+export type { Database, TenantTransaction } from './client.js'
+
+export { MigrationError, runMigrations } from './migrate.js'
+export type { MigrationResult } from './migrate.js'

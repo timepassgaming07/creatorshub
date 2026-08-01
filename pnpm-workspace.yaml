@@ -10,5 +10,17 @@ allowBuilds:
   # Next.js image optimisation. Fetches a prebuilt libvips binary.
   sharp: true
 
+  # The three below arrive under Testcontainers, which is a dev dependency used
+  # only by integration tests. All three are optional native builds and the test
+  # path works without them: ssh2 falls back to JavaScript crypto, cpu-features
+  # only picks a faster implementation when it is present, and protobufjs ships
+  # the code its build step would generate. Compiling native code on every
+  # machine and every CI run, for a library that talks to a local Docker socket,
+  # is cost without benefit. Explicitly false rather than absent, because pnpm
+  # fails the install until each one is decided.
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
+
 minimumReleaseAgeExclude:
   - jsdom@30.0.1
