@@ -50,6 +50,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # A package can build cleanly and still be unresolvable, if its manifest
+      # advertises an entry point the build did not emit there. That happened
+      # once: a widened rootDir moved every file down one directory while
+      # typecheck, lint, test, and build all stayed green.
+      - name: Verify advertised exports exist
+        run: pnpm check:exports
+
   browser:
     name: End-to-end and accessibility
     runs-on: ubuntu-latest

@@ -1,4 +1,16 @@
 {
   "extends": "./tsconfig.json",
+  // rootDir is narrowed back to ./src, overriding the package root that
+  // tsconfig.json sets so `scripts` can be typechecked. Without this override
+  // the common root of src and scripts is the package directory, so tsc emits
+  // dist/src/index.js while package.json advertises dist/index.js, and the
+  // package becomes unresolvable the moment anything imports it.
+  //
+  // `include` is restated because tsconfig.json widens it to cover scripts, and
+  // scripts are development tooling that must not ship in dist.
+  "compilerOptions": {
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/__tests__/**"]
 }
