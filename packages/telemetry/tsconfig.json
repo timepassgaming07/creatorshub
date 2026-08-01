@@ -1,0 +1,12 @@
+{
+  "extends": "@creatorhub/config/tsconfig/library.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // Telemetry runs server-side and uses Node globals. The domain package
+    // deliberately does not get these; see packages/config/eslint/domain.js.
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
