@@ -17,6 +17,10 @@
     "test:unit": "turbo run test:unit",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d --wait",
+    "db:psql": "docker compose exec postgres psql -U creatorhub_app -d creatorhub",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "turbo run typecheck lint test && pnpm format:check"

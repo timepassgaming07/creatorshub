@@ -25,6 +25,7 @@ their second week: *"why is it like this?"*
 | [0012](./0012-multi-tenancy.md) | Two-layer tenant isolation | Accepted |
 | [0013](./0013-monorepo.md) | pnpm workspaces with Turborepo | Accepted |
 | [0014](./0014-hosting.md) | Managed hosting with a portability constraint | Accepted |
+| [0015](./0015-local-postgres.md) | Postgres in Docker Compose locally, Testcontainers in tests | Accepted |
 
 ## Format
 

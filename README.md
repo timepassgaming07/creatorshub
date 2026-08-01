@@ -139,8 +139,40 @@ pnpm test:e2e                   # builds the app, then runs e2e + axe
 | `pnpm test:e2e` | Playwright, including the axe accessibility specs |
 | `pnpm format` | Rewrites formatting |
 
-No environment variables are required yet. Slice 1 introduces the database and auth configuration,
-and this section gains a `.env.example`.
+### The database
+
+Postgres runs in Docker for local development. Integration tests start their own container, so they
+never touch the database you develop against. Both use the same pinned image, and a test fails if
+those two versions ever disagree. Reasoning in
+[ADR-0015](./docs/adr/0015-local-postgres.md).
+
+Requires a running Docker daemon.
+
+```bash
+cp .env.example .env
+pnpm db:up                      # starts Postgres, waits until it is healthy
+```
+
+| Command | What it does |
+|---|---|
+| `pnpm db:up` | Starts Postgres and waits for the healthcheck |
+| `pnpm db:down` | Stops it, keeping the data |
+| `pnpm db:reset` | Drops the volume and starts clean. Re-runs the role setup |
+| `pnpm db:psql` | Opens `psql` as the application role |
+
+`pnpm test:integration` is wired in Turbo but no package implements it yet. The harness arrives with
+the first integration test, in slice 1 item 1.1. A script that runs nothing would report green and
+prove nothing.
+
+**There are two connection strings, and the difference matters.** `DATABASE_URL` is the application
+role, which cannot bypass row-level security. `DATABASE_MIGRATION_URL` is the migration role, which
+owns the schema. Pointing the application at a superuser would make every RLS policy silently
+inert and every tenant isolation test pass for the wrong reason, so the split is enforced by the
+container's role setup rather than left to convention. See
+[ADR-0012](./docs/adr/0012-multi-tenancy.md).
+
+Editing `docker/postgres/init/` has no effect on an existing volume. Those scripts run once, when
+the data directory is first created. Run `pnpm db:reset` to apply changes.
 
 ---
 

@@ -107,27 +107,25 @@ Not started. It is the first item of slice 1 and everything else in the slice de
 [ADR-0012](./docs/adr/0012-multi-tenancy.md) before writing any of it — the connection layer is
 where the tenant session variable is set, and getting that wrong makes RLS decorative.
 
-**One blocker remains.** Slice 0 is committed, so the risk of losing it to a stray git command is
-gone. How Postgres runs locally is step 2 of [Next Immediate Actions](#next-immediate-actions) and
-is still open. Do not start 1.1 until it is closed; `packages/db` has migrations that need a
-database to run against.
+**Both blockers are closed.** Slice 0 is committed, and how Postgres runs locally is settled and
+verified in [ADR-0015](./docs/adr/0015-local-postgres.md). `pnpm db:up` gives a working database
+with the two roles the RLS work depends on. 1.1 can start.
 
 ---
 
 # Next Immediate Actions
 
-Execute in this order. Step 1 is done. Step 2 is the remaining blocker before `packages/db`.
+Execute in this order. Steps 1 and 2 are done. Step 3 is reading, so the next thing to build is 1.1.
 
 1. **Get slice 0 into git history. Done.** Eight commits on `chore/slice-0-foundation`, branched
    from an empty root commit on `main`, with `pnpm verify` confirmed green beforehand. Not pushed;
    no remote exists. Detail and the reason for the empty root commit are in
    [Repository changes](#repository-changes).
 
-2. **Decide and record how Postgres runs locally.** The first genuinely open decision of slice 1,
-   and it is in no ADR. Docker Compose is the default answer. Whatever is chosen must also be what
-   integration tests run against, and it needs a `.env.example` entry, a README entry, and an ADR —
-   it is a toolchain decision every contributor inherits. Read
-   `docs/adr/0005-postgres-and-drizzle.md` before deciding.
+2. **Decide and record how Postgres runs locally. Done.** Compose for development, Testcontainers
+   for integration tests, one pinned image shared by both, and two database roles so RLS applies to
+   the application. Recorded in [ADR-0015](./docs/adr/0015-local-postgres.md), which includes the
+   verification table rather than an assertion that it works.
 
 3. **Read the other two files that constrain this work**: `docs/adr/0012-multi-tenancy.md` and
    `docs/architecture/data-model.md`. The schema for slice 1 is already specified there; do not
@@ -232,6 +230,21 @@ package type-aware linting of its `vitest.config.ts`.
 
 The side effect is worth noting: `next.config.ts` is now genuinely type-aware linted, and
 immediately surfaced a real `require-await` finding.
+
+### Two Postgres roles, not one
+
+The decision inside ADR-0015 with the longest reach. `creatorhub_app` connects the application and
+every integration test; `creatorhub_migrator` owns the schema and runs migrations.
+
+A superuser ignores RLS policies silently. Had the application connected as one, the slice 1 exit
+condition — application scoping disabled, still zero rows — would pass whether the policies were
+correct, broken, or entirely absent, and the second isolation layer would be decorative while
+looking finished. Verified empirically before anything was built on it: the app role sees zero rows
+with no tenant context and one row with the correct one, while a superuser sees every row on the
+same table.
+
+The split also gives ADR-0008 its mechanism. `UPDATE` and `DELETE` on `ledger_entries` can be
+revoked at the role level precisely because the application does not own its own tables.
 
 ### CSP deliberately absent until slice 1
 
@@ -359,11 +372,11 @@ Changes made in the final stretch of this session, listed because they are recen
 | 2 | Typeface families unresolved | Tokens use `ui-serif` / `ui-sans-serif` stacks pending brand lock | Whenever open item 4 resolves. One-token change by design |
 | 3 | Colour values are a working foundation | Verified against WCAG, not chosen by a brand process | Brand lock. The contrast test protects the change |
 | 4 | `packages/db` is an empty skeleton | Its shape follows the schema, which slice 1 defines | Slice 1, item 1.1 |
-| 5 | No integration test infrastructure | `integrationConfig` exists in `packages/config`; nothing runs against a real Postgres | Slice 1, alongside the database decision |
+| 5 | No integration test harness | `integrationConfig` and the pinned image exist; no package implements `test:integration` and CI has no job for it | Slice 1, item 1.1, with the first integration test |
 | 6 | CI has no Turborepo remote cache | Every job re-runs identical work. Fine at this size, wasteful later | When CI time becomes annoying, not before |
 | 7 | Playwright runs Chromium only | Both projects are Chromium-based. No Firefox or WebKit coverage | Before a public storefront ships (slice 4) |
 | 8 | `test:a11y` script has no CI job of its own | Its specs run inside `test:e2e`; a separate job would rebuild the app to re-run a subset | Only if a distinct PR status check is wanted |
-| 9 | No `.env.example` | Nothing needs configuration yet | Slice 1 |
+| 9 | ~~No `.env.example`~~ | Paid. Added with the database decision, ADR-0015 | Done |
 | 10 | Lighthouse CI not wired up | The performance budget exists in the docs; nothing enforces it | Slice 4, when there is a page worth measuring |
 
 ---
@@ -383,9 +396,10 @@ Full list in [`docs/product/milestone-1.md`](./docs/product/milestone-1.md#7-ope
 
 ### Raised this session
 
-**Local Postgres has no decision.** Nothing records how the database runs locally or in integration
-tests. This is the first thing slice 1 needs and should be settled and written down before item 1.1,
-not discovered during it.
+**Port 5432 may already be taken.** On this machine an unrelated project's container holds it, so
+the compose file takes `POSTGRES_PORT` and the working `.env` uses 5433. Anyone hitting "port is
+already allocated" changes that one variable and both connection strings.
+
 
 **Nothing is pushed.** Slice 0 is committed locally, but there is no git remote, so a lost machine
 still loses it. Adding a remote and pushing is outward-facing and takes its own go-ahead.
@@ -417,19 +431,17 @@ That is correct behaviour, but when investigating something that "should not sti
 
 # Recommendations
 
-**Settle the local Postgres story before writing any of `packages/db`.** Docker Compose is the
-obvious default. What matters is that the same thing serves local development and integration tests,
-and that it is written down. Discovering the decision halfway through item 1.1 means rewriting the
-connection layer.
+**Write the connection layer against the two roles from the start.** `DATABASE_URL` is
+`creatorhub_app` and `DATABASE_MIGRATION_URL` is `creatorhub_migrator`, and the migration runner is
+the only thing that may touch the second. Collapsing them to one connection would work for about a
+week and then make the slice 1 exit condition unprovable.
 
 **Write the RLS bypass test first.** Slice 1's third exit condition — application scoping disabled,
 still zero rows — is the only one that proves the two layers are independent. Write it against the
 policies as they are built, not after the slice looks finished.
 
-**Ask about the first commit early.** Slice 0 is a natural boundary and a large one. Suggested
-shape: `chore: monorepo toolchain and CI`, `feat(contracts): money primitives`,
-`feat(ui): design tokens and money components`, `feat(web): app shell`, `docs: operating manual and
-implementation plan`. Branch first; `CLAUDE.md` forbids committing to `main`.
+**Push, or accept that a lost machine loses everything.** Slice 0 is committed but there is no
+remote. That halves the original risk and leaves the other half in place.
 
 **Extend the token contrast test as tokens gain roles.** It currently covers text foregrounds and
 control borders against three surfaces. When slice 1 adds Button and Toast, `--accent-content` on
@@ -478,32 +490,30 @@ rather than reimplementing what they already do. Check for project-local skills 
 22/22 green. Run `git status` and confirm the working tree still matches what `STATE.md` describes.
 If it does not, reconcile the difference before writing anything, and say what changed.
 
-**Then close the two blockers, in this order, before writing any slice 1 code.** Both are named in
-`STATE.md` and both need a decision from me, so bring each one to me with a recommendation rather
-than a question:
+**Both former blockers are closed.** Slice 0 is committed on `chore/slice-0-foundation`, and the
+local Postgres decision is recorded and verified in `docs/adr/0015-local-postgres.md`. Do not reopen
+either. Two things about them are still live and worth knowing:
 
-1. **Nothing in this repository has ever been committed.** All of slice 0 is an untracked working
-   tree on `main`. Confirm `pnpm verify` is green, then propose the branch name and the five-commit
-   split from the Recommendations section of `STATE.md`, and wait for my go-ahead before running
-   anything. `CLAUDE.md` §7 says do not commit unasked and never commit directly to `main` — so
-   branch first. Once it is committed, update `STATE.md` to stop describing the tree as uncommitted.
+1. **Nothing is pushed and no remote exists.** If you are asked to add one, that is outward-facing
+   and needs its own go-ahead. A GitHub token was leaked into a chat session and must be revoked;
+   use `gh auth login` or SSH rather than a token in a URL.
 
-2. **How Postgres runs locally has never been decided,** and slice 1 cannot start without it. Read
-   `docs/adr/0005-postgres-and-drizzle.md`, then recommend an approach — Docker Compose is the
-   obvious default — and say what it means for integration tests in CI, since the same choice has to
-   serve both. Write it up as an ADR, add the `.env.example` entry and the README section, and only
-   then move on.
+2. **Start the database with `pnpm db:up`,** after `cp .env.example .env`. If port 5432 is taken,
+   change `POSTGRES_PORT` and both connection strings. The application connects as `creatorhub_app`,
+   which cannot bypass RLS; migrations connect as `creatorhub_migrator`. Never point the application
+   at a superuser, because RLS is silently ignored for superusers and every isolation test would
+   pass for the wrong reason.
 
-**Then continue from the Active Task in `STATE.md`,** following the Next Immediate Actions in order.
-Do not redo completed work. The completed-tasks checklist in `STATE.md` is accurate; trust it.
+**Continue from the Active Task in `STATE.md`,** following the Next Immediate Actions in order. That
+is work item 1.1, `packages/db`. Do not redo completed work. The completed-tasks checklist in
+`STATE.md` is accurate; trust it.
 
 **Constraints that are not negotiable:**
 
 - Preserve every architectural decision already recorded. If you believe one is wrong, say so and
   write an ADR recording the tension — do not silently reverse it.
 - `pnpm verify` must be green before anything is offered for review.
-- Do not commit or push unless asked. Prepare the change and say it is ready. Nothing in this
-  repository has been committed yet; raise that with the user early rather than acting on it.
+- Do not commit or push unless asked. Prepare the change and say it is ready.
 - Money is `bigint` minor units with a currency attached. `number` for money fails lint.
 - Tenancy is enforced twice, in repositories and in Postgres RLS, and the two must be provably
   independent.
@@ -524,5 +534,5 @@ reverse: schema, money, tenancy, provider, or public API.
 
 Keep `STATE.md` current as you go. The repository, not the conversation, is the source of truth.
 
-Start by reading the files above. Then tell me what you found, and come straight to the two blockers
-with your recommendations for each.
+Start by reading the files above. Then tell me what you found, and start on item 1.1. Bring me a
+recommendation rather than a question wherever a choice is expensive to reverse.

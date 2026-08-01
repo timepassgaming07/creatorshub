@@ -1,0 +1,47 @@
+# Local development database. See docs/adr/0015-local-postgres.md.
+#
+# This file is for development only. Integration tests use Testcontainers and do
+# not touch this database, so `pnpm db:reset` is always safe.
+#
+# The image tag is pinned and must match POSTGRES_IMAGE in
+# packages/db/src/testing/postgres-image.ts. Postgres 18 for native uuidv7().
+
+services:
+  postgres:
+    image: postgres:18.4-bookworm
+    container_name: creatorhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-creatorhub}
+      # The superuser exists to run the init scripts and for administration. The
+      # application never connects as this role; see the init script for why.
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
+      # Passed through to the init script, which creates the two application
+      # roles. Defaults are local-only and are not secrets.
+      CREATORHUB_APP_PASSWORD: ${CREATORHUB_APP_PASSWORD:-creatorhub_local}
+      CREATORHUB_MIGRATOR_PASSWORD: ${CREATORHUB_MIGRATOR_PASSWORD:-creatorhub_local}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      # Postgres 18 changed this. The mount goes at /var/lib/postgresql, not
+      # /var/lib/postgresql/data, so the image can use major-version-specific
+      # subdirectories and pg_upgrade --link can work across a mount boundary.
+      # Mounting the old path on 18 fails the healthcheck with a data-directory
+      # error that does not name the mount as the cause.
+      - creatorhub-pgdata:/var/lib/postgresql
+      # Runs once, on an empty data directory. Editing these files after the
+      # volume exists has no effect until `pnpm db:reset`.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Without this, `docker compose up -d` returns while Postgres is still
+      # starting and the first migration fails with a connection error.
+      test:
+        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d ${POSTGRES_DB:-creatorhub}']
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+volumes:
+  creatorhub-pgdata:
