@@ -100,18 +100,18 @@ here is unrecoverable, which is why it precedes everything except the toolchain.
 
 | # | Work item |
 |---|---|
-| 1.1 | `packages/db` — Drizzle setup, migration runner, connection management |
-| 1.2 | Schema: `users`, `workspaces`, `workspace_members`, `audit_logs` |
-| 1.3 | RLS policies on every tenant table, plus the session-setting mechanism |
-| 1.4 | Tenant-scoped repository base — the only way feature code reaches the database |
-| 1.5 | CI check: every tenant table has `workspace_id` and an RLS policy, or the build fails |
+| 1.1 | **Done.** `packages/db` — Drizzle setup, migration runner, connection management |
+| 1.2 | **Done.** Schema: `users`, `workspaces`, `workspace_members`, `audit_logs` |
+| 1.3 | **Done.** RLS policies on every tenant table, plus the session-setting mechanism |
+| 1.4 | **Done.** Tenant-scoped repository base — the only way feature code reaches the database |
+| 1.5 | **Done.** CI check: every tenant table has `workspace_id` and an RLS policy, or the build fails |
 | 1.6 | Better Auth integration: email/password with Argon2id, sessions, verification |
 | 1.7 | Passkey (WebAuthn) registration and sign-in |
 | 1.8 | Authorisation policy module — roles and permissions in one place |
 | 1.9 | Rate limiting on all authentication endpoints |
 | 1.10 | Audit log writer, plus the append-only constraint |
 | 1.11 | Sign-up, sign-in, workspace creation, and member invitation screens |
-| 1.12 | Tenant isolation test suite with the registry completeness check |
+| 1.12 | **Done.** Tenant isolation test suite with the registry completeness check |
 | 1.13 | Core UI primitives — Button, Input, Select, Dialog, Toast, Skeleton (moved from 0.8) |
 | 1.14 | Content Security Policy — nonce-based, generated per request in middleware (deferred from 0.9) |
 
@@ -215,8 +215,10 @@ cover. It needs its own isolation tests, not an assumption that slice 1 handled 
 
 **Goal.** Real money arrives. This is the join point where slices 1 through 4 are exercised together.
 
-**Blocked by open item 1** — the operating entity's country determines provider eligibility and
-cross-border payout rules. Everything up to 5.7 can proceed with test credentials; 5.8 cannot.
+**Unblocked, 2026-08-01.** The entity is Indian and the first adapter is Razorpay, recorded in
+[ADR-0016](../adr/0016-razorpay-first-adapter.md). Currency is INR, tax is GST, and the platform fee
+is configurable with a 5% default. Cross-border selling stays out of M1: an Indian entity taking
+foreign payments has RBI reporting obligations that are their own slice.
 
 | # | Work item |
 |---|---|
@@ -227,7 +229,7 @@ cross-border payout rules. Everything up to 5.7 can proceed with test credential
 | 5.5 | Tax calculation and the `tax_payable` ledger posting |
 | 5.6 | Checkout session creation and the hosted redirect |
 | 5.7 | Schema: `webhook_events`; signature verification and exactly-once processing |
-| 5.8 | Stripe Connect adapter, including split settlement |
+| 5.8 | Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016) |
 | 5.9 | Payment success writes the balanced ledger transaction in one commit |
 | 5.10 | Schema and flows for `refunds` and `disputes` |
 | 5.11 | Checkout UI, including the failure and retry paths |
@@ -430,8 +432,9 @@ the two whose absence cannot be repaired later.
 
 Recorded so that revision reads as a decision rather than drift:
 
-- **Open item 1 resolves against Stripe Connect.** Slice 5 gains an adapter-selection work item; the
-  port and everything above it are unaffected. That is the point of ADR-0007.
+- **~~Open item 1 resolves against Stripe Connect.~~** Resolved. The entity is Indian and the first
+  adapter is Razorpay ([ADR-0016](../adr/0016-razorpay-first-adapter.md)). The port and everything
+  above it were unaffected, which is what ADR-0007 was for.
 - **A second currency is needed in M1.** Slice 3's pricing model and the ledger account structure
   both change. Cheaper now than after slice 9.
 - **Payout gates cannot be met.** Slice 11 moves to M2, and M1 ships with accrued balances only. The

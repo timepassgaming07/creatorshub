@@ -2,8 +2,7 @@
 
 **Last updated:** 2026-08-01
 **Branch:** `chore/slice-0-foundation`
-**Committed:** slice 0 is in history as eight commits, branched from an empty root commit on `main`.
-Not pushed, and no remote is configured. See [Repository changes](#repository-changes).
+**Committed:** 15 commits. Not pushed, and no remote is configured.
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
 how to work here, the ADRs say why the architecture is what it is. This says where we are.
@@ -12,141 +11,130 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 is complete.** The repository builds, verifies, and tests green from one command. Slice 1
-— identity, workspace, tenancy — has not started.
+**Slice 0 complete. Slice 1 is 6 of 14 items done, and the 6 are the ones that cannot be repaired
+later.** Tenant isolation is built, enforced twice, and each layer is proved to work with the other
+one absent.
 
 | Gate | Result |
 |---|---|
-| `pnpm verify` | 22/22 turbo tasks green (typecheck, lint, test), plus `prettier --check` clean |
-| `pnpm test` | 220 unit tests across 7 files |
-| `pnpm test:e2e` | 18 Playwright tests across 2 browser projects, axe clean in light and dark |
-| `pnpm build` | 6 tasks green — 5 packages plus the Next app |
-
-Package inventory, against the eleven the architecture names:
+| `pnpm verify` | 22/22 turbo tasks green, plus `prettier --check` clean |
+| `pnpm test` | 309 unit tests across 12 files |
+| `pnpm test:integration` | 74 tests across 4 files, against real Postgres |
+| `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
+| `pnpm test:e2e` | 18 Playwright tests, axe clean in light and dark |
 
 | Package | State |
 |---|---|
-| `packages/config` | TypeScript presets, three ESLint flat configs, Vitest configs |
-| `packages/contracts` | The `Money` primitive. 45 tests, property-based |
+| `packages/config` | TypeScript presets, three ESLint flat configs, Vitest unit and integration configs |
+| `packages/contracts` | `Money`, branded identifiers, `WorkspaceContext`. 83 tests |
 | `packages/domain` | `Result<T, E>` and `DomainError`. 15 tests. Import boundaries enforced |
 | `packages/telemetry` | Log redaction. 35 tests |
-| `packages/ui` | Design tokens, Tailwind v4 wiring, `MoneyDisplay`, `MoneyInput`, contrast harness. 125 tests |
-| `packages/db` | Skeleton. Shape follows the slice 1 schema |
+| `packages/ui` | Design tokens, Tailwind v4, `MoneyDisplay`, `MoneyInput`, contrast harness. 125 tests |
+| `packages/db` | Connection layer, schema, RLS, repository base, isolation suite, tenancy check. 51 unit tests plus 74 integration |
 | `apps/web` | Next 16 App Router shell, health route, security headers, Playwright + axe |
-| `payments`, `storage`, `email`, `ai`, `jobs` | Deliberately not created — see [Architectural decisions](#architectural-decisions) |
+| `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
 
-Nothing touches a database, an auth provider, or a payment provider yet. There is no money path in
-the running sense — only the primitives every money path will be built from.
+No auth yet, no screens, no money path. The database is real and the tenancy model underneath it is
+finished.
 
 ---
 
 # Session Summary
 
-The session picked up mid-slice-0 with the tooling and packages already standing, and closed the
-slice. What actually happened, in order:
+Closed both former blockers, then built the tenancy foundation: slice 1 items 1.1, 1.2, 1.3, 1.4,
+1.5, and 1.12. Six commits, each one work item, each verified green before the next started.
 
-1. **Authored `CLAUDE.md`.** The repository had a manifesto, ADRs, and standards docs but no
-   operating manual — nothing that told an arriving agent which document wins when two disagree.
-   `CLAUDE.md` now carries the authority order, the four standing rules, the package map, the eight
-   invariants, the skill routing table, and the escalation procedure.
+1. **Committed slice 0.** Nothing had ever been committed. Eight commits on a branch off an empty
+   root commit on `main`, because `main` had no commits and `CLAUDE.md` §7 forbids committing to it.
 
-2. **Authored `docs/product/implementation-plan.md`.** The milestone scope said what M1 is; the plan
-   says how each of the twelve slices gets built. Work items sized as one PR each, exit conditions
-   stated as observable facts rather than adjectives, plus the dependency graph and the
-   single-engineer collapse order.
+2. **Settled how Postgres runs** ([ADR-0015](./docs/adr/0015-local-postgres.md)). Compose for
+   development, Testcontainers for tests, one pinned image, and two database roles.
 
-3. **Built the money primitives.** `packages/contracts/src/money.ts` — `bigint` minor units, branded
-   `CurrencyCode`, `allocate` by largest remainder, basis points for rates. Minor-unit exponents
-   derive from `Intl` rather than a hand-maintained table.
+3. **Recorded Razorpay and India** ([ADR-0016](./docs/adr/0016-razorpay-first-adapter.md)). ADR-0007
+   named Stripe Connect; that is now amended rather than edited, per ADR-0001.
 
-4. **Built `Result<T, E>` and `DomainError`,** with `code`, `title`, `detail`, and `action` all
-   required, so the manifesto's "what happened, why, what next" is enforced by the compiler rather
-   than by review.
+4. **Built the connection layer** (1.1). `withWorkspace` sets the tenant transaction-locally. No
+   unscoped client is reachable from outside the package.
 
-5. **Built log redaction** with two independent strategies — key-fragment matching and value-pattern
-   matching for known secret shapes.
+5. **Built the schema** (1.2). Four tables, plus the constraints that make governance and audit
+   history enforceable rather than merely intended.
 
-6. **Built the design token system** in oklch, Tailwind v4 `@theme inline` wiring, `MoneyDisplay`,
-   and `MoneyInput`. Then found three real WCAG failures in the tokens and fixed them properly,
-   which is the most instructive thing in this session — see
-   [Architectural decisions](#architectural-decisions).
+6. **Built RLS** (1.3), then broke it deliberately to prove the tests detect a leak.
 
-7. **Built `apps/web`** — App Router shell, security headers, a health route that deliberately does
-   not check downstream dependencies, skip link, zoom never blocked.
+7. **Built the repository base and the isolation suite** (1.4, 1.12), then added an unregistered
+   method to prove the completeness check fails.
 
-8. **Wired the browser suites into CI** and closed slice 0.
+8. **Built the tenancy CI check** (1.5), then added an unprotected table to prove it fails.
+
+The pattern in 6, 7, and 8 is the point. A security test that has never failed is a security test
+that might not work.
 
 ---
 
 # Completed Tasks
 
-- [x] `CLAUDE.md` — repository operating manual, authority order, invariants
-- [x] `docs/product/implementation-plan.md` — all twelve slices, work items, exit conditions
-- [x] pnpm 11 workspace, Turborepo, exact-pinned toolchain, `.npmrc`, `.nvmrc`
-- [x] `packages/config` — tsconfig presets (base / library / next), ESLint flat configs (base / react / domain), Vitest configs (unit / integration)
-- [x] `packages/contracts` — `Money`, `allocate`, `percentage`, `BasisPoints` (45 tests)
-- [x] `packages/domain` — `Result<T, E>`, `DomainError` (15 tests)
-- [x] `packages/telemetry` — recursive, cycle-safe redaction (35 tests)
-- [x] `packages/db` — skeleton with enforced boundaries
-- [x] `packages/ui` — tokens, Tailwind v4 theme, `MoneyDisplay`, `MoneyInput`, `format`/`parse` (125 tests)
-- [x] Design token WCAG 2.2 AA correction across both themes, with a token-level contrast test
-- [x] `apps/web` — Next 16 App Router, root layout, health route, security headers
-- [x] Playwright config, smoke suite, axe accessibility suite (18 tests, 2 projects)
-- [x] `.github/workflows/ci.yml` — verify, browser, audit, secret-scan jobs
-- [x] Import-boundary enforcement verified by linting a deliberate violation, then deleting it
-- [x] `pnpm verify` green end to end — slice 0 exit condition met
+Slice 0, all items: see [Repository changes](#repository-changes) for the commit list.
+
+Slice 1:
+
+- [x] **1.1** `packages/db` — config validated at boot, pooled client, `withWorkspace`, migration
+      runner with an advisory lock, Testcontainers harness
+- [x] **1.2** Schema — `users`, `workspaces`, `workspace_members`, `audit_logs`, with citext,
+      UUIDv7, one-owner index, and audit history protected by `ON DELETE restrict`
+- [x] **1.3** RLS on all four tables, `ENABLE` plus `FORCE`, `USING` and `WITH CHECK`, and
+      `audit_logs` append-only at both the policy and privilege level
+- [x] **1.4** Tenant-scoped repository base, plus the first repository as the worked example
+- [x] **1.5** Tenancy CI check reading the live catalogue, wired into the integration job
+- [x] **1.12** Isolation suite with a registry and a completeness check
+- [x] Branded identifiers and `WorkspaceContext` in `packages/contracts`
+- [x] CI integration job, deferred by ADR-0015 until there was a test to run
 
 ---
 
 # Active Task
 
-**Slice 1, work item 1.1 — `packages/db`: Drizzle setup, migration runner, connection management.**
+**Slice 1 item 1.6 — Better Auth: email and password with Argon2id, sessions, verification.**
 
-Not started. It is the first item of slice 1 and everything else in the slice depends on it. Read
-[ADR-0005](./docs/adr/0005-postgres-and-drizzle.md) and
-[ADR-0012](./docs/adr/0012-multi-tenancy.md) before writing any of it — the connection layer is
-where the tenant session variable is set, and getting that wrong makes RLS decorative.
+Not started. The tenancy foundation it sits on is finished, so this is unblocked.
 
-**Both blockers are closed.** Slice 0 is committed, and how Postgres runs locally is settled and
-verified in [ADR-0015](./docs/adr/0015-local-postgres.md). `pnpm db:up` gives a working database
-with the two roles the RLS work depends on. 1.1 can start.
+Read [ADR-0006](./docs/adr/0006-self-hosted-auth.md) first. Two things about it matter more than the
+rest:
+
+**ADR-0006 never mentions Argon2id.** It says only "email/password with strong hashing".
+`docs/engineering/security.md` and the implementation plan both mandate Argon2id. The ADR is the
+higher authority under `CLAUDE.md` §1 but it is silent rather than contradictory, so there is no
+conflict: use Argon2id per the standards documents. Flagged here so it does not read as invention.
+
+**Better Auth owns its own tables** in our database: `sessions`, `accounts`, `verification_tokens`,
+`passkeys`. They are deliberately absent from `packages/db/src/schema/identity.ts`, because declaring
+a table the library also migrates produces two sources of truth for one schema. Those tables will
+appear in the tenancy check the moment they exist, and each will need either RLS and a policy or a
+declared exemption. Expect `pnpm check:tenancy` to fail on the first run after wiring the library in.
+That is the check working.
 
 ---
 
 # Next Immediate Actions
 
-Execute in this order. Steps 1 and 2 are done. Step 3 is reading, so the next thing to build is 1.1.
+1. **1.6 Better Auth.** Email and password, Argon2id, sessions, email verification. Its tables need
+   tenancy decisions, see above.
 
-1. **Get slice 0 into git history. Done.** Eight commits on `chore/slice-0-foundation`, branched
-   from an empty root commit on `main`, with `pnpm verify` confirmed green beforehand. Not pushed;
-   no remote exists. Detail and the reason for the empty root commit are in
-   [Repository changes](#repository-changes).
+2. **1.10 Audit log writer.** Append-only is already enforced in the database. This is the writer,
+   and it is a dependency of the authorisation work, so it comes before 1.8.
 
-2. **Decide and record how Postgres runs locally. Done.** Compose for development, Testcontainers
-   for integration tests, one pinned image shared by both, and two database roles so RLS applies to
-   the application. Recorded in [ADR-0015](./docs/adr/0015-local-postgres.md), which includes the
-   verification table rather than an assertion that it works.
+3. **1.8 Authorisation policy module.** Roles and permissions derived from `workspace_members.role`
+   in one place. Permissions inlined into route handlers is how tenancy leaks.
 
-3. **Read the other two files that constrain this work**: `docs/adr/0012-multi-tenancy.md` and
-   `docs/architecture/data-model.md`. The schema for slice 1 is already specified there; do not
-   redesign it.
+4. **1.7 Passkeys**, then **1.9 rate limiting** on every authentication endpoint.
 
-4. **Build 1.1 — `packages/db`.** Drizzle client, migration runner, connection management. The
-   exported client must be tenant-scoped by construction. Feature code cannot be able to obtain an
-   unscoped connection; if it can, item 1.4 is unbuildable and RLS is the only real defence.
+5. **1.13 UI primitives**, then **1.14 CSP**. Both were deferred out of slice 0; do not let them slip
+   again.
 
-5. **Build 1.2 — the schema**: `users`, `workspaces`, `workspace_members`, `audit_logs`. Every
-   tenant table carries `workspace_id`.
+6. **1.11 Screens** last, because they consume 1.13.
 
-6. **Build 1.3 — RLS policies and the session-setting mechanism**, then immediately write the test
-   from the slice 1 exit condition that disables application-layer scoping and asserts zero rows.
-   Write that test *before* trusting the policies. Two layers that fail together are one layer.
-
-7. **Build 1.5 — the CI check** that fails the build when a tenant table lacks `workspace_id` or an
-   RLS policy. It is cheap now and unenforceable later.
-
-Items 1.6 onward (auth, screens, rate limiting) follow the plan. Items 1.13 (UI primitives) and
-1.14 (CSP) are the two things deferred out of slice 0 into this slice; do not let them slip again.
+The two remaining slice 1 exit conditions are the not-found-versus-forbidden check, which needs an
+HTTP layer, and the isolation suite covering every repository, which is continuous rather than a
+milestone.
 
 ---
 
@@ -155,11 +143,11 @@ Items 1.6 onward (auth, screens, rate limiting) follow the plan. Items 1.13 (UI 
 | Slice | Goal | State |
 |---|---|---|
 | 0 | Foundation | **Complete** |
-| 1 | Identity, workspace, tenancy, audit log | **Next** |
+| 1 | Identity, workspace, tenancy, audit log | **6 of 14 items done.** Tenancy finished; auth next |
 | 2 | Ledger, outbox, idempotency | Planned |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
-| 5 | Checkout and payments | Planned, partly gated on the entity-country question |
+| 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |
 | 8 | Affiliate programme and attribution | Planned |
@@ -167,200 +155,131 @@ Items 1.6 onward (auth, screens, rate limiting) follow the plan. Items 1.13 (UI 
 | 10 | Analytics and AI surfaces | Planned |
 | 11 | Payout execution | Gated |
 
-The ordering rule that must not bend: **nothing that writes money merges before slice 2 is
-complete.** Full detail, including per-slice exit conditions, in
-[`docs/product/implementation-plan.md`](./docs/product/implementation-plan.md).
+**Nothing that writes money merges before slice 2 is complete.**
 
 ---
 
 # Architectural Decisions
 
-Decisions made or refined this session. Those with lasting architectural weight are recorded in the
-ADRs; the rest are recorded here and in code comments at the point of effect.
-
-### Build fewer packages than the architecture names
-
-Five packages — `payments`, `storage`, `email`, `ai`, `jobs` — were not created. An empty package
-with a placeholder `index.ts` is a directory, not architecture. What makes a module boundary real is
-the enforcement, and that exists: `packages/config/eslint/domain.js` already names every future
-package and every forbidden driver. Each package gets created by the slice that first needs it,
-against a real interface rather than a guess. Recorded in the implementation plan.
-
-### Build fewer UI components than the design system names
-
-Work item 0.8 (Button, Input, Select, Dialog, Toast, Skeleton) moved to slice 1. Designing a Dialog
-with no dialog to show produces an API shaped by imagination. The money primitives were the
-exception because their contract — exact minor units, never a float — is fixed regardless of which
-screen consumes them, and the design system makes them mandatory everywhere.
-
-### `--border-control` as a distinct token
-
-The most substantive design decision of the session. One `--border-default` token was serving two
-roles: decorative hairlines (card edges, table rules), which WCAG 1.4.11 explicitly exempts, and
-interactive control outlines, which must reach 3:1. At 1.44:1 it was correct for the first role and
-a violation in the second. The fix was a second token, not a compromise value. When one token is
-asked to satisfy two contrast rules, that is the shape of the answer.
-
-### Contrast is verified numerically, at the token level
-
-Three failures were found: `--content-tertiary` at 3.53:1, `--caution` at 4.25:1, and
-`--border-default` at 1.44:1. Axe caught the first and third because something rendered them. It
-structurally could not catch `--caution`, because no component uses it yet.
-
-So `packages/ui/src/tokens/contrast.ts` implements oklch → oklab → LMS → linear sRGB → WCAG
-luminance, and `contrast.test.ts` reads the real `tokens.css` and checks every foreground against
-every surface in both themes. Exhaustive rather than hand-picked, because hand-picking is how
-`--content-tertiary` passed on `--surface-base` while failing on `--surface-sunken`. The test also
-asserts the primary > secondary > tertiary hierarchy survives, so a contrast fix cannot silently
-flatten the type hierarchy.
-
-### `apps/web` unit tests run in node, not jsdom
-
-Component behaviour is tested in `packages/ui`, where the components live. What is unique to the app
-is server-side. Adding a React plugin and a DOM environment to `apps/web` would be buying a second
-DOM simulator to test compositions that Playwright already covers against a real browser.
-
-### `allowDefaultProject` is sized per package
-
-The shared ESLint base admits loose `*.ts` config files into the default project because a library
-tsconfig only includes `src/`. `apps/web` includes `**/*.ts`, so its root config files are already
-in the project service and the escape hatch becomes an error. Narrowed locally in
-`apps/web/eslint.config.js` rather than by weakening the base — which would have cost every library
-package type-aware linting of its `vitest.config.ts`.
-
-The side effect is worth noting: `next.config.ts` is now genuinely type-aware linted, and
-immediately surfaced a real `require-await` finding.
+New ADRs this session: [0015](./docs/adr/0015-local-postgres.md),
+[0016](./docs/adr/0016-razorpay-first-adapter.md). ADR-0001 forbids editing an accepted record, so
+0016 amends 0007 rather than changing it.
 
 ### Two Postgres roles, not one
 
-The decision inside ADR-0015 with the longest reach. `creatorhub_app` connects the application and
-every integration test; `creatorhub_migrator` owns the schema and runs migrations.
+The decision with the longest reach. `creatorhub_app` connects the application and every integration
+test and cannot bypass RLS. `creatorhub_migrator` owns the schema and runs migrations.
 
 A superuser ignores RLS policies silently. Had the application connected as one, the slice 1 exit
-condition — application scoping disabled, still zero rows — would pass whether the policies were
-correct, broken, or entirely absent, and the second isolation layer would be decorative while
-looking finished. Verified empirically before anything was built on it: the app role sees zero rows
-with no tenant context and one row with the correct one, while a superuser sees every row on the
-same table.
+condition would pass whether the policies were correct, broken, or absent, and the second isolation
+layer would be decorative while looking finished.
 
-The split also gives ADR-0008 its mechanism. `UPDATE` and `DELETE` on `ledger_entries` can be
-revoked at the role level precisely because the application does not own its own tables.
+The split also gives ADR-0008 its mechanism: `UPDATE` and `DELETE` can be revoked at the role level
+precisely because the application does not own its tables. `audit_logs` already uses it.
 
-### CSP deliberately absent until slice 1
+### `WorkspaceContext` is explicit, and an object
 
-A nonce-based policy with no `unsafe-inline` must be generated per request in middleware. Shipping a
-permissive policy now would be worse than shipping none, because it would look like the control
-exists. Recorded in `apps/web/next.config.ts` and now tracked as work item 1.14.
+Passed as a parameter rather than held in `AsyncLocalStorage`. Ambient context fails by leaking
+across an await boundary in a way no reviewer can see. For the one value whose misuse means a creator
+reads another creator's customer list, hard to misuse beats pleasant to use. A convenience wrapper
+may later resolve a context and call through to the same functions.
 
-### The health route does not check downstream dependencies
+An object carrying `workspaceId`, `requestId`, and an optional `actorId`, because the audit log needs
+all three and threading three parameters invites getting the order wrong. Ids are branded and
+validated as UUIDv7, so a user id cannot be passed where a workspace id belongs.
 
-A health check that fails when Postgres is briefly unreachable causes the orchestrator to kill a
-process that would have recovered. Liveness and readiness are different questions; this route
-answers liveness.
+### The tenant setting is transaction-local
 
-### Toolchain pinned below latest, with reasons
+`set_config('app.workspace_id', $1, true)`. The third argument is the whole decision. A plain `SET`
+outlives the transaction, and on a pooled connection the next borrower inherits the previous tenant's
+id: a cross-tenant read with no bug visible at any call site. The value is bound rather than
+interpolated, which is also why `set_config` is used instead of `SET LOCAL`, which cannot take a
+parameter.
 
-TypeScript 6.0.3 (not 7.0.2) because `typescript-eslint@8.65.0` declares `typescript <6.1.0`.
-ESLint 9.39.5 (not 10.8.0) because `eslint-plugin-jsx-a11y@6.10.2` supports ESLint `<=9`. Recorded
-as an amendment to [ADR-0003](./docs/adr/0003-typescript-everywhere.md) with the constraint table,
-so the next person to try upgrading knows what to check first.
+### Security tests are verified by breaking the thing they guard
 
-### `Intl.NumberFormat` is given a string, never a number
+Three times this session. The RLS policies were rewritten to `USING (true)` and 12 tests failed
+including the exit condition. An unregistered repository method was added and the completeness check
+failed with a message naming the fix. A table with no `workspace_id` was added and the tenancy check
+reported four violations and exited non-zero. Each was reverted.
 
-`formatMoney` passes the decimal string. Passing a number would reintroduce float imprecision at the
-last possible moment, after all the care taken upstream. String input is exact at any magnitude, and
-the smoke suite renders `9_007_199_254_740_993n` to prove it.
+A security test that has never failed is a security test that might not work. This is now the
+expected practice for anything guarding an invariant.
 
-### `parseMoneyInput` rejects excess precision rather than rounding
+### The tenancy check reads the catalogue, not the schema files
 
-Silently turning a typed `10.005` into £10.01 is the kind of helpfulness that produces a support
-ticket about a penny. It returns a discriminated result with `empty | malformed | too-precise`.
+A table created by hand-written SQL, and every table Better Auth creates in 1.6, never appears in
+`schema/index.ts`. A check that read TypeScript would pass while an unprotected table sat in
+production.
 
-### `DomainError` requires all four fields
+### Two tables have no `workspace_id`, on purpose
 
-`code`, `title`, `detail`, `action` are non-optional. The manifesto says a user-facing error answers
-what happened, why, and what to do next. Making the fields required moves that from a review
-checklist item to a compile error.
+`users`, because a person may belong to several workspaces, so no single one owns the row. Its policy
+derives visibility from shared membership instead. `workspaces`, because it is the tenant root and is
+identified by id rather than scoped by one. Both are declared in `NON_TENANT_TABLES` with the reason,
+so the check can tell a deliberate omission from a forgotten column.
+
+`audit_logs.workspace_id` is nullable, because platform-level actions have no workspace. Its policy
+admits only the current tenant, so platform rows are invisible to every tenant.
+
+### Carried from slice 0
+
+`--border-control` as a token distinct from `--border-default`, because WCAG exempts decorative
+hairlines but requires 3:1 for control outlines, and one token cannot satisfy both. Contrast verified
+numerically at the token level rather than only through rendered components. `apps/web` unit tests
+run in node, not jsdom. Toolchain pinned below latest with recorded reasons. `Intl.NumberFormat` is
+given a string, never a number. `parseMoneyInput` rejects excess precision rather than rounding.
+`DomainError` requires all four fields.
 
 ---
 
 # Documentation Updated
 
-Created this session:
-
-| File | What it is |
-|---|---|
-| `CLAUDE.md` | Repository operating manual. Authority order, standing rules, invariants, workflow |
-| `docs/product/implementation-plan.md` | Executable expansion of all twelve slices |
-| `STATE.md` | This file |
-
-Modified this session:
-
 | File | Change |
 |---|---|
-| `docs/adr/0003-typescript-everywhere.md` | Amendment recording the TypeScript 6 / ESLint 9 version pins and their causes |
-| `README.md` | Status table updated to slice 0 complete; real "Getting started" section with commands |
-| `CLAUDE.md` | Added §5a (tooling conventions), §5b (testing practice), §5c (accessibility and design); `STATE.md` added to the authority order |
-| `docs/product/implementation-plan.md` | Slice 0 items 0.9 and 0.10 marked done, exit condition marked met, items 1.13 and 1.14 added to slice 1 |
+| `docs/adr/0015-local-postgres.md` | New. How Postgres runs, with a verification table |
+| `docs/adr/0016-razorpay-first-adapter.md` | New. Razorpay, India, INR, GST, 5% fee. Amends 0007 |
+| `docs/adr/README.md` | Both new records indexed; 0007 points at its amendment |
+| `docs/product/implementation-plan.md` | Slice 1 items 1.1 to 1.5 and 1.12 marked done; slice 5 unblocked; 5.8 is now Razorpay |
+| `README.md` | Database section and the `db:*` scripts |
+| `.env.example` | New. Both connection strings, with the role split explained |
+| `STATE.md` | This file |
 
 Unchanged and still authoritative: `manifesto.md`, `docs/product/milestone-1.md`,
-`docs/architecture/overview.md`, `docs/architecture/data-model.md`, `docs/adr/0001`–`0014`,
-`docs/engineering/coding-standards.md`, `docs/engineering/definition-of-done.md`,
-`docs/engineering/testing.md`, `docs/engineering/security.md`, `docs/design/design-system.md`.
+`docs/architecture/*`, `docs/adr/0001`–`0014`, `docs/engineering/*`, `docs/design/design-system.md`.
 
 ---
 
 # Repository Changes
 
-**Slice 0 is committed.** Eight commits on `chore/slice-0-foundation`, 107 files. Not pushed, and no
-remote is configured, so the lost-machine risk is reduced rather than removed.
+15 commits on `chore/slice-0-foundation`. Not pushed; no remote configured.
 
 ```
-0e8115a  chore: initialise repository                                   (on main, empty)
-860c792  chore: pnpm workspace, toolchain, and CI
-f0d0f44  feat(contracts): money as bigint minor units
-41cc77c  feat(domain): Result and DomainError
-effa999  feat(telemetry): log redaction
-dc118a6  feat(db): package skeleton with enforced import boundaries
-ad8cfa1  feat(ui): design tokens and money components
+53a78c4  feat(db): CI check that a tenant table cannot ship unprotected      (1.5)
+8d56780  feat(db): tenant-scoped repository base and isolation suite         (1.4, 1.12)
+4524f6d  feat(db): row level security, the second isolation layer            (1.3)
+aee294c  feat(db): identity and tenancy schema                              (1.2)
+165dcd9  docs: record Razorpay as the first payment adapter                  (ADR-0016)
+c71d405  feat(db): tenant-scoped connection layer and migration runner       (1.1)
+0758ecf  feat(db): local Postgres via Compose, with two roles for RLS        (ADR-0015)
+c3f6703  docs: manifesto, ADRs, standards, operating manual, and plan
 34e8ad8  feat(web): app shell, health route, security headers
-         docs: manifesto, ADRs, standards, operating manual, and plan
+ad8cfa1  feat(ui): design tokens and money components
+dc118a6  feat(db): package skeleton with enforced import boundaries
+effa999  feat(telemetry): log redaction
+41cc77c  feat(domain): Result and DomainError
+f0d0f44  feat(contracts): money as bigint minor units
+860c792  chore: pnpm workspace, toolchain, and CI
+0e8115a  chore: initialise repository                                        (empty, on main)
 ```
 
 **Why `main` carries an empty root commit.** `CLAUDE.md` §7 says branch from `main` and never commit
 to it. `main` had no commits, so there was nothing to branch from and no merge target existed. One
-commit carrying no work makes `main` real and keeps the rule intact in substance. It was approved
-explicitly before being run. Every commit with content is on the branch.
+commit carrying no work makes `main` real and keeps the rule intact in substance. Approved
+explicitly before it was run.
 
-Two things a reviewer should know. Only the branch tip is verified green; intermediate commits are
-not individually runnable, because workspace packages reference each other, which is normal for an
-initial import. And the eight-commit split replaces the five-commit sketch that used to be in
-[Recommendations](#recommendations), which had no home for `domain`, `telemetry`, or `db`.
-
-The 107 files, by area:
-
-| Area | Files |
-|---|---|
-| Root config | `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `.npmrc`, `.nvmrc`, `.gitignore`, `.prettierrc.json`, `.prettierignore` |
-| CI | `.github/workflows/ci.yml` |
-| Docs | 24 files across `docs/adr`, `docs/architecture`, `docs/engineering`, `docs/design`, `docs/product`, plus `manifesto.md`, `README.md`, `CLAUDE.md`, `STATE.md` |
-| `packages/config` | 8 files — tsconfig presets, ESLint configs, Vitest configs |
-| `packages/contracts` | `money.ts` + 45 tests |
-| `packages/domain` | `result.ts` + 15 tests |
-| `packages/telemetry` | `redact.ts` + 35 tests |
-| `packages/db` | Skeleton |
-| `packages/ui` | Tokens, theme, money components, contrast harness + 125 tests |
-| `apps/web` | App shell, health route, Playwright config, 2 e2e suites |
-
-Changes made in the final stretch of this session, listed because they are recent and unreviewed:
-
-- `apps/web/vitest.config.ts` — new; one-line re-export so `passWithNoTests` applies
-- `apps/web/eslint.config.js` — narrowed `allowDefaultProject` to `*.js`, `*.mjs`
-- `apps/web/next.config.ts` — targeted `require-await` disable on `headers()` with its reason
-- `turbo.json` — added the `test:e2e` task, depending on the package's own `build`
-- `package.json` — added the `test:e2e` script
-- `.prettierignore` — added `next-env.d.ts`, which Next rewrites on every build
-- `.github/workflows/ci.yml` — added the `browser` job
+Only branch tips are verified green. Intermediate slice 0 commits are not individually runnable,
+because workspace packages reference each other, which is normal for an initial import.
 
 ---
 
@@ -368,92 +287,87 @@ Changes made in the final stretch of this session, listed because they are recen
 
 | # | Item | Why it is debt | When it should be paid |
 |---|---|---|---|
-| 1 | No Content Security Policy | The app ships security headers but no CSP. A nonce-based policy needs middleware | Slice 1, item 1.14 |
-| 2 | Typeface families unresolved | Tokens use `ui-serif` / `ui-sans-serif` stacks pending brand lock | Whenever open item 4 resolves. One-token change by design |
+| 1 | No Content Security Policy | Security headers ship but no CSP. A nonce-based policy needs middleware | Slice 1, item 1.14 |
+| 2 | Typeface families unresolved | Tokens use `ui-serif` / `ui-sans-serif` pending brand lock | Whenever open item 4 resolves. One-token change |
 | 3 | Colour values are a working foundation | Verified against WCAG, not chosen by a brand process | Brand lock. The contrast test protects the change |
-| 4 | `packages/db` is an empty skeleton | Its shape follows the schema, which slice 1 defines | Slice 1, item 1.1 |
-| 5 | No integration test harness | `integrationConfig` and the pinned image exist; no package implements `test:integration` and CI has no job for it | Slice 1, item 1.1, with the first integration test |
-| 6 | CI has no Turborepo remote cache | Every job re-runs identical work. Fine at this size, wasteful later | When CI time becomes annoying, not before |
-| 7 | Playwright runs Chromium only | Both projects are Chromium-based. No Firefox or WebKit coverage | Before a public storefront ships (slice 4) |
-| 8 | `test:a11y` script has no CI job of its own | Its specs run inside `test:e2e`; a separate job would rebuild the app to re-run a subset | Only if a distinct PR status check is wanted |
-| 9 | ~~No `.env.example`~~ | Paid. Added with the database decision, ADR-0015 | Done |
-| 10 | Lighthouse CI not wired up | The performance budget exists in the docs; nothing enforces it | Slice 4, when there is a page worth measuring |
+| 4 | ~~`packages/db` is an empty skeleton~~ | Paid. Connection layer, schema, RLS, repositories | Done |
+| 5 | ~~No integration test harness~~ | Paid. Testcontainers harness, 74 tests, CI job | Done |
+| 6 | CI has no Turborepo remote cache | Every job re-runs identical work | When CI time becomes annoying |
+| 7 | Playwright runs Chromium only | No Firefox or WebKit coverage | Before a public storefront ships (slice 4) |
+| 8 | `test:a11y` has no CI job of its own | Its specs run inside `test:e2e` | Only if a distinct status check is wanted |
+| 9 | ~~No `.env.example`~~ | Paid with ADR-0015 | Done |
+| 10 | Lighthouse CI not wired up | The performance budget exists in docs; nothing enforces it | Slice 4 |
+| 11 | Each integration test file starts its own container | Four files, four containers, about 8 seconds of startup | When it becomes a material share of CI time. A shared template database and per-test schemas is the fix |
+| 12 | `users` INSERT policy is `WITH CHECK (true)` | Sign-up creates a user before any membership exists, so it cannot require one | Revisit in 1.6 when Better Auth owns the sign-up path |
+| 13 | Only one repository exists | `workspace-members`. The isolation suite pattern is proved but thinly exercised | Continuously, as repositories arrive |
 
 ---
 
 # Risks & Open Questions
 
-### Carried from the scope contract
+### Resolved this session
 
-**Open item 1 — the operating entity's country.** Determines payment provider eligibility and
-cross-border payout rules. Blocks slice 5.8 (live credentials) and gates slice 11. Everything up to
-5.7 can proceed on test credentials. This is the open question that matters soonest.
+**Open item 1, the operating entity's country.** India. Razorpay is the first adapter, currency is
+INR, tax is GST. Recorded in ADR-0016. Slice 5 is unblocked to 5.7 on test credentials.
 
-**Open item 4 — brand lock.** Blocks nothing. The token system is built so that resolving it is a
-token swap.
+**Platform fee.** Configurable, 5% default, stored in basis points and snapshotted per order.
 
-Full list in [`docs/product/milestone-1.md`](./docs/product/milestone-1.md#7-open-items).
+**Root domain.** `creatorhub.com`, storefronts at `username.creatorhub.com`.
 
-### Raised this session
+### Still open
 
-**Port 5432 may already be taken.** On this machine an unrelated project's container holds it, so
-the compose file takes `POSTGRES_PORT` and the working `.env` uses 5433. Anyone hitting "port is
-already allocated" changes that one variable and both connection strings.
-
-
-**Nothing is pushed.** Slice 0 is committed locally, but there is no git remote, so a lost machine
-still loses it. Adding a remote and pushing is outward-facing and takes its own go-ahead.
+**Open item 4, brand lock.** Blocks nothing. The token system makes resolving it a token swap.
 
 **A GitHub personal access token was pasted into a chat session** on 2026-08-01 and must be treated
-as compromised. Revoke it. For pushing, prefer `gh auth login` or an SSH remote so no credential is
-written to `.git/config`. The `secrets` CI job scans full history, so a token that ever lands in a
-commit fails the build permanently rather than once.
+as compromised. Revoke it. It was never used, and it is in no file and no commit. For pushing, prefer
+`gh auth login` or an SSH remote so no credential lands in `.git/config`. The `secrets` CI job scans
+full history, so a token that ever lands in a commit fails the build permanently.
 
-**RLS is the risk that cannot be repaired later.** Slice 1's exit condition includes disabling
-application-layer scoping and asserting zero rows. That test must be written before the policies are
-trusted, not after. A misconfigured policy that silently permits everything looks identical to a
-correct one until it does not.
+**Nothing is pushed and no remote exists.** A lost machine loses 15 commits. Adding a remote is
+outward-facing and needs its own go-ahead.
 
-**Turborepo caching can mask a stale build.** `pnpm verify` reported `FULL TURBO` on the final run.
-That is correct behaviour, but when investigating something that "should not still be failing",
-`turbo run … --force` is the check.
+**Port 5432 may already be taken.** On this machine an unrelated container holds it, so the compose
+file takes `POSTGRES_PORT` and the working `.env` uses 5433. Anyone hitting "port is already
+allocated" changes that one variable and both connection strings.
 
-### Assumptions made, and how to overturn them
+**Better Auth's tables will fail the tenancy check on first run.** Expected, and it is the check
+working. Each table needs RLS and a policy, or a declared exemption with a reason.
+
+**Turborepo caching can mask a stale build.** `turbo run … --force` is the check when something
+"should not still be failing".
+
+### Assumptions, and how to overturn them
 
 | Assumption | Basis | If wrong |
 |---|---|---|
-| Single currency for M1 | The scope contract implies one currency per workspace | Slice 3's pricing model and the ledger account structure both change. Far cheaper now than after slice 9 |
-| Stripe Connect is the first payment adapter | ADR-0007 names it, gated on open item 1 | Slice 5 gains an adapter-selection item. The port is unaffected — that is the point of the ADR |
-| One engineer is building | No team signals | The dependency graph in the implementation plan already shows where work parallelises |
-| Node 24 and pnpm 11 are available on CI runners | `.nvmrc` and `packageManager` pin them | The `verify` job fails at setup, loudly |
+| One currency per workspace for M1 | Scope contract, now concretely INR | Slice 3 pricing and the ledger account structure both change. Far cheaper now than after slice 9 |
+| One engineer is building | No team signals | The dependency graph shows where work parallelises |
+| Node 24 and pnpm 11 on CI runners | `.nvmrc` and `packageManager` pin them | The `verify` job fails at setup, loudly |
+| Postgres 18 everywhere | ADR-0015, one shared version constant | `uuidv7()` and the drift test both need revisiting |
 
 ---
 
 # Recommendations
 
-**Write the connection layer against the two roles from the start.** `DATABASE_URL` is
-`creatorhub_app` and `DATABASE_MIGRATION_URL` is `creatorhub_migrator`, and the migration runner is
-the only thing that may touch the second. Collapsing them to one connection would work for about a
-week and then make the slice 1 exit condition unprovable.
+**Write the RLS policy for every new table in the same commit as the table.** The tenancy check
+enforces this, so the alternative is a red build. Better to write it deliberately than to be told.
 
-**Write the RLS bypass test first.** Slice 1's third exit condition — application scoping disabled,
-still zero rows — is the only one that proves the two layers are independent. Write it against the
-policies as they are built, not after the slice looks finished.
+**Keep breaking security tests before trusting them.** Three times this session a test that passed
+was only proved useful by making it fail. Do the same for the ledger balance trigger in slice 2,
+where the failure mode is money rather than data.
 
-**Push, or accept that a lost machine loses everything.** Slice 0 is committed but there is no
-remote. That halves the original risk and leaves the other half in place.
+**Do not let the isolation suite become a formality.** It currently covers one repository well. As
+repositories arrive, the registry keeps them enumerated, but the quality of `readOwn` matters: if it
+returns nothing, the corresponding `readForeign` assertion is vacuous.
 
-**Extend the token contrast test as tokens gain roles.** It currently covers text foregrounds and
-control borders against three surfaces. When slice 1 adds Button and Toast, `--accent-content` on
-`--accent` and every `*-subtle` pairing need adding. The test only protects what it enumerates.
+**Push, or accept that a lost machine loses everything.**
 
-**Keep using the invariants as a checklist, not a preamble.** The eight in `CLAUDE.md` §4 are
-specific enough to check a diff against. The two that will bite first in slice 1 are double-enforced
-tenancy and no external I/O inside a transaction.
+**Extend the token contrast test as tokens gain roles.** When 1.13 adds Button and Toast,
+`--accent-content` on `--accent` and every `*-subtle` pairing need adding. The test only protects
+what it enumerates.
 
-**Do not let slice 1 grow.** It has fourteen work items and two of them arrived by deferral from
-slice 0. Auth is the classic slice where scope creeps, because every adjacent feature feels like it
-belongs. The exit conditions are written; hold to them.
+**Do not let slice 1 grow.** Eight items remain and two arrived by deferral from slice 0. Auth is the
+classic slice where scope creeps, because every adjacent feature feels like it belongs.
 
 ---
 
@@ -464,75 +378,73 @@ Copy this verbatim into a new Claude Code session.
 ---
 
 You are the founding CTO and engineering team for **CreatorHub**, not a code generator. Pick up the
-project exactly where the previous session left it.
+project exactly where the previous session left it. The repository is at `~/creatorhub`.
 
 **First, read these in order. Do not skip any, and do not start work before finishing them.**
 
 1. `manifesto.md` — product vision. Highest authority in the repository.
-2. `CLAUDE.md` at the repository root — the operating manual. Note the authority order in §1, the
-   four standing rules in §2, the eight invariants in §4, and the local conventions in §5a–§5c.
+2. `CLAUDE.md` — the operating manual. Note the authority order in §1, the four standing rules in §2,
+   the eight invariants in §4, the local conventions in §5a–§5c, and the writing style in §8.
 3. `~/.claude/CLAUDE.md` — the global engineering rules that §2 restates.
-4. `STATE.md` — where the project actually is, what was decided and why, what is deferred, and what
-   is open.
-5. `docs/product/implementation-plan.md` — the slice you are about to work on, its work items, and
-   its exit conditions.
-6. `docs/product/milestone-1.md` — scope and the open items.
-7. The ADRs relevant to the active task. For slice 1 that is `docs/adr/0005-postgres-and-drizzle.md`
-   and `docs/adr/0012-multi-tenancy.md`; also read `docs/architecture/data-model.md`.
+4. `STATE.md` — where the project actually is.
+5. `docs/product/implementation-plan.md` — slice 1, and which items are already done.
+6. `docs/product/milestone-1.md` — scope and open items.
+7. For the active task: `docs/adr/0006-self-hosted-auth.md`,
+   `docs/engineering/security.md`, and `docs/architecture/data-model.md`. Also read
+   `docs/adr/0012-multi-tenancy.md` and `docs/adr/0015-local-postgres.md`, because the auth tables
+   have to fit the tenancy model already built.
 
-**Then discover the tooling available to you.** List `~/.claude/skills/` and read
-`~/.claude/skills/gstack/SKILL.md` for the full routing table. Read the frontmatter of the
-sub-skills rather than every body — there are 58 of them and reading them whole wastes the context
-you need for the work. `CLAUDE.md` §5 maps repository workflow stages to specific skills; use them
-rather than reimplementing what they already do. Check for project-local skills under `.claude/`.
+**Then discover the tooling.** List `~/.claude/skills/` and read `~/.claude/skills/gstack/SKILL.md`
+for the routing table. Read sub-skill frontmatter rather than every body; there are 58 and reading
+them whole wastes the context you need for the work. `CLAUDE.md` §5 maps workflow stages to skills.
 
-**Then audit the repository before changing it.** Run `pnpm install`, then `pnpm verify` and confirm
-22/22 green. Run `git status` and confirm the working tree still matches what `STATE.md` describes.
-If it does not, reconcile the difference before writing anything, and say what changed.
+**Then audit before changing anything.** `pnpm install`, then `pnpm verify` and confirm 22/22 green.
+Start the database with `pnpm db:up` after `cp .env.example .env`. Then `pnpm test:integration` for
+74 green and `pnpm check:tenancy` for a pass. Run `git status` and confirm the tree is clean and
+matches `STATE.md`. If it does not, reconcile before writing anything and say what changed.
 
-**Both former blockers are closed.** Slice 0 is committed on `chore/slice-0-foundation`, and the
-local Postgres decision is recorded and verified in `docs/adr/0015-local-postgres.md`. Do not reopen
-either. Two things about them are still live and worth knowing:
+**The tenancy foundation is done. Do not rebuild it.** Slice 1 items 1.1, 1.2, 1.3, 1.4, 1.5, and
+1.12 are complete and committed. Trust the completed-tasks checklist in `STATE.md`.
 
-1. **Nothing is pushed and no remote exists.** If you are asked to add one, that is outward-facing
-   and needs its own go-ahead. A GitHub token was leaked into a chat session and must be revoked;
-   use `gh auth login` or SSH rather than a token in a URL.
+**Continue from the Active Task in `STATE.md`,** which is item 1.6, Better Auth. Follow the Next
+Immediate Actions in order. Note that 1.10 comes before 1.8 deliberately, because the audit writer is
+a dependency of the authorisation module.
 
-2. **Start the database with `pnpm db:up`,** after `cp .env.example .env`. If port 5432 is taken,
-   change `POSTGRES_PORT` and both connection strings. The application connects as `creatorhub_app`,
-   which cannot bypass RLS; migrations connect as `creatorhub_migrator`. Never point the application
-   at a superuser, because RLS is silently ignored for superusers and every isolation test would
-   pass for the wrong reason.
-
-**Continue from the Active Task in `STATE.md`,** following the Next Immediate Actions in order. That
-is work item 1.1, `packages/db`. Do not redo completed work. The completed-tasks checklist in
-`STATE.md` is accurate; trust it.
+**Three things about 1.6 specifically.** ADR-0006 is silent on Argon2id; the standards documents
+mandate it, so use it and do not treat the silence as a conflict. Better Auth owns its own tables, so
+do not declare them in `packages/db/src/schema/identity.ts`; a table the library also migrates would
+have two sources of truth. And `pnpm check:tenancy` will fail the first time those tables exist,
+which is the check working: each one needs RLS and a policy, or an exemption with a stated reason.
 
 **Constraints that are not negotiable:**
 
 - Preserve every architectural decision already recorded. If you believe one is wrong, say so and
-  write an ADR recording the tension — do not silently reverse it.
+  write a new ADR recording the tension. ADR-0001 forbids editing an accepted record, so a changed
+  mind produces a new ADR that supersedes or amends the old one.
 - `pnpm verify` must be green before anything is offered for review.
-- Do not commit or push unless asked. Prepare the change and say it is ready.
+- Do not commit or push unless asked. There is no remote and you must not create one.
 - Money is `bigint` minor units with a currency attached. `number` for money fails lint.
-- Tenancy is enforced twice, in repositories and in Postgres RLS, and the two must be provably
-  independent.
+- Tenancy is enforced twice, in repositories and in RLS, and the two must be provably independent.
 - No external I/O inside a database transaction.
-- The domain never names a provider.
-- Follow the writing style in `CLAUDE.md` §8 for all documentation and comments: direct, concrete,
-  no em dashes, and none of the words it bans.
+- The domain never names a provider. Razorpay appears only in `packages/payments`.
+- Follow the writing style in `CLAUDE.md` §8 for all documentation and comments: direct, concrete, no
+  em dashes, and none of the words it bans.
 
 **How to work:** think before coding and state your assumptions. Write the minimum code that
-satisfies the requirement. Touch only what the task requires — a diff containing unrelated
+satisfies the requirement. Touch only what the task requires; a diff containing unrelated
 reformatting is rejected in review regardless of how correct the intended change is. Define
 verifiable success criteria before executing.
 
+**One practice from the last session worth keeping.** Every test guarding an invariant was verified
+by breaking the thing it guards: the RLS policies were opened to `USING (true)`, an unregistered
+repository method was added, an unprotected table was added. Each time the tests failed, then the
+sabotage was reverted. A security test that has never failed is a security test that might not work.
+
 Where information is missing, make the best engineering decision for long-term product quality and
-document it. Challenge weak ideas, including mine, when you believe there is a better solution. Do
-not ask permission for every implementation detail — but stop and ask when a choice is expensive to
-reverse: schema, money, tenancy, provider, or public API.
+document it. Challenge weak ideas, including mine. Do not ask permission for every implementation
+detail, but stop and ask when a choice is expensive to reverse: schema, money, tenancy, provider, or
+public API.
 
 Keep `STATE.md` current as you go. The repository, not the conversation, is the source of truth.
 
-Start by reading the files above. Then tell me what you found, and start on item 1.1. Bring me a
-recommendation rather than a question wherever a choice is expensive to reverse.
+Start by reading the files above, then tell me what you found and begin item 1.6.
