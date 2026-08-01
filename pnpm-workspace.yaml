@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+# A dependency listed here is trusted to execute code at install time.
+# Adding an entry is a supply-chain decision, not a convenience.
+allowBuilds:
+  # Bundler used by Vite and Vitest. Compiles or fetches a platform binary.
+  esbuild: true
+  # Next.js image optimisation. Fetches a prebuilt libvips binary.
+  sharp: true
+
+minimumReleaseAgeExclude:
+  - jsdom@30.0.1

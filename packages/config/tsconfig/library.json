@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  // Tests are included so the editor and the type-aware lint rules can see them.
+  // Emitting excludes them via each package's tsconfig.build.json.
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
