@@ -37,6 +37,16 @@ export const integrationConfig = defineConfig({
     // Integration tests share a database. Running files in parallel would make
     // failures depend on execution order.
     fileParallelism: false,
+
+    // A failing database test throws a driver error, and the default reporter
+    // serialises the whole error object: the client, its connection, the socket,
+    // and every method on each. One failure produced tens of thousands of lines
+    // of driver internals and buried the assertion that actually failed.
+    //
+    // `dot` prints one character per test and a plain summary of failures, so
+    // the useful part stays readable. Verbose output is available per-run with
+    // `--reporter=verbose` when a specific failure needs digging into.
+    reporters: ['dot'],
   },
 })
 
