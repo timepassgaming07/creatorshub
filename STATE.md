@@ -1,8 +1,8 @@
 # STATE
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-08-02
 **Branch:** `chore/slice-0-foundation`
-**Committed:** 15 commits. Not pushed, and no remote is configured.
+**Committed:** 18 commits. Not pushed, and no remote is configured.
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
 how to work here, the ADRs say why the architecture is what it is. This says where we are.
@@ -11,16 +11,18 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 complete. Slice 1 is 6 of 14 items done, and the 6 are the ones that cannot be repaired
-later.** Tenant isolation is built, enforced twice, and each layer is proved to work with the other
-one absent.
+**Slice 0 complete. Slice 1 is 6 of 14 items done, plus the database half of item 1.6.** Tenant
+isolation is built, enforced twice, and each layer is proved to work with the other one absent.
+Authentication has its schema, its own database role, and its isolation proved. The Better Auth
+library integration is the next thing to write.
 
 | Gate | Result |
 |---|---|
-| `pnpm verify` | 22/22 turbo tasks green, plus `prettier --check` clean |
+| `pnpm verify` | 24/24 turbo tasks green, plus export check and `prettier --check` clean |
 | `pnpm test` | 309 unit tests across 12 files |
-| `pnpm test:integration` | 74 tests across 4 files, against real Postgres |
+| `pnpm test:integration` | 99 tests across 5 files, against real Postgres |
 | `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
+| `pnpm check:exports` | Passes: every advertised entry point exists after a build |
 | `pnpm test:e2e` | 18 Playwright tests, axe clean in light and dark |
 
 | Package | State |
@@ -30,12 +32,12 @@ one absent.
 | `packages/domain` | `Result<T, E>` and `DomainError`. 15 tests. Import boundaries enforced |
 | `packages/telemetry` | Log redaction. 35 tests |
 | `packages/ui` | Design tokens, Tailwind v4, `MoneyDisplay`, `MoneyInput`, contrast harness. 125 tests |
-| `packages/db` | Connection layer, schema, RLS, repository base, isolation suite, tenancy check. 51 unit tests plus 74 integration |
+| `packages/db` | Connection layer, schema (identity and auth), RLS, repository base, isolation suite, tenancy check. 51 unit tests plus 99 integration |
 | `apps/web` | Next 16 App Router shell, health route, security headers, Playwright + axe |
 | `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
 
-No auth yet, no screens, no money path. The database is real and the tenancy model underneath it is
-finished.
+No auth code yet, no screens, no money path. The database is real, the tenancy model underneath it is
+finished, and authentication has its schema and its own role waiting for the library.
 
 ---
 
@@ -93,44 +95,69 @@ Slice 1:
 
 # Active Task
 
-**Slice 1 item 1.6 — Better Auth: email and password with Argon2id, sessions, verification.**
+**Slice 1 item 1.6, second half — the Better Auth library integration.**
 
-Not started. The tenancy foundation it sits on is finished, so this is unblocked.
+The database foundation is done and committed. What remains is `packages/auth`: the library
+configuration, the Argon2id hook, session handling, CSRF, revocation, and login history.
 
-Read [ADR-0006](./docs/adr/0006-self-hosted-auth.md) first. Two things about it matter more than the
-rest:
+**Start by reading [ADR-0017](./docs/adr/0017-authentication-database-role.md).** It records a
+conflict found while starting this item and is the reason the first half took a whole commit.
+Authentication is pre-tenant, so it must read a user row before any workspace is known, which the RLS
+policies from 1.3 correctly forbid. Sign-up would have inserted a user that sign-in could never find.
+The resolution is a third role, `creatorhub_auth`, with grants on the authentication tables and no
+privilege on any business table.
 
-**ADR-0006 never mentions Argon2id.** It says only "email/password with strong hashing".
-`docs/engineering/security.md` and the implementation plan both mandate Argon2id. The ADR is the
-higher authority under `CLAUDE.md` §1 but it is silent rather than contradictory, so there is no
-conflict: use Argon2id per the standards documents. Flagged here so it does not read as invention.
+What that means for the code you are about to write:
 
-**Better Auth owns its own tables** in our database: `sessions`, `accounts`, `verification_tokens`,
-`passkeys`. They are deliberately absent from `packages/db/src/schema/identity.ts`, because declaring
-a table the library also migrates produces two sources of truth for one schema. Those tables will
-appear in the tenancy check the moment they exist, and each will need either RLS and a policy or a
-declared exemption. Expect `pnpm check:tenancy` to fail on the first run after wiring the library in.
-That is the check working.
+- **Connect as `DATABASE_AUTH_URL`,** not `DATABASE_URL`. The auth package gets its own pool. Using
+  the application connection would fail on the first sign-in attempt for reasons that look like a
+  library bug rather than a policy.
+- **The tables already exist** and are declared in `packages/db/src/schema/auth.ts`. Do not run Better
+  Auth's own migration generator: ADR-0005 rule 2 requires migrations be reviewed as SQL, and our
+  declarations are the single source of truth.
+- **Table and column names need remapping.** The library defaults to singular `user`, `session`,
+  `account`, `verification` with camelCase columns. Ours are plural with `snake_case`. The mapping
+  belongs in the configuration, in one place.
+- **`emailVerified` needs care.** The library expects a boolean; we store `email_verified_at` as a
+  nullable timestamp, which is strictly more information. The timestamp stays authoritative.
+
+**Everything about session and rate-limit policy is decided** and recorded in ADR-0017: 30-day
+absolute lifetime, 7-day idle, rotation on password, role, email, and passkey change and on
+sign-out-everywhere, `HttpOnly` and `Secure` and `SameSite=Lax`, Argon2id at 19 MiB and 2 iterations
+and parallelism 1. Rate limits are in the founder's instructions and belong to item 1.9.
 
 ---
 
 # Next Immediate Actions
 
-1. **1.6 Better Auth.** Email and password, Argon2id, sessions, email verification. Its tables need
-   tenancy decisions, see above.
+Founder-approved order, which differs from the numbering. 1.8 before 1.10, because the policy module
+is pure functions over a role and has no audit dependency; only its call sites do, and those arrive
+with the screens.
 
-2. **1.10 Audit log writer.** Append-only is already enforced in the database. This is the writer,
-   and it is a dependency of the authorisation work, so it comes before 1.8.
+1. **1.6 second half.** `packages/auth`: Better Auth configuration against the third role, Argon2id
+   hook, session policy, CSRF, session revocation, device list, login history.
 
-3. **1.8 Authorisation policy module.** Roles and permissions derived from `workspace_members.role`
-   in one place. Permissions inlined into route handlers is how tenancy leaks.
+2. **1.8 Authorisation policy module.** In `packages/domain`, not `packages/auth`. ADR-0006 names
+   `domain/identity/policy.ts` and says authorisation is deliberately not delegated to the auth
+   library. Pure functions over a role and a permission.
 
-4. **1.7 Passkeys**, then **1.9 rate limiting** on every authentication endpoint.
+3. **1.10 Audit log writer, with monthly partitioning.** `security.md` requires the audit log be
+   partitioned monthly, and the table is still empty, so this is free now and a rewrite later.
+   Founder decision: do it now, do not defer.
+
+4. **1.7 Passkeys**, then **1.9 rate limiting**. The limits are specified: 5 failed sign-ins per 15
+   minutes per account, 20 per hour per IP, exponential backoff, 429 with `Retry-After`; password
+   reset 3 per hour and 10 per day per account and 20 per hour per IP; verification resend 3 per
+   hour; sign-up 10 per hour per IP.
 
 5. **1.13 UI primitives**, then **1.14 CSP**. Both were deferred out of slice 0; do not let them slip
    again.
 
 6. **1.11 Screens** last, because they consume 1.13.
+
+Also required from 1.6 onward, per founder instruction: CSRF protection on state-changing requests,
+session revocation, device management, login history with timestamp and IP and user agent, and
+security header verification tests.
 
 The two remaining slice 1 exit conditions are the not-found-versus-forbidden check, which needs an
 HTTP layer, and the isolation suite covering every repository, which is continuous rather than a
@@ -143,7 +170,7 @@ milestone.
 | Slice | Goal | State |
 |---|---|---|
 | 0 | Foundation | **Complete** |
-| 1 | Identity, workspace, tenancy, audit log | **6 of 14 items done.** Tenancy finished; auth next |
+| 1 | Identity, workspace, tenancy, audit log | **6 of 14 done, plus 1.6's database half.** Auth library next |
 | 2 | Ledger, outbox, idempotency | Planned |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
@@ -252,9 +279,12 @@ Unchanged and still authoritative: `manifesto.md`, `docs/product/milestone-1.md`
 
 # Repository Changes
 
-15 commits on `chore/slice-0-foundation`. Not pushed; no remote configured.
+18 commits on `chore/slice-0-foundation`. Not pushed; no remote configured.
 
 ```
+f7def8c  feat(db): authentication tables and a third Postgres role           (1.6a, ADR-0017)
+344b8b2  fix(db): restore the build rootDir so the package is importable
+988a36b  docs: record the tenancy foundation as complete
 53a78c4  feat(db): CI check that a tenant table cannot ship unprotected      (1.5)
 8d56780  feat(db): tenant-scoped repository base and isolation suite         (1.4, 1.12)
 4524f6d  feat(db): row level security, the second isolation layer            (1.3)
@@ -323,15 +353,20 @@ as compromised. Revoke it. It was never used, and it is in no file and no commit
 `gh auth login` or an SSH remote so no credential lands in `.git/config`. The `secrets` CI job scans
 full history, so a token that ever lands in a commit fails the build permanently.
 
-**Nothing is pushed and no remote exists.** A lost machine loses 15 commits. Adding a remote is
+**Nothing is pushed and no remote exists.** A lost machine loses 18 commits. Adding a remote is
 outward-facing and needs its own go-ahead.
 
 **Port 5432 may already be taken.** On this machine an unrelated container holds it, so the compose
 file takes `POSTGRES_PORT` and the working `.env` uses 5433. Anyone hitting "port is already
 allocated" changes that one variable and both connection strings.
 
-**Better Auth's tables will fail the tenancy check on first run.** Expected, and it is the check
-working. Each table needs RLS and a policy, or a declared exemption with a reason.
+**~~Better Auth's tables will fail the tenancy check on first run.~~** Handled. The three tables are
+declared in `AUTH_TABLES_WITHOUT_WORKSPACE` with reasons, and each has RLS enabled, forced, and a
+policy scoped to the auth role. The check passes.
+
+**The `verify` gate now runs `build` too,** so it is 24 tasks rather than 22. A build that is never
+run locally is a build that breaks in CI, and `check:exports` proves the output is importable rather
+than merely produced.
 
 **Turborepo caching can mask a stale build.** `turbo run … --force` is the check when something
 "should not still be failing".
@@ -389,32 +424,39 @@ project exactly where the previous session left it. The repository is at `~/crea
 4. `STATE.md` — where the project actually is.
 5. `docs/product/implementation-plan.md` — slice 1, and which items are already done.
 6. `docs/product/milestone-1.md` — scope and open items.
-7. For the active task: `docs/adr/0006-self-hosted-auth.md`,
-   `docs/engineering/security.md`, and `docs/architecture/data-model.md`. Also read
-   `docs/adr/0012-multi-tenancy.md` and `docs/adr/0015-local-postgres.md`, because the auth tables
-   have to fit the tenancy model already built.
+7. For the active task, in this order: **`docs/adr/0017-authentication-database-role.md` first**,
+   because it records a conflict between authentication and the tenancy model and how it was
+   resolved. Then `docs/adr/0006-self-hosted-auth.md`, `docs/engineering/security.md`,
+   `docs/adr/0012-multi-tenancy.md`, and `docs/adr/0015-local-postgres.md`.
 
 **Then discover the tooling.** List `~/.claude/skills/` and read `~/.claude/skills/gstack/SKILL.md`
 for the routing table. Read sub-skill frontmatter rather than every body; there are 58 and reading
 them whole wastes the context you need for the work. `CLAUDE.md` §5 maps workflow stages to skills.
 
-**Then audit before changing anything.** `pnpm install`, then `pnpm verify` and confirm 22/22 green.
-Start the database with `pnpm db:up` after `cp .env.example .env`. Then `pnpm test:integration` for
-74 green and `pnpm check:tenancy` for a pass. Run `git status` and confirm the tree is clean and
-matches `STATE.md`. If it does not, reconcile before writing anything and say what changed.
+**Then audit before changing anything.** `pnpm install`, then `pnpm verify` and confirm **24/24**
+green. **Run `pnpm db:reset`** after `cp .env.example .env`: the third database role from ADR-0017 is
+created by the init script, which only runs on an empty data directory, so an older local database
+does not have it. Then `pnpm test:integration` for **99** green and `pnpm check:tenancy` for a pass.
+Run `git status` and confirm the tree is clean. If it does not match, reconcile before writing
+anything and say what changed.
 
-**The tenancy foundation is done. Do not rebuild it.** Slice 1 items 1.1, 1.2, 1.3, 1.4, 1.5, and
-1.12 are complete and committed. Trust the completed-tasks checklist in `STATE.md`.
+**The tenancy foundation and the authentication schema are done. Do not rebuild either.** Slice 1
+items 1.1, 1.2, 1.3, 1.4, 1.5, and 1.12 are complete, and so is the database half of 1.6. Trust the
+completed-tasks checklist.
 
-**Continue from the Active Task in `STATE.md`,** which is item 1.6, Better Auth. Follow the Next
-Immediate Actions in order. Note that 1.10 comes before 1.8 deliberately, because the audit writer is
-a dependency of the authorisation module.
+**Continue from the Active Task in `STATE.md`,** which is the second half of 1.6: `packages/auth`.
+Follow the Next Immediate Actions in order. Note that **1.8 comes before 1.10**, which is the
+founder-approved order and the reverse of an earlier note in this file. The policy module is pure
+functions over a role and has no audit dependency; only its call sites do, and those arrive with the
+screens.
 
-**Three things about 1.6 specifically.** ADR-0006 is silent on Argon2id; the standards documents
-mandate it, so use it and do not treat the silence as a conflict. Better Auth owns its own tables, so
-do not declare them in `packages/db/src/schema/identity.ts`; a table the library also migrates would
-have two sources of truth. And `pnpm check:tenancy` will fail the first time those tables exist,
-which is the check working: each one needs RLS and a policy, or an exemption with a stated reason.
+**Four things about the remaining half of 1.6.** Connect as `DATABASE_AUTH_URL`, never
+`DATABASE_URL`, or the first sign-in fails in a way that looks like a library bug. The auth tables
+already exist in `packages/db/src/schema/auth.ts`, so do not run Better Auth's migration generator;
+ADR-0005 rule 2 requires reviewed SQL. Remap the library's singular camelCase table and column names
+to our plural `snake_case` in configuration, in one place. And `email_verified_at` stays
+authoritative over the library's boolean `emailVerified`, because a timestamp is strictly more
+information.
 
 **Constraints that are not negotiable:**
 

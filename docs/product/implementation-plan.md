@@ -105,7 +105,7 @@ here is unrecoverable, which is why it precedes everything except the toolchain.
 | 1.3 | **Done.** RLS policies on every tenant table, plus the session-setting mechanism |
 | 1.4 | **Done.** Tenant-scoped repository base — the only way feature code reaches the database |
 | 1.5 | **Done.** CI check: every tenant table has `workspace_id` and an RLS policy, or the build fails |
-| 1.6 | Better Auth integration: email/password with Argon2id, sessions, verification |
+| 1.6 | **Half done.** Better Auth integration: email/password with Argon2id, sessions, verification. Database foundation complete (third role, auth tables, RLS, grants, ADR-0017); the library integration itself remains |
 | 1.7 | Passkey (WebAuthn) registration and sign-in |
 | 1.8 | Authorisation policy module — roles and permissions in one place |
 | 1.9 | Rate limiting on all authentication endpoints |
