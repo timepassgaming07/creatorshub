@@ -19,6 +19,7 @@
  */
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   customType,
   index,
   jsonb,
@@ -101,7 +102,24 @@ export const users = pgTable(
   {
     id: primaryKey(),
     email: citext('email').notNull(),
+
+    /**
+     * When the address was verified, and the authoritative answer to whether it
+     * was. Nullable because an unverified user is a real state.
+     */
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+
+    /**
+     * The boolean Better Auth requires, kept in step with the timestamp by the
+     * trigger in migration 0004. See ADR-0018.
+     *
+     * Do not write this from application code. Reading it is fine and cheap;
+     * writing it bypasses nothing, because the trigger will still set the
+     * timestamp, but it does put the decision in two places. Verification flows
+     * go through `packages/auth`.
+     */
+    emailVerified: boolean('email_verified').notNull().default(false),
+
     name: text('name'),
     avatarUrl: text('avatar_url'),
     createdAt: createdAt(),
