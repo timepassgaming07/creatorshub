@@ -18,7 +18,7 @@ export type { AuthConfig } from './config.js'
 
 export { argon2idPassword } from './hash.js'
 
-export { AUTH_DATABASE_CASING, createAuthOptions } from './auth.js'
+export { createAuthDatabase, createAuthOptions } from './auth.js'
 
 export { createSessionStore } from './session.js'
 export type { SessionRecord, SessionStore } from './session.js'

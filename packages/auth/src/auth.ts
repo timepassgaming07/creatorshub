@@ -8,18 +8,22 @@
  * Four things here are load-bearing, and each one was found by reading the
  * library's type definitions rather than assuming:
  *
- * 1. **The connection is a `pg` Pool built from `DATABASE_AUTH_URL`.** The
- *    `database` option accepts a driver pool, a Kysely dialect, or an adapter
- *    instance. It does not accept `{ provider, url }`, which is drizzle-kit's
- *    shape. The role must be `creatorhub_auth`: the application role has no
- *    privilege on `sessions` or `accounts` at all, so pointing this at
- *    `DATABASE_URL` fails on the first sign-in with a permission error that
- *    names nothing useful.
+ * 1. **The pool is created by the caller, not here.** `createAuthDatabase`
+ *    returns it and `createAuthOptions` takes it. That looks like ceremony until
+ *    you need to shut down: a pool constructed inside the options object is
+ *    unreachable, so nothing can close it. In production that is a process that
+ *    will not exit; in tests it is a container stopped while connections are
+ *    still open, which surfaces as SQLSTATE 57P01 on four unrelated assertions.
  *
- * 2. **`casing: 'snake'` does the column mapping.** Our data model is
- *    `snake_case` per `coding-standards.md`; the library defaults to camel.
- *    One option covers every column, so the per-field `createdAt` mappings that
- *    would otherwise be needed on all four models disappear.
+ * 2. **Column names are mapped per field, explicitly.** There is a `casing`
+ *    option, but only on the `{ dialect, type }` and `{ db, type }` shapes of
+ *    the `database` option, not when a driver pool is passed, and its
+ *    documented effect is table names. The supported mechanism for columns is
+ *    `fields` on each model, typed as
+ *    `Partial<Record<Exclude<Keys, 'id'>, string>>`. Every field the library
+ *    declares in `@better-auth/core/src/db/get-tables.ts` and whose name differs
+ *    from our column is listed below. A missing entry is not a type error; it is
+ *    a runtime "column does not exist" on first use.
  *
  * 3. **`modelName` remaps the table names.** The library's defaults are
  *    singular. Ours are plural, which is the convention, so each model names its
@@ -87,28 +91,93 @@ const TABLES = {
 } as const
 
 // ---------------------------------------------------------------------------
+// Column names
+//
+// One entry per field whose column differs from the library's default. Fields
+// that already match, `email`, `name`, `token`, `identifier`, `value`, `scope`,
+// and `password`, are deliberately absent rather than mapped to themselves.
+// ---------------------------------------------------------------------------
+
+/**
+ * `image` is the library's avatar field; ours is `avatar_url`, which says what
+ * it holds rather than what it is.
+ *
+ * `emailVerified` maps to the boolean added in migration 0004, not to
+ * `email_verified_at`. The library declares the field a boolean and Postgres
+ * will not take one into a timestamp. The timestamp stays authoritative and is
+ * derived by trigger. See ADR-0018.
+ */
+const USER_FIELDS = {
+  emailVerified: 'email_verified',
+  image: 'avatar_url',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+} as const
+
+const SESSION_FIELDS = {
+  userId: 'user_id',
+  expiresAt: 'expires_at',
+  ipAddress: 'ip_address',
+  userAgent: 'user_agent',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+} as const
+
+const ACCOUNT_FIELDS = {
+  userId: 'user_id',
+  accountId: 'account_id',
+  providerId: 'provider_id',
+  accessToken: 'access_token',
+  refreshToken: 'refresh_token',
+  idToken: 'id_token',
+  accessTokenExpiresAt: 'access_token_expires_at',
+  refreshTokenExpiresAt: 'refresh_token_expires_at',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+} as const
+
+const VERIFICATION_FIELDS = {
+  expiresAt: 'expires_at',
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+} as const
+
+// ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 
 /**
+ * The authentication connection pool, as `creatorhub_auth`.
+ *
+ * Separate from the application pool in `packages/db`, which is the cost of the
+ * role separation and a cheap one: this pool is touched at sign-in, not on every
+ * request. The application role has no privilege on `sessions` or `accounts` at
+ * all, so a pool built from `DATABASE_URL` fails on the first sign-in with a
+ * permission error that names nothing useful.
+ *
+ * Returned rather than hidden so the caller owns the lifecycle. Whoever creates
+ * it calls `end()` on it: the composition root at shutdown, the test in
+ * `afterAll` before the container stops.
+ */
+export function createAuthDatabase(config: AuthConfig): pg.Pool {
+  return new pg.Pool({
+    connectionString: config.databaseAuthUrl,
+    max: AUTH_POOL_MAX,
+  })
+}
+
+/**
  * Build the authentication options.
  *
- * Takes config rather than reading the environment, so an integration test can
- * point this at a throwaway container without mutating process state.
+ * Takes config and a pool rather than reading the environment or constructing a
+ * connection, so an integration test can point this at a throwaway container
+ * without mutating process state and can close what it opened.
  */
-export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
+export function createAuthOptions(config: AuthConfig, database: pg.Pool): BetterAuthOptions {
   return {
     appName: 'CreatorHub',
 
-    /**
-     * A dedicated pool as `creatorhub_auth`, separate from the application pool
-     * in `packages/db`. Two pools is the cost of the role separation, and it is
-     * cheap: this one is touched at sign-in, not on every request.
-     */
-    database: new pg.Pool({
-      connectionString: config.databaseAuthUrl,
-      max: AUTH_POOL_MAX,
-    }),
+    database,
 
     baseURL: config.baseUrl,
     basePath: '/api/auth',
@@ -117,11 +186,19 @@ export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
     // -------------------------------------------------------------------
     // Schema mapping
     // -------------------------------------------------------------------
-    user: { modelName: TABLES.user },
-    account: { modelName: TABLES.account },
+    user: {
+      modelName: TABLES.user,
+      fields: USER_FIELDS,
+    },
+
+    account: {
+      modelName: TABLES.account,
+      fields: ACCOUNT_FIELDS,
+    },
 
     session: {
       modelName: TABLES.session,
+      fields: SESSION_FIELDS,
       expiresIn: SESSION_ABSOLUTE_LIFETIME,
       updateAge: SESSION_IDLE_REFRESH,
 
@@ -137,6 +214,7 @@ export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
 
     verification: {
       modelName: TABLES.verification,
+      fields: VERIFICATION_FIELDS,
 
       /**
        * Tokens hashed at rest. The row stores a hash, not the value that was
@@ -164,6 +242,31 @@ export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
       /** Long enough to matter, short enough not to push people to reuse. */
       minPasswordLength: 12,
       maxPasswordLength: 128,
+
+      /**
+       * Password reset is on, and the library refuses the endpoint outright
+       * without this callback: `requestPasswordReset` answers "Reset password
+       * isn't enabled" rather than failing to deliver. ADR-0017 sets rate limits
+       * for the reset flow, which presumes the flow exists.
+       *
+       * Empty for the same reason as the verification mailer: no delivery port
+       * until slice 6. The token is created and stored regardless, which is what
+       * the reset endpoint needs and what the integration suite reads.
+       */
+      sendResetPassword: async () => {
+        await Promise.resolve()
+      },
+
+      /** Reset tokens live in the same short band as verification tokens. */
+      resetPasswordTokenExpiresIn: VERIFICATION_TOKEN_LIFETIME,
+
+      /**
+       * Every other session dies when the password changes. ADR-0017 requires
+       * rotation on password change, and the reason is the case that matters: a
+       * password is reset because someone else may have had it, so leaving their
+       * session alive defeats the reset.
+       */
+      revokeSessionsOnPasswordReset: true,
     },
 
     emailVerification: {
@@ -194,10 +297,16 @@ export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
        * ADR-0006 and ADR-0017. `SameSite=Lax` rather than `Strict` so a link
        * from an email lands signed in; `Strict` would drop the cookie on that
        * navigation and look like a broken login.
+       *
+       * `secure` follows the base URL rather than being hard true. A cookie
+       * marked Secure is not stored over plain HTTP, so hard-coding it makes
+       * local development over `http://localhost` fail to hold a session, which
+       * reads as a broken login rather than a cookie policy. Every deployed
+       * environment is HTTPS, so this is true everywhere that matters.
        */
       defaultCookieAttributes: {
         httpOnly: true,
-        secure: true,
+        secure: config.baseUrl.startsWith('https://'),
         sameSite: 'lax',
         path: '/',
       },
@@ -222,12 +331,3 @@ export function createAuthOptions(config: AuthConfig): BetterAuthOptions {
     trustedOrigins: [config.baseUrl],
   }
 }
-
-/**
- * Column naming for the Kysely adapter the library builds from the pool.
- *
- * Separate from `createAuthOptions` because it is not part of
- * `BetterAuthOptions`: the library reads it when constructing its adapter. Kept
- * beside the options so the two cannot drift.
- */
-export const AUTH_DATABASE_CASING = 'snake' as const

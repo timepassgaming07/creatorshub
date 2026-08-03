@@ -1,0 +1,468 @@
+import { runMigrations, startTestDatabase, type TestDatabase } from '@creatorhub/db/testing'
+import { betterAuth } from 'better-auth'
+import pg from 'pg'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { createAuthDatabase, createAuthOptions } from './auth.js'
+import type { AuthConfig } from './config.js'
+import { createSessionStore } from './session.js'
+
+/**
+ * Better Auth against our real schema, our real role, and a real Postgres.
+ *
+ * This is the file that decides whether item 1.6 actually works. Every claim in
+ * ADR-0017 and ADR-0018 is a claim about behaviour at the boundary between a
+ * library we did not write and a schema it did not generate, and the unit tests
+ * cannot reach that boundary: they can prove Argon2id hashes and verifies, and
+ * nothing about whether the library can find a column.
+ *
+ * Three things are worth knowing before changing anything here.
+ *
+ * **Teardown order is load-bearing.** The pool is created in `beforeAll`, kept in
+ * a variable, and ended in `afterAll` *before* the container stops. Stopping the
+ * container first kills connections the pool still holds, and every in-flight
+ * query fails with SQLSTATE 57P01, which reads as a defect in the auth code
+ * rather than as a test bug. That is the reason `createAuthOptions` takes a pool
+ * instead of making one.
+ *
+ * **The library is driven through `auth.api`, not through HTTP.** Those functions
+ * are the server-side entry points and they take `{ body }`. Constructing a
+ * `Request` would test our ability to forge a request rather than the flow.
+ *
+ * **Assertions read the database directly,** through a superuser pool on the same
+ * container, so a policy cannot hide a row the test needs to see. The library's
+ * return value says what the library believes; the row says what happened. Where
+ * they can differ, the row wins.
+ *
+ * `pg` rather than `postgres` for those reads, because `pg` is already a
+ * dependency of this package. Adding a second driver to assert with is a
+ * supply-chain decision taken for convenience.
+ */
+
+let container: TestDatabase
+let authPool: pg.Pool
+let auth: ReturnType<typeof betterAuth>
+let control: pg.Pool
+
+const MIGRATIONS = new URL('../../db/migrations', import.meta.url).pathname
+
+const BASE_URL = 'http://localhost:3000'
+
+/** 64 characters, which is what the config schema requires. */
+const TEST_SECRET = 'a'.repeat(64)
+
+const PASSWORD = 'correct-horse-battery-staple'
+
+let userCounter = 0
+const nextEmail = () => `signup-${String(++userCounter)}@example.com`
+
+/** One query, one row, typed. Every assertion below reads through this. */
+async function queryOne<T extends pg.QueryResultRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T | undefined> {
+  const result = await control.query<T>(sql, params)
+
+  return result.rows[0]
+}
+
+async function countRows(sql: string, params: unknown[] = []): Promise<number> {
+  const row = await queryOne<{ count: string }>(sql, params)
+
+  return Number(row?.count ?? 0)
+}
+
+beforeAll(async () => {
+  container = await startTestDatabase()
+  await runMigrations({ migrationUrl: container.migrationUrl, migrationsFolder: MIGRATIONS })
+
+  const config: AuthConfig = {
+    databaseAuthUrl: container.authUrl,
+    baseUrl: BASE_URL,
+    secret: TEST_SECRET,
+  }
+
+  authPool = createAuthDatabase(config)
+  auth = betterAuth(createAuthOptions(config, authPool))
+
+  control = new pg.Pool({ connectionString: container.superuserUrl, max: 2 })
+}, 120_000)
+
+afterAll(async () => {
+  // Order matters. See the note at the top of the file.
+  await authPool.end()
+  await control.end()
+  await container.stop()
+})
+
+// ---------------------------------------------------------------------------
+// Sign-up
+// ---------------------------------------------------------------------------
+
+describe('sign-up', () => {
+  it('creates a user row with our column names', async () => {
+    const email = nextEmail()
+
+    const result = await auth.api.signUpEmail({
+      body: { email, password: PASSWORD, name: 'Ada Lovelace' },
+    })
+
+    expect(result.user.email).toBe(email)
+
+    // The row, not the return value. This is what proves the field mapping:
+    // without it the insert names `emailVerified` and `createdAt`, and Postgres
+    // rejects the statement.
+    const row = await queryOne<{ name: string | null; email_verified: boolean }>(
+      'select name, email_verified from users where email = $1',
+      [email],
+    )
+
+    expect(row?.name).toBe('Ada Lovelace')
+    expect(row?.email_verified).toBe(false)
+  })
+
+  it('leaves email_verified_at null, because sign-up is not verification', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Unverified' } })
+
+    const row = await queryOne<{ email_verified_at: Date | null }>(
+      'select email_verified_at from users where email = $1',
+      [email],
+    )
+
+    expect(row?.email_verified_at).toBeNull()
+  })
+
+  // ADR-0015: ids are UUIDv7 generated by Postgres, and
+  // `advanced.database.generateId: false` is what stops the library generating
+  // its own. Version 7 in the third group is the check that the column default
+  // ran rather than the library.
+  it('lets Postgres generate the id, so it is UUIDv7', async () => {
+    const result = await auth.api.signUpEmail({
+      body: { email: nextEmail(), password: PASSWORD, name: 'Seven' },
+    })
+
+    expect(result.user.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    )
+  })
+
+  it('stores an Argon2id hash, not the password and not scrypt', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Hashed' } })
+
+    const row = await queryOne<{ password: string | null; provider_id: string }>(
+      `select a.password, a.provider_id
+       from accounts a join users u on u.id = a.user_id
+       where u.email = $1`,
+      [email],
+    )
+
+    expect(row?.provider_id).toBe('credential')
+    expect(row?.password).toContain('$argon2id$')
+    expect(row?.password).not.toContain(PASSWORD)
+  })
+
+  // citext plus the unique index. Case-insensitive, so one person cannot hold
+  // two accounts differing only in capitals.
+  it('rejects a second sign-up for the same address in a different case', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'First' } })
+
+    await expect(
+      auth.api.signUpEmail({
+        body: { email: email.toUpperCase(), password: PASSWORD, name: 'Second' },
+      }),
+    ).rejects.toThrow()
+
+    expect(await countRows('select count(*) as count from users where email = $1', [email])).toBe(1)
+  })
+
+  // ADR-0017 sets a 12 character minimum, enforced by the library from
+  // `minPasswordLength`. Asserted here so a config change cannot silently weaken
+  // it.
+  it('rejects a password shorter than twelve characters', async () => {
+    await expect(
+      auth.api.signUpEmail({ body: { email: nextEmail(), password: 'short', name: 'Short' } }),
+    ).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Sign-in
+// ---------------------------------------------------------------------------
+
+describe('sign-in', () => {
+  it('succeeds with the right password and creates a session row', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Returning' } })
+
+    const before = await countRows('select count(*) as count from sessions')
+
+    const result = await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+    expect(result.user.email).toBe(email)
+
+    expect(await countRows('select count(*) as count from sessions')).toBeGreaterThan(before)
+  })
+
+  it('fails with the wrong password', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Guarded' } })
+
+    await expect(
+      auth.api.signInEmail({ body: { email, password: 'wrong-password-entirely' } }),
+    ).rejects.toThrow()
+  })
+
+  it('fails for an address that was never registered', async () => {
+    await expect(
+      auth.api.signInEmail({ body: { email: 'nobody@example.com', password: PASSWORD } }),
+    ).rejects.toThrow()
+  })
+
+  // ADR-0017: 30 day absolute lifetime. Asserted as a window rather than an
+  // exact value, because the row is written a few milliseconds after the
+  // expectation is computed.
+  it('sets the session to expire in thirty days', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Expiring' } })
+    await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+
+    const row = await queryOne<{ expires_at: Date }>(
+      `select s.expires_at from sessions s join users u on u.id = s.user_id
+       where u.email = $1 order by s.created_at desc limit 1`,
+      [email],
+    )
+
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000
+    const drift = Math.abs((row?.expires_at.getTime() ?? 0) - (Date.now() + thirtyDays))
+
+    // A minute of slack. Enough for a slow container, far too little to hide a
+    // wrong unit: a value in seconds rather than milliseconds would be out by
+    // decades.
+    expect(drift).toBeLessThan(60_000)
+  })
+
+  it('stores a session token that is neither empty nor the address', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Tokened' } })
+    await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+
+    const row = await queryOne<{ token: string }>(
+      `select s.token from sessions s join users u on u.id = s.user_id
+       where u.email = $1 order by s.created_at desc limit 1`,
+      [email],
+    )
+
+    expect(row?.token.length).toBeGreaterThan(16)
+    expect(row?.token).not.toContain(email)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Verification tokens
+// ---------------------------------------------------------------------------
+
+describe('email verification', () => {
+  // Better Auth 1.6 signs a stateless JWT for email verification rather than
+  // storing a row, so `verification_tokens` stays empty on this path. Asserted
+  // rather than left implicit: an earlier version of this suite expected a row,
+  // and the failure looked like a broken field map rather than a library
+  // choosing a different mechanism. If a future upgrade starts persisting these,
+  // this test fails and the change gets noticed.
+  it('issues a token without writing a row, because the token is stateless', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Verifying' } })
+
+    const before = await countRows('select count(*) as count from verification_tokens')
+
+    const result = await auth.api.sendVerificationEmail({ body: { email } })
+    expect(result.status).toBe(true)
+
+    expect(await countRows('select count(*) as count from verification_tokens')).toBe(before)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Password reset
+// ---------------------------------------------------------------------------
+
+describe('password reset', () => {
+  // Unlike verification, reset does persist a token, so this is the path that
+  // exercises `verification_tokens` and its field map. Without the map the
+  // insert names `expiresAt` and `createdAt` and Postgres rejects it.
+  it('writes a token row with our column names', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Resetting' } })
+
+    await auth.api.requestPasswordReset({
+      body: { email, redirectTo: `${BASE_URL}/reset` },
+    })
+
+    const row = await queryOne<{ identifier: string; value: string }>(
+      'select identifier, value from verification_tokens order by created_at desc limit 1',
+    )
+
+    expect(row?.value.length).toBeGreaterThan(0)
+
+    // `storeIdentifier: 'hashed'`. The row holds a hash rather than the value
+    // that was emailed, so a leaked backup yields no working reset links.
+    expect(row?.identifier).not.toContain(email)
+  })
+
+  // ADR-0017 puts the lifetime in the 15 to 30 minute band, configured at 20.
+  it('expires the token inside the fifteen to thirty minute band', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Timed' } })
+
+    await auth.api.requestPasswordReset({
+      body: { email, redirectTo: `${BASE_URL}/reset` },
+    })
+
+    const row = await queryOne<{ expires_at: Date }>(
+      'select expires_at from verification_tokens order by created_at desc limit 1',
+    )
+
+    const minutes = ((row?.expires_at.getTime() ?? 0) - Date.now()) / 60_000
+    expect(minutes).toBeGreaterThan(15)
+    expect(minutes).toBeLessThan(30)
+  })
+
+  // The endpoint answers the same way whether or not the address is registered.
+  // A different answer would turn the reset form into a way to ask which
+  // addresses hold accounts.
+  it('answers the same for an address that was never registered', async () => {
+    const result = await auth.api.requestPasswordReset({
+      body: { email: 'stranger@example.com', redirectTo: `${BASE_URL}/reset` },
+    })
+
+    expect(result.status).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Session management
+// ---------------------------------------------------------------------------
+
+describe('the session store', () => {
+  // Reads and revocation go through `session.ts` rather than the library, and it
+  // opens its own pool. Closed at the end of each case so a leaked connection
+  // cannot outlive the container.
+  it('lists a signed-in session, and revoking it removes the row', async () => {
+    const email = nextEmail()
+    const created = await auth.api.signUpEmail({
+      body: { email, password: PASSWORD, name: 'Device' },
+    })
+    await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+
+    const store = createSessionStore(container.authUrl)
+
+    try {
+      const active = await store.listActive(created.user.id)
+      expect(active.length).toBeGreaterThan(0)
+
+      const first = active[0]
+      expect(first).toBeDefined()
+
+      expect(await store.revoke(created.user.id, first?.id ?? '')).toBe(true)
+
+      const remaining = await store.listActive(created.user.id)
+      expect(remaining.map((session) => session.id)).not.toContain(first?.id)
+    } finally {
+      await store.close()
+    }
+  })
+
+  // ADR-0006 requires sign-out-everywhere to be real, which means the rows are
+  // gone rather than flagged. A row that still exists is a session that still
+  // works.
+  it('revokeAll leaves no sessions behind', async () => {
+    const email = nextEmail()
+    const created = await auth.api.signUpEmail({
+      body: { email, password: PASSWORD, name: 'Everywhere' },
+    })
+    await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+    await auth.api.signInEmail({ body: { email, password: PASSWORD } })
+
+    const store = createSessionStore(container.authUrl)
+
+    try {
+      expect(await store.revokeAll(created.user.id)).toBeGreaterThan(0)
+      expect(await store.listActive(created.user.id)).toHaveLength(0)
+    } finally {
+      await store.close()
+    }
+  })
+
+  // A session id is not a secret the way a token is, so every mutation is scoped
+  // by user as well. Without that predicate, holding someone else's session id
+  // would be enough to sign them out.
+  it('will not revoke a session belonging to another user', async () => {
+    const victimEmail = nextEmail()
+    const victim = await auth.api.signUpEmail({
+      body: { email: victimEmail, password: PASSWORD, name: 'Victim' },
+    })
+    await auth.api.signInEmail({ body: { email: victimEmail, password: PASSWORD } })
+
+    const attacker = await auth.api.signUpEmail({
+      body: { email: nextEmail(), password: PASSWORD, name: 'Attacker' },
+    })
+
+    const store = createSessionStore(container.authUrl)
+
+    try {
+      const target = (await store.listActive(victim.user.id))[0]
+      expect(target).toBeDefined()
+
+      expect(await store.revoke(attacker.user.id, target?.id ?? '')).toBe(false)
+
+      // Still there, which is the point.
+      const after = await store.listActive(victim.user.id)
+      expect(after.map((session) => session.id)).toContain(target?.id)
+    } finally {
+      await store.close()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The role separation, enforced rather than documented
+// ---------------------------------------------------------------------------
+
+describe('the database role', () => {
+  it('connects as creatorhub_auth', async () => {
+    const row = await authPool
+      .query<{ current_user: string }>('select current_user')
+      .then((result) => result.rows[0])
+
+    expect(row?.current_user).toBe('creatorhub_auth')
+  })
+
+  // The case that turns ADR-0017 from a written claim into an enforced one.
+  //
+  // `creatorhub_app` has no privilege on `accounts` at all, so a Better Auth
+  // instance pointed at DATABASE_URL cannot verify a password. Without this test,
+  // someone wiring the composition root to the wrong environment variable gets a
+  // runtime error that names a library rather than a role.
+  it('cannot sign in when pointed at the application connection', async () => {
+    const email = nextEmail()
+    await auth.api.signUpEmail({ body: { email, password: PASSWORD, name: 'Misconfigured' } })
+
+    const wrongConfig: AuthConfig = {
+      databaseAuthUrl: container.databaseUrl,
+      baseUrl: BASE_URL,
+      secret: TEST_SECRET,
+    }
+
+    const wrongPool = createAuthDatabase(wrongConfig)
+    const misconfigured = betterAuth(createAuthOptions(wrongConfig, wrongPool))
+
+    try {
+      await expect(
+        misconfigured.api.signInEmail({ body: { email, password: PASSWORD } }),
+      ).rejects.toThrow()
+    } finally {
+      await wrongPool.end()
+    }
+  })
+})
