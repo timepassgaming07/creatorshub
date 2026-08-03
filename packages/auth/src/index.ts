@@ -22,3 +22,12 @@ export { createAuthDatabase, createAuthOptions } from './auth.js'
 
 export { createSessionStore } from './session.js'
 export type { SessionRecord, SessionStore } from './session.js'
+
+/**
+ * Rate limiting (item 1.9). Two halves: the per-address limits are handed to the
+ * library through `createAuthOptions`, and the per-account limiter is here,
+ * because the library cannot key on an account it has not identified yet.
+ */
+export { ACCOUNT_LIMITS, ADDRESS_LIMITS, backoffFor, createRateLimiter } from './rate-limit.js'
+
+export type { Limit, LimitedAction, RateLimitDecision, RateLimiter } from './rate-limit.js'

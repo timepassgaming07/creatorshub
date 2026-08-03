@@ -25,7 +25,16 @@
  * model to a dependency.
  */
 import { sql } from 'drizzle-orm'
-import { index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  bigint,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 import { users } from './identity.js'
 
@@ -199,6 +208,53 @@ export const verificationTokens = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// rate_limits
+// ---------------------------------------------------------------------------
+
+/**
+ * Request counters, for item 1.9.
+ *
+ * Two dimensions share this table. Better Auth owns the per-IP, per-path counters
+ * and keys them itself; `packages/auth` writes the per-account counters with a
+ * namespaced key, because the library never learns which account a failed
+ * sign-in was for and a limiter keyed on address alone is defeated by anyone with
+ * a few addresses.
+ *
+ * Not tenant-scoped, and could not be: rate limiting happens before there is a
+ * session, so before any workspace is known. That is the same reason the other
+ * tables in this file are exempt, and the same role reaches them all (ADR-0017).
+ */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    id: primaryKey(),
+
+    /** `${ip}:${path}` from the library, or `account:${action}:${email}` from ours. */
+    key: text('key').notNull(),
+
+    count: integer('count').notNull().default(0),
+
+    /**
+     * Epoch milliseconds, because that is what the library writes. A
+     * `timestamptz` would be the better column and would also stop the library's
+     * own queries working, so the type follows the dependency here.
+     */
+    lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+
+    createdAt: createdAt(),
+  },
+  (table) => [
+    // A second row for one key is a counter that has forked and stopped
+    // limiting, which is the failure mode that matters.
+    uniqueIndex('uq_rate_limits__key').on(table.key),
+
+    // The cleanup job scans by window. Without this it reads every key ever
+    // seen, which on the sign-in path is every address that has ever tried.
+    index('idx_rate_limits__last_request').on(table.lastRequest),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Registry entries
 // ---------------------------------------------------------------------------
 
@@ -216,4 +272,6 @@ export const AUTH_TABLES_WITHOUT_WORKSPACE = {
     'A credential belongs to a person, not a workspace. Reached only by creatorhub_auth, and creatorhub_app has no privilege on it at all (ADR-0017).',
   verification_tokens:
     'A verification token is issued before any workspace context exists, and often before the user has one. Reached only by creatorhub_auth (ADR-0017).',
+  rate_limits:
+    'A rate limit is counted before there is a session, so before any workspace is known. Keyed by address and path, or by account, neither of which is a tenant. Reached only by creatorhub_auth (ADR-0017).',
 } as const

@@ -45,6 +45,7 @@ import pg from 'pg'
 
 import type { AuthConfig } from './config.js'
 import { argon2idPassword } from './hash.js'
+import { ADDRESS_LIMITS } from './rate-limit.js'
 
 // ---------------------------------------------------------------------------
 // Policy constants
@@ -140,6 +141,16 @@ const VERIFICATION_FIELDS = {
   expiresAt: 'expires_at',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+} as const
+
+/**
+ * The rate limit counter table.
+ *
+ * `lastRequest` is the library's field name; ours is `last_request`. `key` and
+ * `count` already match, so they are absent rather than mapped to themselves.
+ */
+const RATE_LIMIT_FIELDS = {
+  lastRequest: 'last_request',
 } as const
 
 // ---------------------------------------------------------------------------
@@ -329,5 +340,43 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
      * frontend domain to admit.
      */
     trustedOrigins: [config.baseUrl],
+
+    // -------------------------------------------------------------------
+    // Rate limiting (item 1.9)
+    // -------------------------------------------------------------------
+
+    /**
+     * The per-address half of the limits. The per-account half is in
+     * `rate-limit.ts`, because the library cannot key on an account: at the point
+     * this limiter runs it has not yet decided which account the request is for.
+     *
+     * `enabled` is forced true. The library defaults to enabling rate limiting
+     * only in production, which means the limits are never exercised by any test
+     * or any manual check, and the first time they run is against real traffic.
+     */
+    rateLimit: {
+      enabled: true,
+
+      modelName: 'rate_limits',
+      fields: RATE_LIMIT_FIELDS,
+
+      /**
+       * Counted in Postgres rather than in memory. In memory, every process has
+       * its own counter, so the effective limit is multiplied by the number of
+       * instances and resets on every deploy.
+       */
+      storage: 'database',
+
+      /**
+       * The floor for any path not named below. Deliberately generous: this is
+       * abuse prevention for endpoints nobody has thought about yet, and a tight
+       * default here would rate-limit ordinary use of a future feature.
+       */
+      window: 60,
+      max: 100,
+
+      /** Per-path, per-address. See ADDRESS_LIMITS for why these are loose. */
+      customRules: { ...ADDRESS_LIMITS },
+    },
   }
 }
