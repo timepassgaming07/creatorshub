@@ -29,3 +29,18 @@ export {
 } from './result.js'
 
 export type { DomainError, Result } from './result.js'
+
+/**
+ * Authorisation (ADR-0006, item 1.8). Pure functions over a role and a
+ * permission. Deliberately not delegated to the auth library, which knows who
+ * someone is and nothing about what they may do.
+ */
+export {
+  WORKSPACE_ROLES,
+  authorise,
+  can,
+  permissionsFor,
+  roleFromString,
+} from './identity/policy.js'
+
+export type { Membership, Permission, WorkspaceRole } from './identity/policy.js'
