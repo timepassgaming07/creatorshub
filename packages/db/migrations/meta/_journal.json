@@ -36,6 +36,13 @@
       "when": 1785672000000,
       "tag": "0004_email_verified_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785700000000,
+      "tag": "0005_audit_logs_partitioned",
+      "breakpoints": true
     }
   ]
 }

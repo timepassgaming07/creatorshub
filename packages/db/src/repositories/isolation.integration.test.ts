@@ -77,6 +77,19 @@ beforeAll(async () => {
     values (${workspaceA}, ${own}, 'owner'), (${workspaceB}, ${foreign}, 'owner')
   `
 
+  // One audit entry per workspace, each targeting that workspace's own user.
+  //
+  // Without these the audit read cases return nothing for either tenant, which
+  // makes "returns nothing for another workspace" pass for the wrong reason. The
+  // suite caught exactly that when the audit repository was registered, which is
+  // what the `readOwn` half of every case is for.
+  await control`
+    insert into audit_logs (workspace_id, actor_type, actor_id, action, target_type, target_id)
+    values
+      (${workspaceA}, 'user', ${own}, 'isolation.seeded', 'user', ${own}),
+      (${workspaceB}, 'user', ${foreign}, 'isolation.seeded', 'user', ${foreign})
+  `
+
   fixtures = { ownUserId: userId(own), foreignUserId: userId(foreign) }
 }, 120_000)
 

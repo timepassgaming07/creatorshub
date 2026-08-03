@@ -32,3 +32,17 @@ export { CrossTenantWriteError, assertSameWorkspace, insertValues, scoped } from
 export type { RepositoryScope, TenantTable } from './repository.js'
 
 export * as workspaceMembers from './repositories/workspace-members.js'
+
+/**
+ * The audit log (item 1.10). Append-only and partitioned monthly, both enforced
+ * by Postgres rather than by this module.
+ */
+export * as auditLog from './repositories/audit-log.js'
+
+export { AuditSaltMissingError } from './repositories/audit-log.js'
+export type {
+  AuditActorType,
+  AuditEntry,
+  AuditOptions,
+  AuditRecord,
+} from './repositories/audit-log.js'

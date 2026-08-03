@@ -21,6 +21,7 @@
 import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
+import * as auditLogRepo from './audit-log.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,23 @@ export const READ_CASES: readonly ReadCase[] = [
     readOwn: (scope, fixtures) =>
       workspaceMembersRepo.findMemberByUserId(scope, fixtures.ownUserId),
   },
+  {
+    name: 'audit-log.listAuditLog',
+    // Like listMembers, this takes no id, so the suite scopes it to a workspace
+    // with no entries of its own. The seeded rows belong to the other one.
+    readForeign: (scope) => auditLogRepo.listAuditLog(scope),
+    readOwn: (scope) => auditLogRepo.listAuditLog(scope),
+  },
+  {
+    name: 'audit-log.listAuditLogForTarget',
+    // The target is the other workspace's user, named directly. Returning its
+    // history here would be the leak: an audit entry says who did what, so
+    // reading another tenant's is reading their operations.
+    readForeign: (scope, fixtures) =>
+      auditLogRepo.listAuditLogForTarget(scope, 'user', fixtures.foreignUserId),
+    readOwn: (scope, fixtures) =>
+      auditLogRepo.listAuditLogForTarget(scope, 'user', fixtures.ownUserId),
+  },
 ]
 
 export const WRITE_CASES: readonly WriteCase[] = [
@@ -108,6 +126,7 @@ export const WRITE_CASES: readonly WriteCase[] = [
  */
 export const REPOSITORY_MODULES = {
   'workspace-members': workspaceMembersRepo,
+  'audit-log': auditLogRepo,
 } as const
 
 /**
@@ -121,4 +140,15 @@ export const REPOSITORY_MODULES = {
 export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
   'workspace-members.addMember':
     'Takes no workspace id; insertValues stamps it from the scope, so a foreign tenant is not expressible. Covered by the RLS insert tests.',
+
+  'audit-log.writeAuditLog':
+    'Same as addMember: insertValues stamps the workspace, so a foreign tenant cannot be named. The append-only suite covers it against a real database.',
+
+  'audit-log.hashIpAddress':
+    'A pure function over a string and a salt. Touches no database and has no tenant.',
+
+  'audit-log.AuditSaltMissingError': 'An error class, not a query.',
+
+  'audit-log.ensureAuditPartitions':
+    "DDL, not a tenant-scoped read or write. Creating next month's partition is the same operation for every workspace, and row policies have nothing to say about it.",
 }

@@ -76,7 +76,20 @@ export async function findTenancyViolations(
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
-      and c.relkind = 'r'
+      -- 'r' is an ordinary table, 'p' a partitioned one. Both carry the tenancy
+      -- contract and both must be checked; omitting 'p' would let a partitioned
+      -- table ship with no workspace_id and no policy at all.
+      and c.relkind in ('r', 'p')
+      -- A partition is excluded, because it is not a table anyone declares. It
+      -- inherits its columns from the parent, which is checked, and it is created
+      -- by a function rather than by a migration a reviewer reads. Checking it
+      -- would report the same violation once per month forever.
+      --
+      -- What the parent's row does not prove is that each partition has its own
+      -- privileges and policies, which is a real gap and a real bypass. That is
+      -- asserted directly in audit-log.integration.test.ts, against statements
+      -- that name a partition.
+      and not c.relispartition
     order by c.relname
   `
 
@@ -100,7 +113,7 @@ export async function findTenancyViolations(
         where p.schemaname = 'public' and p.tablename = c.relname) as policy_count
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r'
+    where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relispartition
   `
 
   const workspaceColumn = new Map(columns.map((row) => [row.table_name, row.is_nullable]))

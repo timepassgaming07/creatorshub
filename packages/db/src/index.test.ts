@@ -17,10 +17,12 @@ describe('public surface', () => {
 
   it('is exactly the intended set', () => {
     expect(exported).toEqual([
+      'AuditSaltMissingError',
       'CrossTenantWriteError',
       'DatabaseConfigError',
       'MigrationError',
       'assertSameWorkspace',
+      'auditLog',
       'createDatabase',
       'insertValues',
       'loadDatabaseConfig',
@@ -55,5 +57,6 @@ describe('public surface', () => {
   // outside withWorkspace, so a repository cannot be driven unscoped.
   it('exposes repositories only as scoped namespaces', () => {
     expect(typeof publicApi.workspaceMembers.listMembers).toBe('function')
+    expect(typeof publicApi.auditLog.writeAuditLog).toBe('function')
   })
 })
