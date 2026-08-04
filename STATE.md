@@ -473,20 +473,27 @@ anything and say what changed.
 **Tenancy, authentication, and authorisation are done. Do not rebuild any of them.** Slice 1 items
 1.1 through 1.6, 1.8, and 1.12 are complete. Trust the completed-tasks checklist.
 
-**Continue from the Active Task in `STATE.md`,** which is item 1.10: the audit log writer with
-monthly partitioning. Then 1.7 passkeys, 1.9 rate limiting, 1.13 UI primitives, 1.14 CSP, and 1.11
-screens last because they consume 1.13.
+**Continue from the Active Task in `STATE.md`,** which is item 1.13: the core UI primitives. Then
+1.14 CSP, then 1.11 screens, then 1.7 passkeys last. That order is founder-approved and differs from
+the numbering: passkeys need a screen to attach to and a Playwright run to exercise WebAuthn, and
+neither exists until 1.11 does.
 
-**Two things about 1.10 that are easy to get wrong.** A partitioned table's primary key must include
-the partition key, so it becomes `(id, occurred_at)`; that is Postgres, not a modelling choice.
-And grants do not survive a table being renamed and recreated, so migration 0001's `REVOKE UPDATE,
-DELETE` on `audit_logs` has to be reapplied and re-proved rather than assumed to carry over.
+**Three things about 1.13 that are already decided.** `--border-control` bounds an interactive
+control and must reach 3:1, while `--border-default` is a decorative hairline WCAG exempts, so
+Button, Input, and Select all need the former. Focus is defined once globally in the `@layer base`
+block of `theme.css`, so no component declares its own ring. And `tokens/contrast.test.ts` must be
+extended in the same commit for `--accent-content` on `--accent` and every `*-subtle` pairing,
+because it only protects what it enumerates: that is exactly how a `caution` token shipped at 4.25:1
+during slice 0.
 
-**The rate limits for 1.9 are already specified.** Five failed sign-ins per 15 minutes per account,
-20 per hour per IP, exponential backoff, 429 with `Retry-After`. Password reset 3 per hour and 10 per
-day per account, 20 per hour per IP. Verification resend 3 per hour. Sign-up 10 per hour per IP.
-Better Auth has a `rateLimit` option with `customRules` and `storage: 'database'`, which needs a
-`rateLimit` table that does not exist yet and will need a migration and a tenancy-check exemption.
+**For 1.14,** the CSP is nonce-based and generated per request in middleware. Check it against Better
+Auth's routes as well as the app's own, and test both the nonce and the header rather than assuming a
+header that is present is a header that is correct.
+
+**For 1.11,** this is where the policy module finally gets call sites, which closes technical debt
+item 15, and where the slice 1 exit condition about not-found-versus-forbidden becomes testable,
+because there is finally an HTTP layer. Wire the audit log writer in at the same time: a member
+invitation that is not audited is the case the audit log exists for.
 
 **Constraints that are not negotiable:**
 
@@ -520,4 +527,4 @@ public API.
 
 Keep `STATE.md` current as you go. The repository, not the conversation, is the source of truth.
 
-Start by reading the files above, then tell me what you found and begin item 1.10.
+Start by reading the files above, then tell me what you found and begin item 1.13.
