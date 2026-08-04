@@ -106,10 +106,10 @@ here is unrecoverable, which is why it precedes everything except the toolchain.
 | 1.4 | **Done.** Tenant-scoped repository base — the only way feature code reaches the database |
 | 1.5 | **Done.** CI check: every tenant table has `workspace_id` and an RLS policy, or the build fails |
 | 1.6 | **Done.** Better Auth integration: email/password with Argon2id, sessions, verification, password reset. Third role and auth tables (ADR-0017); `email_verified` derived by trigger (ADR-0018); 20 integration tests against real Postgres |
-| 1.7 | Passkey (WebAuthn) registration and sign-in |
+| 1.7 | Passkey (WebAuthn) registration and sign-in. Deferred until after 1.11, so the flow attaches to a real screen and its Playwright coverage has somewhere to run |
 | 1.8 | **Done.** Authorisation policy module — roles and permissions in one place |
-| 1.9 | Rate limiting on all authentication endpoints |
-| 1.10 | Audit log writer, plus the append-only constraint |
+| 1.9 | **Done.** Rate limiting in two dimensions: per address through the library's `customRules`, per account in `packages/auth` because the library cannot key on an account it has not identified yet. Counted in Postgres |
+| 1.10 | **Done.** Audit log writer, partitioned monthly on `occurred_at`, append-only on the parent and on every partition |
 | 1.11 | Sign-up, sign-in, workspace creation, and member invitation screens |
 | 1.12 | **Done.** Tenant isolation test suite with the registry completeness check |
 | 1.13 | Core UI primitives — Button, Input, Select, Dialog, Toast, Skeleton (moved from 0.8) |

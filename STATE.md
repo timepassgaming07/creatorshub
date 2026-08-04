@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-03
 **Branch:** `chore/slice-0-foundation`
-**Committed:** 26 commits. Not pushed, and no remote is configured.
+**Committed:** 29 commits. Not pushed, and no remote is configured.
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
 how to work here, the ADRs say why the architecture is what it is. This says where we are.
@@ -11,15 +11,16 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 complete. Slice 1 is 8 of 14 items done.** Tenant isolation is built, enforced twice, and
+**Slice 0 complete. Slice 1 is 10 of 14 items done.** Tenant isolation is built, enforced twice, and
 each layer is proved to work with the other one absent. Authentication is complete and proved against
-a real database. Authorisation is a separate module in the domain, as ADR-0006 requires.
+a real database. Authorisation is a separate module in the domain, as ADR-0006 requires. The audit log
+is partitioned and append-only, and rate limiting is counted in Postgres.
 
 | Gate | Result |
 |---|---|
 | `pnpm verify` | 28/28 turbo tasks green, plus export check and `prettier --check` clean |
-| `pnpm test` | 394 unit tests across 15 files |
-| `pnpm test:integration` | 131 tests across 7 files, against real Postgres |
+| `pnpm test` | 441 unit tests across 17 files |
+| `pnpm test:integration` | 192 tests across 9 files, against real Postgres |
 | `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
 | `pnpm check:exports` | Passes: every advertised entry point exists after a build |
 | `pnpm test:e2e` | 18 Playwright tests, axe clean in light and dark |
@@ -31,13 +32,16 @@ a real database. Authorisation is a separate module in the domain, as ADR-0006 r
 | `packages/domain` | `Result<T, E>`, `DomainError`, and the authorisation policy. 69 tests. Import boundaries enforced |
 | `packages/telemetry` | Log redaction. 35 tests |
 | `packages/ui` | Design tokens, Tailwind v4, `MoneyDisplay`, `MoneyInput`, contrast harness. 125 tests |
-| `packages/db` | Connection layer, schema (identity and auth), RLS, repository base, isolation suite, tenancy check. 51 unit tests plus 99 integration |
+| `packages/db` | Connection layer, schema, RLS, repository base, partitioned audit log, isolation suite, tenancy check. 51 unit plus 151 integration |
+| `packages/auth` | Better Auth against the third role, Argon2id, sessions, password reset, rate limiting. 47 unit plus 41 integration |
 | `apps/web` | Next 16 App Router shell, health route, security headers, Playwright + axe |
 | `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
 
-Authentication and authorisation are done. No screens yet and no money path. `packages/auth` owns
-sign-in, sign-up, Argon2id hashing, session policy, password reset, and revocation, connecting as its
-own database role. `packages/domain` decides what a role may do.
+The whole authentication and authorisation spine is done and proved against a real database. What is
+missing is everything a person can see: there are no screens, and no money path. `packages/auth` owns
+sign-in, sign-up, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
+connecting as its own database role. `packages/domain` decides what a role may do. `packages/db` keeps
+the audit trail, partitioned monthly and append-only at the privilege level.
 
 ---
 
@@ -101,35 +105,32 @@ Slice 1:
 
 # Active Task
 
-**Slice 1 item 1.10, the audit log writer with monthly partitioning.**
+**Slice 1 item 1.13, the core UI primitives.** Button, Input, Select, Dialog, Toast, Skeleton in
+`packages/ui`.
 
-`security.md` requires the audit log be partitioned monthly. The table is still empty, so
-partitioning it now costs one migration and later costs a data migration. Founder decision: do it
-now, do not defer.
+Deferred out of slice 0 as item 0.8, on the reasoning that designing a Dialog with no dialog to show
+produces an API shaped by imagination rather than use. That reason has expired: 1.11 needs all six,
+so they now have a real consumer and their shape can follow it.
 
-Three things this item has to establish, and the order matters because each depends on the last.
+**Extend `tokens/contrast.test.ts` in the same commit.** It only protects what it enumerates, and
+these components introduce token pairings nothing has used yet: `--accent-content` on `--accent`, and
+every `*-subtle` pairing. A token that no component uses is unverified, which is exactly how a
+`caution` token shipped at 4.25:1 during slice 0.
 
-**Partition `audit_logs` by month on `occurred_at`.** The table already exists and is unpartitioned,
-so this is a rename, a new partitioned parent, and a copy. Empty, so the copy is free. The primary
-key has to include the partition key, which means `(id, occurred_at)` rather than `id` alone; that is
-a Postgres requirement rather than a modelling choice and belongs in a comment.
+**Two design rules that are already decided** and are the ones easiest to break here.
+`--border-control` is the boundary of an interactive control and must reach 3:1, while
+`--border-default` is a decorative hairline WCAG exempts; Button, Input, and Select all need the
+former. And focus is defined once globally in the `@layer base` block of `theme.css`, so no component
+should declare its own focus ring.
 
-**Create partitions ahead of time.** A month with no partition rejects every insert, which fails the
-write path rather than degrading it. A job creates the next few months; the first ones are created by
-the migration itself so a fresh database can accept writes immediately.
+Then **1.14 CSP**, nonce-based in middleware, which pays off technical debt item 1 and is the last
+open security header gap. Then **1.11 screens**, which is where the policy module finally gets call
+sites and where the not-found-versus-forbidden exit condition becomes testable, because there is
+finally an HTTP layer. Then **1.7 passkeys** last, per the founder's instruction: dependency in its
+own commit, an ADR, migration with explicit tenancy exemptions, and Playwright coverage.
 
-**Append-only, enforced by the database.** ADR-0008's mechanism: `REVOKE UPDATE, DELETE` from
-`creatorhub_app`, so the application cannot rewrite history even deliberately. Migration 0001 already
-did this for the unpartitioned table, and grants do not follow a table through a rename and a
-recreate, so this needs redoing and re-proving.
-
-The writer itself goes in `packages/db` as a repository, takes a `WorkspaceContext`, and hashes the
-IP with a rotating salt at write time per the schema comment. `actor_id` is deliberately not a
-foreign key: history has to survive the deletion of whoever caused it.
-
-The two remaining slice 1 exit conditions are the not-found-versus-forbidden check, which needs an
-HTTP layer, and the isolation suite covering every repository, which is continuous rather than a
-milestone.
+The two remaining slice 1 exit conditions are the not-found-versus-forbidden check, which needs 1.11,
+and the isolation suite covering every repository, which is continuous rather than a milestone.
 
 ---
 
@@ -138,7 +139,7 @@ milestone.
 | Slice | Goal | State |
 |---|---|---|
 | 0 | Foundation | **Complete** |
-| 1 | Identity, workspace, tenancy, audit log | **8 of 14 done.** Audit log writer next |
+| 1 | Identity, workspace, tenancy, audit log | **10 of 14 done.** UI primitives next |
 | 2 | Ledger, outbox, idempotency | Planned |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
