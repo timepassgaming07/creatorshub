@@ -29,6 +29,8 @@ their second week: *"why is it like this?"*
 | [0016](./0016-razorpay-first-adapter.md) | Razorpay is the first payment adapter, and the entity is Indian | Accepted |
 | [0017](./0017-authentication-database-role.md) | Authentication connects as a third Postgres role | Accepted |
 | [0018](./0018-email-verification-two-columns.md) | Email verification is stored twice, and one copy is derived | Accepted |
+| [0019](./0019-csp-deferred.md) | Content Security Policy deferred until the real routes exist | Accepted |
+
 
 ## Format
 

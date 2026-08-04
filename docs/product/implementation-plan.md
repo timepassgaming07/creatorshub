@@ -113,7 +113,8 @@ here is unrecoverable, which is why it precedes everything except the toolchain.
 | 1.11 | Sign-up, sign-in, workspace creation, and member invitation screens |
 | 1.12 | **Done.** Tenant isolation test suite with the registry completeness check |
 | 1.13 | Core UI primitives — Button, Input, Select, Dialog, Toast, Skeleton (moved from 0.8) |
-| 1.14 | Content Security Policy — nonce-based, generated per request in middleware (deferred from 0.9) |
+| 1.14 | **Deferred until after 1.11** ([ADR-0019](../adr/0019-csp-deferred.md)). Content Security Policy, nonce-based in middleware. Next 16.2.12 puts no nonce on its own inline bootstrap scripts, so a strict policy blocks the framework and the page never hydrates. The builder and middleware are written and tested; the rendering model 1.11 settles decides how it lands |
+
 
 **Exit condition.**
 
