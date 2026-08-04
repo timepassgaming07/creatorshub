@@ -23,12 +23,37 @@ import {
 // the jsdom environment, where import.meta.url is an http URL, not a file one.
 const css = readFileSync(resolve(process.cwd(), 'src/tokens/tokens.css'), 'utf8')
 
-/** Tokens are declared once for light and again inside the dark override block. */
-const darkBlockStart = css.indexOf("[data-theme='dark']")
-const lightTokens = extractTokens(css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')))
-const darkTokens = extractTokens(css.slice(darkBlockStart))
+/**
+ * Dark is declared twice: once for the system preference and once for the
+ * explicit override. Both are read, because a token declared in one and omitted
+ * from the other is invisible to a check that reads only one of them. That is
+ * exactly how `--border-control` kept its light value on a dark surface for every
+ * user who had never touched a theme toggle.
+ */
+const mediaBlockStart = css.indexOf('@media (prefers-color-scheme: dark)')
+const explicitBlockStart = css.indexOf("[data-theme='dark']")
+const reducedMotionStart = css.indexOf('@media (prefers-reduced-motion: reduce)')
 
-function colour(tokens: Map<string, string>, name: string): Oklch {
+const lightTokens = extractTokens(css.slice(0, mediaBlockStart))
+const systemDarkTokens = extractTokens(css.slice(mediaBlockStart, explicitBlockStart))
+const explicitDarkTokens = extractTokens(css.slice(explicitBlockStart, reducedMotionStart))
+
+/**
+ * What a browser actually resolves for a user on system dark: the media block
+ * over `:root`, so an omitted token silently keeps its light value. Testing the
+ * resolved map rather than the block in isolation is what makes an omission show
+ * up as a contrast failure instead of as a missing key nobody asserted on.
+ */
+const resolvedSystemDark = new Map([...lightTokens, ...systemDarkTokens])
+const resolvedExplicitDark = new Map([...lightTokens, ...explicitDarkTokens])
+
+const THEMES = [
+  ['light', lightTokens],
+  ['system dark', resolvedSystemDark],
+  ['explicit dark', resolvedExplicitDark],
+] as const
+
+function colour(tokens: ReadonlyMap<string, string>, name: string): Oklch {
   const raw = tokens.get(name)
   if (raw === undefined) throw new Error(`Token ${name} is not defined.`)
 
@@ -45,8 +70,17 @@ function colour(tokens: Map<string, string>, name: string): Oklch {
  * per theme — in light mode it is the darkest surface, in dark mode the lightest —
  * and hand-picking is how `content-tertiary` passed on `surface-base` while
  * failing on `surface-sunken`.
+ *
+ * `--surface-overlay` is here because Dialog and the Select listbox sit on it.
+ * Before those components existed nothing rendered it, which is the condition
+ * under which a token goes unverified.
  */
-const SURFACES = ['--surface-base', '--surface-raised', '--surface-sunken'] as const
+const SURFACES = [
+  '--surface-base',
+  '--surface-raised',
+  '--surface-overlay',
+  '--surface-sunken',
+] as const
 
 /** Foreground tokens that carry normal-size text. */
 const TEXT_FOREGROUNDS = [
@@ -72,13 +106,45 @@ const TEXT_FOREGROUNDS = [
  */
 const NON_TEXT_FOREGROUNDS = ['--border-control', '--border-strong'] as const
 
+/**
+ * A semantic colour on its own tinted background.
+ *
+ * Toast, Banner, and the Input error state all pair these, and nothing did
+ * before, so no pairing here had ever been checked. The tinted background is the
+ * hard case: a subtle tint is close in lightness to the surface it replaces, so
+ * a foreground tuned against `--surface-base` can fail against it.
+ */
+const SUBTLE_PAIRS = [
+  ['--accent', '--accent-subtle'],
+  ['--positive', '--positive-subtle'],
+  ['--caution', '--caution-subtle'],
+  ['--critical', '--critical-subtle'],
+  ['--info', '--info-subtle'],
+] as const
+
+/**
+ * Text that sits on a filled semantic background rather than beside it. The
+ * primary Button is the reason this pairing exists.
+ */
+const FILLED_PAIRS = [['--accent-content', '--accent']] as const
+
+/**
+ * A tinted background still has to be distinguishable from the surface behind
+ * it, or the region it marks is invisible. Only 3:1 applies: this is a graphical
+ * boundary, not text.
+ */
+const SUBTLE_BACKGROUNDS = [
+  '--accent-subtle',
+  '--positive-subtle',
+  '--caution-subtle',
+  '--critical-subtle',
+  '--info-subtle',
+] as const
+
 const TEXT_PAIRS = TEXT_FOREGROUNDS.flatMap((fg) => SURFACES.map((bg) => [fg, bg] as const))
 const NON_TEXT_PAIRS = NON_TEXT_FOREGROUNDS.flatMap((fg) => SURFACES.map((bg) => [fg, bg] as const))
 
-describe.each([
-  ['light', lightTokens],
-  ['dark', darkTokens],
-])('%s theme', (themeName, tokens) => {
+describe.each(THEMES)('%s theme', (themeName, tokens) => {
   it.each(TEXT_PAIRS)('%s on %s meets AA for normal text', (foreground, background) => {
     const ratio = contrastRatio(colour(tokens, foreground), colour(tokens, background))
     expect(
@@ -95,9 +161,28 @@ describe.each([
     ).toBeGreaterThanOrEqual(AA_NON_TEXT)
   })
 
-  it('content-inverse is readable on the accent it sits on', () => {
-    const ratio = contrastRatio(colour(tokens, '--accent-content'), colour(tokens, '--accent'))
-    expect(ratio, `accent-content on accent in ${themeName}`).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+  it.each(SUBTLE_PAIRS)('%s reads as text on %s', (foreground, background) => {
+    const ratio = contrastRatio(colour(tokens, foreground), colour(tokens, background))
+    expect(
+      ratio,
+      `${foreground} on ${background} in ${themeName} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+  })
+
+  it.each(FILLED_PAIRS)('%s reads as text on %s', (foreground, background) => {
+    const ratio = contrastRatio(colour(tokens, foreground), colour(tokens, background))
+    expect(
+      ratio,
+      `${foreground} on ${background} in ${themeName} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+  })
+
+  it.each(SUBTLE_BACKGROUNDS)('%s is distinguishable from the base surface', (background) => {
+    const ratio = contrastRatio(colour(tokens, background), colour(tokens, '--surface-base'))
+    expect(
+      ratio,
+      `${background} against --surface-base in ${themeName} is ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThan(1.05)
   })
 
   it('keeps a visible step between the three content levels', () => {
@@ -110,6 +195,16 @@ describe.each([
 
     expect(primary).toBeGreaterThan(secondary)
     expect(secondary).toBeGreaterThan(tertiary)
+  })
+
+  it('keeps the control border stronger than the decorative one', () => {
+    // If these two ever resolve to the same value, the second token has stopped
+    // earning its existence and one of the two WCAG rules is going unmet.
+    const base = colour(tokens, '--surface-base')
+    const control = contrastRatio(colour(tokens, '--border-control'), base)
+    const decorative = contrastRatio(colour(tokens, '--border-default'), base)
+
+    expect(control).toBeGreaterThan(decorative)
   })
 })
 
@@ -140,11 +235,44 @@ describe('contrast maths', () => {
 })
 
 describe('token file integrity', () => {
-  it('defines every colour token in both themes', () => {
-    const colourTokens = [...TEXT_FOREGROUNDS, ...NON_TEXT_FOREGROUNDS, ...SURFACES]
-    for (const token of new Set(colourTokens)) {
-      expect(lightTokens.has(token), `${token} missing from light`).toBe(true)
-      expect(darkTokens.has(token), `${token} missing from dark`).toBe(true)
+  const ALL_COLOUR_TOKENS = [
+    ...TEXT_FOREGROUNDS,
+    ...NON_TEXT_FOREGROUNDS,
+    ...SURFACES,
+    ...SUBTLE_BACKGROUNDS,
+    '--border-default',
+    '--border-subtle',
+    '--accent-content',
+  ]
+
+  it.each(THEMES)('%s defines every colour token', (themeName, tokens) => {
+    for (const token of new Set(ALL_COLOUR_TOKENS)) {
+      expect(tokens.has(token), `${token} missing from ${themeName}`).toBe(true)
+    }
+  })
+
+  it('declares the same token set in both dark blocks', () => {
+    // The two dark declarations are maintained by hand, so they drift. A token in
+    // one and not the other means the two dark experiences are different
+    // products, and only one of them was ever looked at.
+    const systemOnly = [...systemDarkTokens.keys()].filter((t) => !explicitDarkTokens.has(t))
+    const explicitOnly = [...explicitDarkTokens.keys()].filter((t) => !systemDarkTokens.has(t))
+
+    expect(systemOnly, 'declared for the system preference but not the explicit override').toEqual(
+      [],
+    )
+    expect(
+      explicitOnly,
+      'declared for the explicit override but not the system preference',
+    ).toEqual([])
+  })
+
+  it('gives both dark blocks the same value for every colour they share', () => {
+    for (const token of new Set(ALL_COLOUR_TOKENS)) {
+      const system = systemDarkTokens.get(token)
+      const explicit = explicitDarkTokens.get(token)
+      if (system === undefined || explicit === undefined) continue
+      expect(system, `${token} differs between the two dark blocks`).toBe(explicit)
     }
   })
 

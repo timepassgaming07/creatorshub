@@ -202,14 +202,21 @@
 
     --content-primary: oklch(96% 0.004 265);
     --content-secondary: oklch(75% 0.006 265);
-    --content-tertiary: oklch(61% 0.007 265);
+    /* 62.5%, not 61%: the lower value reached 4.34:1 on --surface-overlay, which
+     * is where a dialog and the select listbox put their metadata. Solved against
+     * the lightest dark surface, which is the worst case in this theme. */
+    --content-tertiary: oklch(62.5% 0.007 265);
     --content-inverse: oklch(17% 0.006 265);
 
     --border-subtle: oklch(27% 0.008 265);
     --border-default: oklch(34% 0.009 265);
+    /* Declared here as well as in the explicit override. Omitting it left every
+     * control on system dark outlined in the light-theme value. */
+    --border-control: oklch(53% 0.009 265);
     --border-strong: oklch(72% 0.09 250);
 
     --accent: oklch(70% 0.12 252);
+
     --accent-hover: oklch(78% 0.11 252);
     --accent-subtle: oklch(27% 0.05 252);
     --accent-content: oklch(17% 0.006 265);
@@ -229,7 +236,14 @@
   }
 }
 
-/** Explicit user override, which persists. Respects the choice over the system. */
+/**
+ * Explicit user override, which persists. Respects the choice over the system.
+ *
+ * Every declaration above is repeated here, and the contrast test asserts the two
+ * blocks carry an identical token set with identical values. The alternative to
+ * that duplication is a third selector list, and the alternative to the test is
+ * two dark themes that quietly differ.
+ */
 :root[data-theme='dark'] {
   --surface-base: oklch(17% 0.006 265);
   --surface-raised: oklch(21% 0.007 265);
@@ -238,12 +252,12 @@
 
   --content-primary: oklch(96% 0.004 265);
   --content-secondary: oklch(75% 0.006 265);
-  --content-tertiary: oklch(61% 0.007 265);
+  --content-tertiary: oklch(62.5% 0.007 265);
   --content-inverse: oklch(17% 0.006 265);
 
   --border-subtle: oklch(27% 0.008 265);
   --border-default: oklch(34% 0.009 265);
-  --border-control: oklch(52% 0.009 265);
+  --border-control: oklch(53% 0.009 265);
   --border-strong: oklch(72% 0.09 250);
 
   --accent: oklch(70% 0.12 252);
@@ -259,6 +273,12 @@
   --critical-subtle: oklch(28% 0.07 25);
   --info: oklch(73% 0.11 240);
   --info-subtle: oklch(27% 0.05 240);
+
+  /* Shadows are tuned per theme. Without these, a user who chose dark explicitly
+   * kept the light-theme shadows, which are near-invisible on a dark surface. */
+  --elevation-1: 0 1px 2px oklch(0% 0 0 / 0.3), 0 1px 3px oklch(0% 0 0 / 0.2);
+  --elevation-2: 0 2px 4px oklch(0% 0 0 / 0.3), 0 4px 12px oklch(0% 0 0 / 0.28);
+  --elevation-3: 0 4px 8px oklch(0% 0 0 / 0.35), 0 12px 32px oklch(0% 0 0 / 0.4);
 }
 
 /**
