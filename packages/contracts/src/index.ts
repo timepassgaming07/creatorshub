@@ -41,6 +41,8 @@ export type { BasisPoints, CurrencyCode, Money, MoneyWire } from './money.js'
 
 export {
   InvalidIdentifierError,
+  assetId,
+  assetIdSchema,
   jobId,
   jobIdSchema,
   ledgerAccountId,
@@ -49,21 +51,31 @@ export {
   ledgerEntryIdSchema,
   ledgerTransactionId,
   ledgerTransactionIdSchema,
+  productAssetId,
+  productAssetIdSchema,
+  productId,
+  productIdSchema,
   requestId,
   requestIdSchema,
   userId,
   userIdSchema,
+  variantId,
+  variantIdSchema,
   workspaceId,
   workspaceIdSchema,
 } from './identifiers.js'
 
 export type {
+  AssetId,
   JobId,
   LedgerAccountId,
   LedgerEntryId,
   LedgerTransactionId,
+  ProductAssetId,
+  ProductId,
   RequestId,
   UserId,
+  VariantId,
   WorkspaceId,
 } from './identifiers.js'
 
@@ -119,6 +131,39 @@ export type {
   ReconciliationStatus,
   WorkspaceReconciliationSummary,
 } from './reconciliation.js'
+
+export {
+  ASSET_SCAN_STATUSES,
+  PRODUCT_ASSET_ROLES,
+  PRODUCT_SLUG_PATTERN,
+  PRODUCT_STATUSES,
+  PRODUCT_VISIBILITIES,
+  VARIANT_INVENTORY_POLICIES,
+  assetScanStatusSchema,
+  attachProductAssetInputSchema,
+  createAssetInputSchema,
+  createProductInputSchema,
+  createVariantInputSchema,
+  productAssetRoleSchema,
+  productSlugSchema,
+  productStatusSchema,
+  productVisibilitySchema,
+  updateProductInputSchema,
+  variantInventoryPolicySchema,
+} from './catalogue.js'
+
+export type {
+  AssetScanStatus,
+  AttachProductAssetInput,
+  CreateAssetInput,
+  CreateProductInput,
+  CreateVariantInput,
+  ProductAssetRole,
+  ProductStatus,
+  ProductVisibility,
+  UpdateProductInput,
+  VariantInventoryPolicy,
+} from './catalogue.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

@@ -91,12 +91,23 @@ Slice 2:
 - [x] **2.8** Schema: `idempotency_keys`, and the middleware that enforces them
 - [x] **2.9** Reconciliation job comparing derived balances against a materialised rollup
 
+Slice 3:
+
+- [x] **3.1** Schema: `products`, `product_variants`, `assets`, `product_assets`
+- [ ] **3.2** `packages/storage` — storage port, plus the first adapter
+- [ ] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection
+- [ ] **3.4** Malware scanning; an asset is not deliverable until marked clean
+- [ ] **3.5** Pricing model, including the currency decision per workspace
+- [ ] **3.6** Schema and rules for `discounts`
+- [ ] **3.7** Product create, edit, and publish screens
+- [ ] **3.8** Asset management interface with upload progress and failure recovery
+
 ---
 
 # Active Task
 
-**Slice 3 item 3.1: Schema: `products`, `product_variants`, `prices`, `price_tiers`.**
-Multi-tenant product catalogue schemas with single/multi-variant support, multi-currency price structures, and RLS policies.
+**Slice 3 item 3.2: `packages/storage` — storage port, plus the first adapter.**
+Port interface for object storage (presigned upload/download URLs, multipart, metadata inspection), with local filesystem / memory adapter for testing and S3 / Cloudflare R2 adapter for production.
 
 ---
 
@@ -107,7 +118,7 @@ Multi-tenant product catalogue schemas with single/multi-variant support, multi-
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **In Progress** |
+| 3 | Catalogue | **1 of 8 done.** Storage port next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

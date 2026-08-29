@@ -23,6 +23,7 @@ describe('public surface', () => {
       'MigrationError',
       'assertSameWorkspace',
       'auditLog',
+      'catalogue',
       'createDatabase',
       'idempotency',
       'insertValues',

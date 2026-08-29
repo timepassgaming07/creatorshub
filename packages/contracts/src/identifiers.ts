@@ -37,6 +37,18 @@ export type LedgerEntryId = string & { readonly __brand: 'LedgerEntryId' }
 
 export type JobId = string & { readonly __brand: 'JobId' }
 
+/** Catalogue product identifier (UUIDv7). */
+export type ProductId = string & { readonly __brand: 'ProductId' }
+
+/** Product variant identifier (UUIDv7). */
+export type VariantId = string & { readonly __brand: 'VariantId' }
+
+/** Digital or media asset identifier (UUIDv7). */
+export type AssetId = string & { readonly __brand: 'AssetId' }
+
+/** Product-to-asset association identifier (UUIDv7). */
+export type ProductAssetId = string & { readonly __brand: 'ProductAssetId' }
+
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
  * one request.
@@ -123,6 +135,26 @@ export function jobId(value: string): JobId {
   return value as JobId
 }
 
+export function productId(value: string): ProductId {
+  assertUuidV7(value, 'product id')
+  return value as ProductId
+}
+
+export function variantId(value: string): VariantId {
+  assertUuidV7(value, 'variant id')
+  return value as VariantId
+}
+
+export function assetId(value: string): AssetId {
+  assertUuidV7(value, 'asset id')
+  return value as AssetId
+}
+
+export function productAssetId(value: string): ProductAssetId {
+  assertUuidV7(value, 'product asset id')
+  return value as ProductAssetId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -173,6 +205,26 @@ export const jobIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as JobId)
+
+export const productIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as ProductId)
+
+export const variantIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as VariantId)
+
+export const assetIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AssetId)
+
+export const productAssetIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as ProductAssetId)
 
 export const requestIdSchema = z
   .string()

@@ -58,3 +58,23 @@ export {
   type LedgerBalanceRollupRecord,
   type NewLedgerBalanceRollupRecord,
 } from './reconciliation.js'
+
+export {
+  assetScanStatus,
+  assets,
+  productAssetRole,
+  productAssets,
+  productStatus,
+  productVariants,
+  productVisibility,
+  products,
+  variantInventoryPolicy,
+  type AssetRecord,
+  type NewAssetRecord,
+  type NewProductAssetRecord,
+  type NewProductRecord,
+  type NewProductVariantRecord,
+  type ProductAssetRecord,
+  type ProductRecord,
+  type ProductVariantRecord,
+} from './catalogue.js'

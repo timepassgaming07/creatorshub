@@ -80,3 +80,8 @@ export type {
  * Continuous ledger reconciliation repository (item 2.9).
  */
 export * as reconciliation from './repositories/reconciliation.js'
+
+/**
+ * Product catalogue, variants, and assets repository (item 3.1).
+ */
+export * as catalogue from './repositories/catalogue.js'

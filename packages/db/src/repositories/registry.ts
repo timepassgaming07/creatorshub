@@ -22,6 +22,7 @@ import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
+import * as catalogueRepo from './catalogue.js'
 import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
@@ -139,6 +140,7 @@ export const REPOSITORY_MODULES = {
   jobs: jobsRepo,
   idempotency: idempotencyRepo,
   reconciliation: reconciliationRepo,
+  catalogue: catalogueRepo,
 } as const
 
 /**
@@ -245,4 +247,37 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'reconciliation.runReconciliationJob':
     'Worker task runner for continuous reconciliation. Tested in reconciliation integration suite.',
+
+  'catalogue.createProduct':
+    'Stamps workspace from scope. Tested in catalogue repository integration suite.',
+
+  'catalogue.findProductById':
+    'Reads product by ID scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.findProductBySlug':
+    'Reads product by slug scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.listProducts':
+    'Lists products scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.updateProduct':
+    'Updates product scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.createVariant':
+    'Stamps workspace from scope. Tested in catalogue repository integration suite.',
+
+  'catalogue.listVariantsForProduct':
+    'Lists variants scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.createAsset':
+    'Stamps workspace from scope. Tested in catalogue repository integration suite.',
+
+  'catalogue.findAssetById':
+    'Reads asset by ID scoped to current workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.attachProductAsset':
+    'Stamps workspace from scope. Tested in catalogue repository integration suite.',
+
+  'catalogue.listAssetsForProduct':
+    'Lists assets for product scoped to workspace. Tested in catalogue repository integration suite.',
 }
