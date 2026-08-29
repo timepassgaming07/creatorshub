@@ -23,7 +23,7 @@ import type {
   ProductStatus,
   UpdateProductInput,
 } from '@creatorhub/contracts'
-import { asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
@@ -41,6 +41,8 @@ import {
   productVariants,
   products,
 } from '../schema/index.js'
+
+export type { AssetRecord, ProductRecord, ProductVariantRecord, ProductAssetRecord }
 
 /**
  * Creates a new product in the current workspace.
@@ -336,4 +338,33 @@ export async function listAssetsForProduct(
     .orderBy(asc(productAssets.position))
 
   return rows
+}
+
+/**
+ * Lists all media and deliverable assets for the current workspace.
+ */
+export async function listAssets(scope: RepositoryScope): Promise<AssetRecord[]> {
+  return scope.tx.select().from(assets).where(scoped(scope, assets)).orderBy(desc(assets.createdAt))
+}
+
+/**
+ * Detaches an asset from a product within the current workspace.
+ */
+export async function detachProductAsset(
+  scope: RepositoryScope,
+  prodId: ProductId,
+  astId: AssetId,
+): Promise<boolean> {
+  const deleted = await scope.tx
+    .delete(productAssets)
+    .where(
+      scoped(
+        scope,
+        productAssets,
+        and(eq(productAssets.productId, prodId), eq(productAssets.assetId, astId)),
+      ),
+    )
+    .returning()
+
+  return deleted.length > 0
 }

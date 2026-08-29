@@ -38,6 +38,9 @@ importers:
       '@creatorhub/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@creatorhub/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@creatorhub/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
@@ -6381,7 +6384,7 @@ snapshots:
 
   '@types/pg@8.15.6':
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 25.5.0
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 

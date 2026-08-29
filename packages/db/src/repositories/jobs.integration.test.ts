@@ -9,6 +9,7 @@
  * 5. Dead-lettering on exhausted max_attempts or unknown job type.
  * 6. Idempotency key deduplication.
  */
+import { randomUUID } from 'node:crypto'
 import { requestId, userId, workspaceContext, workspaceId } from '@creatorhub/contracts'
 import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -179,24 +180,25 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
   })
 
   it('handles worker batch execution: success, retry with backoff, and dead-lettering', async () => {
+    const queueName = `q_batch_${randomUUID().slice(0, 8)}`
     // Enqueue 3 jobs: 1 to succeed, 1 to fail and retry, 1 with no handler (dead-letter immediately)
     await inScope(ws1Id, async (scope) => {
       await jobsRepo.enqueueJob(scope, {
-        queue: 'default',
+        queue: queueName,
         type: 'job_ok',
         payload: { name: 'ok' },
         maxAttempts: 3,
       })
 
       await jobsRepo.enqueueJob(scope, {
-        queue: 'default',
+        queue: queueName,
         type: 'job_retry',
         payload: { name: 'retry' },
         maxAttempts: 3,
       })
 
       await jobsRepo.enqueueJob(scope, {
-        queue: 'default',
+        queue: queueName,
         type: 'job_unhandled',
         payload: { name: 'unhandled' },
         maxAttempts: 3,
@@ -207,7 +209,7 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
     await inScope(ws1Id, async (scope) => {
       const result = await jobsRepo.runWorkerBatch(
         scope,
-        'default',
+        queueName,
         'worker_test_1',
         {
           job_ok: async (_job) => {
@@ -230,7 +232,7 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
 
     // Assert status in database
     const [okRow] = await control<{ status: string; locked_by: string | null }[]>`
-      SELECT status, locked_by FROM jobs WHERE type = 'job_ok'
+      SELECT status, locked_by FROM jobs WHERE queue = ${queueName} AND type = 'job_ok'
     `
     expect(okRow?.status).toBe('succeeded')
     expect(okRow?.locked_by).toBeNull()
@@ -238,7 +240,7 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
     const [retryRow] = await control<
       { status: string; attempts: number; last_error: string; run_after: Date }[]
     >`
-      SELECT status, attempts, last_error, run_after FROM jobs WHERE type = 'job_retry'
+      SELECT status, attempts, last_error, run_after FROM jobs WHERE queue = ${queueName} AND type = 'job_retry'
     `
     expect(retryRow?.status).toBe('queued')
     expect(retryRow?.attempts).toBe(1)
@@ -248,17 +250,18 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
     const [unhandledRow] = await control<
       { status: string; attempts: number; last_error: string }[]
     >`
-      SELECT status, attempts, last_error FROM jobs WHERE type = 'job_unhandled'
+      SELECT status, attempts, last_error FROM jobs WHERE queue = ${queueName} AND type = 'job_unhandled'
     `
     expect(unhandledRow?.status).toBe('dead')
     expect(unhandledRow?.last_error).toContain('No handler registered')
   })
 
   it('dead-letters a job when max_attempts is reached', async () => {
+    const queueName = `q_exhaust_${randomUUID().slice(0, 8)}`
     let jobIdVal = ''
     await inScope(ws1Id, async (scope) => {
       const job = await jobsRepo.enqueueJob(scope, {
-        queue: 'exhaustion',
+        queue: queueName,
         type: 'always_fail',
         payload: {},
         maxAttempts: 2,
@@ -270,7 +273,7 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
     await inScope(ws1Id, async (scope) => {
       const res1 = await jobsRepo.runWorkerBatch(
         scope,
-        'exhaustion',
+        queueName,
         'w1',
         {
           always_fail: async () => {
@@ -292,7 +295,7 @@ describe('Postgres Jobs Queue (Item 2.7)', () => {
     await inScope(ws1Id, async (scope) => {
       const res2 = await jobsRepo.runWorkerBatch(
         scope,
-        'exhaustion',
+        queueName,
         'w1',
         {
           always_fail: async () => {

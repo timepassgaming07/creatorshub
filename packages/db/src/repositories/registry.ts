@@ -286,6 +286,12 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
   'catalogue.listAssetsForProduct':
     'Lists assets for product scoped to workspace. Tested in catalogue repository integration suite.',
 
+  'catalogue.listAssets':
+    'Lists assets scoped to workspace. Tested in catalogue repository integration suite.',
+
+  'catalogue.detachProductAsset':
+    'Detaches product asset scoped to workspace. Tested in catalogue repository integration suite.',
+
   'discounts.createDiscount':
     'Stamps workspace from scope. Tested in discounts repository integration suite.',
 

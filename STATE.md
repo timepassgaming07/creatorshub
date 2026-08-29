@@ -100,14 +100,14 @@ Slice 3:
 - [x] **3.5** Pricing model, including the currency decision per workspace (`resolveEffectivePrice`, `validateProductPricing`, `calculateSavings`)
 - [x] **3.6** Schema and rules for `discounts` (`discounts`, `discount_products`, `evaluateDiscount`, repository, and integration suite)
 - [x] **3.7** Product create, edit, and publish screens (server actions with RBAC and audit logging, product list, create form, and detail/edit/publish screens)
-- [ ] **3.8** Asset management interface with upload progress and failure recovery
+- [x] **3.8** Asset management interface with upload progress and failure recovery (`AssetUploader`, direct presigned upload with progress tracking, heuristic malware scanning, deliverability validation, and workspace asset management)
 
 ---
 
 # Active Task
 
-**Slice 3 item 3.8: Asset management interface with upload progress and failure recovery.**
-UI upload component, multipart/chunked direct storage upload with presigned URLs, progress reporting, scan status feedback, and failure recovery.
+**Slice 4 item 4.1: Schema: `storefronts`, including domain and subdomain columns.**
+Define the multi-tenant public storefront schema with custom domain bindings, subdomain slugs, theme preferences, and Postgres row-level security.
 
 ---
 
@@ -118,8 +118,8 @@ UI upload component, multipart/chunked direct storage upload with presigned URLs
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **7 of 8 done.** Asset management interface next |
-| 4 | Storefront | Planned |
+| 3 | Catalogue | **Complete** |
+| 4 | Storefront | **In Progress.** Schema next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |

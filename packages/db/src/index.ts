@@ -85,6 +85,12 @@ export * as reconciliation from './repositories/reconciliation.js'
  * Product catalogue, variants, and assets repository (item 3.1).
  */
 export * as catalogue from './repositories/catalogue.js'
+export type {
+  AssetRecord,
+  ProductAssetRecord,
+  ProductRecord,
+  ProductVariantRecord,
+} from './repositories/catalogue.js'
 
 /**
  * Discounts and coupons repository (item 3.6).

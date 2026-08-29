@@ -20,6 +20,7 @@
     "@creatorhub/contracts": "workspace:*",
     "@creatorhub/db": "workspace:*",
     "@creatorhub/domain": "workspace:*",
+    "@creatorhub/storage": "workspace:*",
     "@creatorhub/telemetry": "workspace:*",
     "@creatorhub/ui": "workspace:*",
     "better-auth": "1.6.25",
