@@ -14,6 +14,7 @@
  */
 import type {
   AssetId,
+  AssetScanStatus,
   AttachProductAssetInput,
   CreateAssetInput,
   CreateProductInput,
@@ -250,6 +251,34 @@ export async function findAssetById(
     .where(scoped(scope, assets, eq(assets.id, id)))
 
   return row ?? null
+}
+
+/**
+ * Updates an asset's scan status and optional reason (e.g. from malware scanning).
+ */
+export async function updateAssetScanStatus(
+  scope: RepositoryScope,
+  id: AssetId,
+  update: {
+    readonly scanStatus: AssetScanStatus
+    readonly scanReason?: string | null | undefined
+  },
+): Promise<AssetRecord> {
+  const [row] = await scope.tx
+    .update(assets)
+    .set({
+      scanStatus: update.scanStatus,
+      scanReason: update.scanReason ?? null,
+      scannedAt: new Date(),
+    })
+    .where(scoped(scope, assets, eq(assets.id, id)))
+    .returning()
+
+  if (!row) {
+    throw new Error(`Asset ${id} not found or not accessible to tenant.`)
+  }
+
+  return row
 }
 
 /**

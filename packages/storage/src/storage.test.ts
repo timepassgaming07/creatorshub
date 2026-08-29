@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest'
 import { MemoryStorageDriver } from './adapters/memory.js'
 import { S3StorageDriver } from './adapters/s3.js'
 import { createStorageDriver, loadStorageConfig } from './config.js'
+import { AssetNotDeliverableError, assertAssetDeliverable, isAssetDeliverable } from './guard.js'
 import { detectMimeType, validateMimeType } from './inspection.js'
+import { HeuristicMalwareScanner } from './scanner.js'
 import { AssetStorageService } from './service.js'
 
 describe('MemoryStorageDriver', () => {
@@ -260,5 +262,51 @@ describe('AssetStorageService Upload and Verification (Item 3.3)', () => {
     // 6. Verification fails if binary signature does not match declared type
     const mimeMismatch = await service.verifyUpload(initiate.storageKey, 1024n, 'image/png')
     expect(mimeMismatch.verified).toBe(false)
+  })
+})
+
+describe('Malware Scanning and Deliverability Guard (Item 3.4)', () => {
+  it('detects EICAR test signature and marks infected', async () => {
+    const scanner = new HeuristicMalwareScanner()
+
+    const cleanPdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])
+    const cleanResult = await scanner.scanBuffer(cleanPdf)
+    expect(cleanResult.clean).toBe(true)
+
+    const eicarPayload = new TextEncoder().encode(
+      'prefix_X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*_suffix',
+    )
+    const infectedResult = await scanner.scanBuffer(eicarPayload)
+    expect(infectedResult.clean).toBe(false)
+    if (!infectedResult.clean) {
+      expect(infectedResult.threatName).toBe('EICAR-Standard-AV-Test-Signature')
+    }
+  })
+
+  it('enforces that only clean assets are deliverable', () => {
+    expect(isAssetDeliverable({ scanStatus: 'clean' })).toBe(true)
+    expect(isAssetDeliverable({ scanStatus: 'pending' })).toBe(false)
+    expect(isAssetDeliverable({ scanStatus: 'infected' })).toBe(false)
+    expect(isAssetDeliverable({ scanStatus: 'skipped' })).toBe(false)
+
+    expect(() => {
+      assertAssetDeliverable({ id: 'a1', scanStatus: 'clean' })
+    }).not.toThrow()
+
+    expect(() => {
+      assertAssetDeliverable({
+        id: 'a2',
+        scanStatus: 'pending',
+        scanReason: 'Scanning in progress',
+      })
+    }).toThrow(AssetNotDeliverableError)
+
+    expect(() => {
+      assertAssetDeliverable({
+        id: 'a3',
+        scanStatus: 'infected',
+        scanReason: 'EICAR test file',
+      })
+    }).toThrow(AssetNotDeliverableError)
   })
 })

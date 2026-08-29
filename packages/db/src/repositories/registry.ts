@@ -275,6 +275,9 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
   'catalogue.findAssetById':
     'Reads asset by ID scoped to current workspace. Tested in catalogue repository integration suite.',
 
+  'catalogue.updateAssetScanStatus':
+    'Updates asset scan status scoped to current workspace. Tested in catalogue repository integration suite.',
+
   'catalogue.attachProductAsset':
     'Stamps workspace from scope. Tested in catalogue repository integration suite.',
 

@@ -310,5 +310,24 @@ describe('Catalogue Repository (Item 3.1)', () => {
       catalogueRepo.listAssetsForProduct(scope, productId(prod.id)),
     )
     expect(foreignAttachments).toHaveLength(0)
+
+    // 5. Update scan status from pending to clean or infected
+    const updatedAsset = await inScope(ws1Id, u1Id, async (scope) =>
+      catalogueRepo.updateAssetScanStatus(scope, assetId(asset.id), {
+        scanStatus: 'infected',
+        scanReason: 'EICAR test signature detected in payload',
+      }),
+    )
+    expect(updatedAsset.scanStatus).toBe('infected')
+    expect(updatedAsset.scanReason).toBe('EICAR test signature detected in payload')
+
+    // Cross-tenant update must fail
+    await expect(
+      inScope(ws2Id, u2Id, async (scope) =>
+        catalogueRepo.updateAssetScanStatus(scope, assetId(asset.id), {
+          scanStatus: 'clean',
+        }),
+      ),
+    ).rejects.toThrow()
   })
 })
