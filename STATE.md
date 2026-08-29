@@ -95,7 +95,7 @@ Slice 3:
 
 - [x] **3.1** Schema: `products`, `product_variants`, `assets`, `product_assets`
 - [x] **3.2** `packages/storage` — storage port, plus the first adapter (`@creatorhub/storage` with `MemoryStorageDriver` and `S3StorageDriver` AWS SigV4 presigner)
-- [ ] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection
+- [x] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection (`AssetStorageService`, `detectMimeType`, `validateMimeType`)
 - [ ] **3.4** Malware scanning; an asset is not deliverable until marked clean
 - [ ] **3.5** Pricing model, including the currency decision per workspace
 - [ ] **3.6** Schema and rules for `discounts`
@@ -106,8 +106,8 @@ Slice 3:
 
 # Active Task
 
-**Slice 3 item 3.3: Upload flow: presigned direct upload, size and content-type validation by inspection.**
-Direct client-to-storage upload lifecycle, post-upload inspection, magic-number MIME type verification, and asset registry integration.
+**Slice 3 item 3.4: Malware scanning; an asset is not deliverable until marked clean.**
+Asynchronous malware scanning job via `jobs` queue, scan result evaluator, asset delivery guard enforcing clean status before product publishing/download.
 
 ---
 
@@ -118,7 +118,7 @@ Direct client-to-storage upload lifecycle, post-upload inspection, magic-number 
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **2 of 8 done.** Direct upload flow next |
+| 3 | Catalogue | **3 of 8 done.** Malware scanning next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

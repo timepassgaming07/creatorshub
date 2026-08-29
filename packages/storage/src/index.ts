@@ -14,6 +14,7 @@ export {
   storageConfigSchema,
   type StorageConfig,
 } from './config.js'
+export { detectMimeType, type MimeInspectionResult, validateMimeType } from './inspection.js'
 export type {
   GenerateDownloadUrlOptions,
   GenerateUploadUrlOptions,
@@ -23,3 +24,10 @@ export type {
   StorageDriver,
   StorageObjectMetadata,
 } from './port.js'
+export {
+  AssetStorageService,
+  type InitiateAssetUploadInput,
+  type InitiateAssetUploadResult,
+  MAX_ASSET_BYTE_SIZE,
+  type VerifyUploadedAssetResult,
+} from './service.js'
