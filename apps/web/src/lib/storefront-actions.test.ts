@@ -38,6 +38,8 @@ const mockUpdateStorefront = vi.fn()
 const mockUpdateCustomDomainStatus = vi.fn()
 const mockWriteAuditLog = vi.fn()
 const mockFindCurrentWorkspace = vi.fn()
+const mockFindProductBySlug = vi.fn()
+const mockListAssetsForProduct = vi.fn()
 
 vi.mock('@creatorhub/db', () => ({
   workspaceMembers: {
@@ -59,10 +61,16 @@ vi.mock('@creatorhub/db', () => ({
   },
   catalogue: {
     listProducts: vi.fn().mockResolvedValue([]),
+    findProductBySlug: (...args: unknown[]) => mockFindProductBySlug(...args) as unknown,
+    listAssetsForProduct: (...args: unknown[]) => mockListAssetsForProduct(...args) as unknown,
   },
 }))
 
 import {
+  getPublicProductDetailByCustomDomain,
+  getPublicProductDetailBySubdomain,
+  getPublicStorefrontDataByCustomDomain,
+  getPublicStorefrontDataBySubdomain,
   getStorefrontForWorkspaceAction,
   initiateCustomDomainAction,
   publishStorefrontAction,
@@ -331,5 +339,120 @@ describe('Storefront Server Actions', () => {
     if (res.success) {
       expect(res.data.customDomain).toBeNull()
     }
+  })
+
+  it('loads public product detail by subdomain and slug (4.4)', async () => {
+    const mockStorefront = {
+      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
+      workspaceId: validWorkspaceId,
+      subdomain: 'my-store',
+      customDomain: null,
+      customDomainStatus: 'pending' as const,
+      customDomainVerificationToken: null,
+      customDomainVerifiedAt: null,
+      title: 'My Store',
+      tagline: null,
+      description: null,
+      themeConfig: {
+        accentColor: '#4f46e5',
+        fontPreset: 'sans' as const,
+        layoutPreset: 'showcase' as const,
+      },
+      status: 'published' as const,
+      publishedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const mockProduct = {
+      id: '018f9e2b-7c5e-7a2e-8c3b-222222222222',
+      workspaceId: validWorkspaceId,
+      title: 'Digital Masterclass',
+      slug: 'digital-masterclass',
+      description: 'Complete video course',
+      status: 'published' as const,
+      currency: 'USD',
+      basePrice: 4900n,
+      compareAtPrice: 9900n,
+      visibility: 'public' as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    mockWithWorkspace.mockImplementation(async (_context, fn) => {
+      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
+      mockFindProductBySlug.mockResolvedValue(mockProduct)
+      mockListAssetsForProduct.mockResolvedValue([
+        {
+          productAsset: { role: 'deliverable' },
+          asset: {
+            id: '018f9e2b-7c5e-7a2e-8c3b-333333333333',
+            originalFilename: 'masterclass.zip',
+            mimeType: 'application/zip',
+            byteSize: 10485760,
+          },
+        },
+      ])
+      const res = await fn({})
+      return res
+    })
+
+    const res = await getPublicProductDetailBySubdomain(
+      'my-store',
+      'digital-masterclass',
+      validWorkspaceId,
+    )
+    expect(res).not.toBeNull()
+    if (res) {
+      expect(res.storefront.title).toBe('My Store')
+      expect(res.product.title).toBe('Digital Masterclass')
+      expect(res.product.basePrice).toBe('4900')
+      expect(res.product.assets).toHaveLength(1)
+      expect(res.product.assets[0]?.originalFilename).toBe('masterclass.zip')
+    }
+  })
+
+  it('loads public storefront data by subdomain in preview mode (4.4)', async () => {
+    const mockStorefront = {
+      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
+      workspaceId: validWorkspaceId,
+      subdomain: 'my-store',
+      customDomain: null,
+      customDomainStatus: 'pending' as const,
+      customDomainVerificationToken: null,
+      customDomainVerifiedAt: null,
+      title: 'My Store',
+      tagline: null,
+      description: null,
+      themeConfig: {
+        accentColor: '#4f46e5',
+        fontPreset: 'sans' as const,
+        layoutPreset: 'showcase' as const,
+      },
+      status: 'published' as const,
+      publishedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    mockWithWorkspace.mockImplementation(async (_context, fn) => {
+      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
+      const res = await fn({})
+      return res
+    })
+
+    const res = await getPublicStorefrontDataBySubdomain('my-store', validWorkspaceId)
+    expect(res).not.toBeNull()
+    if (res) {
+      expect(res.storefront.title).toBe('My Store')
+    }
+  })
+
+  it('loads public storefront and product detail by custom domain (4.4)', async () => {
+    const resStorefront = await getPublicStorefrontDataByCustomDomain('unknown.domain.com')
+    expect(resStorefront).toBeNull()
+
+    const resProduct = await getPublicProductDetailByCustomDomain('unknown.domain.com', 'some-slug')
+    expect(resProduct).toBeNull()
   })
 })

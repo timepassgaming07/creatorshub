@@ -14,6 +14,7 @@ import {
   buildDomainChallenge,
   type CustomDomainChallenge,
   customDomainSchema,
+  productId,
   requestId,
   storefrontId,
   type StorefrontRecord,
@@ -67,6 +68,26 @@ export type PublicStorefrontData = {
     readonly compareAtPrice: string | null
     readonly currency: string
   }[]
+}
+
+export type PublicProductDetailData = {
+  readonly storefront: StorefrontRecord
+  readonly product: {
+    readonly id: string
+    readonly title: string
+    readonly slug: string
+    readonly description: string | null
+    readonly basePrice: string
+    readonly compareAtPrice: string | null
+    readonly currency: string
+    readonly assets: readonly {
+      readonly id: string
+      readonly originalFilename: string
+      readonly mimeType: string
+      readonly byteSize: number
+      readonly role: string
+    }[]
+  }
 }
 
 function mapStorefront(row: {
@@ -623,6 +644,149 @@ export async function getPublicStorefrontDataByCustomDomain(
         compareAtPrice: p.compareAtPrice?.toString() ?? null,
         currency: p.currency,
       })),
+    }
+  })
+}
+
+/**
+ * Public Data Loader: Fetches product detail & storefront by subdomain and slug.
+ */
+export async function getPublicProductDetailBySubdomain(
+  subdomain: string,
+  slug: string,
+  previewWorkspaceId?: string,
+): Promise<PublicProductDetailData | null> {
+  const db = getDatabase()
+
+  if (previewWorkspaceId) {
+    const wsParsed = workspaceIdSchema.safeParse(previewWorkspaceId)
+    if (wsParsed.success) {
+      const context = workspaceContext({
+        workspaceId: wsParsed.data,
+        actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+        requestId: requestId(`req-prev-prod-${randomUUID().slice(0, 8)}`),
+      })
+
+      return db.withWorkspace(context, async (tx) => {
+        const scope = { tx, context }
+        const sf = await storefronts.findStorefrontByWorkspaceId(scope)
+        if (!sf) return null
+
+        const prod = await catalogue.findProductBySlug(scope, slug)
+        if (!prod) return null
+
+        const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
+        return {
+          storefront: mapStorefront(sf),
+          product: {
+            id: prod.id,
+            title: prod.title,
+            slug: prod.slug,
+            description: prod.description,
+            basePrice: prod.basePrice.toString(),
+            compareAtPrice: prod.compareAtPrice?.toString() ?? null,
+            currency: prod.currency,
+            assets: rawAssets.map((a) => ({
+              id: a.asset.id,
+              originalFilename: a.asset.originalFilename,
+              mimeType: a.asset.mimeType,
+              byteSize: Number(a.asset.byteSize),
+              role: a.productAsset.role,
+            })),
+          },
+        }
+      })
+    }
+  }
+
+  const resolved = await db.resolveStorefrontByHostname(subdomain)
+  if (resolved?.status !== 'published') {
+    return null
+  }
+
+  const context = workspaceContext({
+    workspaceId: resolved.workspaceId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: requestId(`req-pub-prod-${randomUUID().slice(0, 8)}`),
+  })
+
+  return db.withWorkspace(context, async (tx) => {
+    const scope = { tx, context }
+    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
+    if (!sf) return null
+
+    const prod = await catalogue.findProductBySlug(scope, slug)
+    if (prod?.status !== 'published') return null
+
+    const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
+    return {
+      storefront: mapStorefront(sf),
+      product: {
+        id: prod.id,
+        title: prod.title,
+        slug: prod.slug,
+        description: prod.description,
+        basePrice: prod.basePrice.toString(),
+        compareAtPrice: prod.compareAtPrice?.toString() ?? null,
+        currency: prod.currency,
+        assets: rawAssets.map((a) => ({
+          id: a.asset.id,
+          originalFilename: a.asset.originalFilename,
+          mimeType: a.asset.mimeType,
+          byteSize: Number(a.asset.byteSize),
+          role: a.productAsset.role,
+        })),
+      },
+    }
+  })
+}
+
+/**
+ * Public Data Loader: Fetches product detail & storefront by custom domain and slug.
+ */
+export async function getPublicProductDetailByCustomDomain(
+  domain: string,
+  slug: string,
+): Promise<PublicProductDetailData | null> {
+  const db = getDatabase()
+  const resolved = await db.resolveStorefrontByHostname(domain)
+  if (resolved?.status !== 'published') {
+    return null
+  }
+
+  const context = workspaceContext({
+    workspaceId: resolved.workspaceId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: requestId(`req-pub-cd-prod-${randomUUID().slice(0, 8)}`),
+  })
+
+  return db.withWorkspace(context, async (tx) => {
+    const scope = { tx, context }
+    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
+    if (!sf) return null
+
+    const prod = await catalogue.findProductBySlug(scope, slug)
+    if (prod?.status !== 'published') return null
+
+    const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
+    return {
+      storefront: mapStorefront(sf),
+      product: {
+        id: prod.id,
+        title: prod.title,
+        slug: prod.slug,
+        description: prod.description,
+        basePrice: prod.basePrice.toString(),
+        compareAtPrice: prod.compareAtPrice?.toString() ?? null,
+        currency: prod.currency,
+        assets: rawAssets.map((a) => ({
+          id: a.asset.id,
+          originalFilename: a.asset.originalFilename,
+          mimeType: a.asset.mimeType,
+          byteSize: Number(a.asset.byteSize),
+          role: a.productAsset.role,
+        })),
+      },
     }
   })
 }

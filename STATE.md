@@ -107,7 +107,7 @@ Slice 4:
 - [x] **4.1** Schema: `storefronts`, including domain and subdomain columns (`storefronts`, `citext` subdomains, custom domains, theme preferences, and RLS tenant policies)
 - [x] **4.2** Hostname-to-workspace resolution in middleware (edge routing library `hostname.ts`, middleware subdomain/custom-domain URL rewriting, CSP preservation, `resolveStorefrontByHostname`, public loaders, and server actions)
 - [x] **4.3** Custom domain verification and certificate provisioning (DNS TXT/CNAME challenge validation `domain-verification.ts`, token generator, `initiateCustomDomainAction`, `verifyCustomDomainAction`, `removeCustomDomainAction`, audit logging)
-- [ ] **4.4** Server-rendered storefront home and product detail pages
+- [x] **4.4** Server-rendered storefront home and product detail pages (`/s/[subdomain]`, `/c/[domain]`, `/s/[subdomain]/p/[slug]`, `/c/[domain]/p/[slug]`, `StorefrontHeader`, `StorefrontHero`, `ProductGrid`, `ProductCard`, `ProductDetailView`, `StorefrontFooter`)
 - [ ] **4.5** Theme presets applied as token overrides
 - [ ] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots
 - [ ] **4.7** `storefront_events` capture for analytics
@@ -117,8 +117,8 @@ Slice 4:
 
 # Active Task
 
-**Slice 4 item 4.4: Server-rendered storefront home and product detail pages.**
-Implement server-rendered storefront home (`/s/[subdomain]`, `/c/[domain]`) and product detail pages (`/s/[subdomain]/p/[slug]`, `/c/[domain]/p/[slug]`) with catalogue product grid, responsive product card, rich typography, currency display, and direct checkout call-to-action.
+**Slice 4 item 4.5: Theme presets applied as token overrides.**
+Implement CSS custom property theme token override injector for storefront pages (accent color, font family presets 'sans'/'serif'/'mono', layout presets 'minimal'/'showcase'/'grid'/'editorial', and contrast-safe text computation).
 
 ---
 
@@ -130,7 +130,7 @@ Implement server-rendered storefront home (`/s/[subdomain]`, `/c/[domain]`) and 
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **3 of 8 done.** Server-rendered storefront pages next |
+| 4 | Storefront | **4 of 8 done.** Theme preset token overrides next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |
