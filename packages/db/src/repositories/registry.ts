@@ -26,6 +26,7 @@ import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
 import * as outboxRepo from './outbox.js'
+import * as reconciliationRepo from './reconciliation.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 import * as workspacesRepo from './workspaces.js'
 
@@ -137,6 +138,7 @@ export const REPOSITORY_MODULES = {
   outbox: outboxRepo,
   jobs: jobsRepo,
   idempotency: idempotencyRepo,
+  reconciliation: reconciliationRepo,
 } as const
 
 /**
@@ -231,4 +233,16 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'idempotency.withIdempotency':
     'Idempotency wrapper orchestration. Tested in idempotency repository integration suite.',
+
+  'reconciliation.getRollupForAccount':
+    'Reads rollup for an account by ID. Tested in reconciliation integration suite.',
+
+  'reconciliation.reconcileAccount':
+    'Reconciles an account and refreshes materialised rollup. Tested in reconciliation integration suite.',
+
+  'reconciliation.reconcileWorkspace':
+    'Reconciles all accounts in workspace or system. Tested in reconciliation integration suite.',
+
+  'reconciliation.runReconciliationJob':
+    'Worker task runner for continuous reconciliation. Tested in reconciliation integration suite.',
 }

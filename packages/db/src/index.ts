@@ -75,3 +75,8 @@ export type {
   IdempotencyAcquireResult,
   IdempotencyExecutionResult,
 } from './repositories/idempotency.js'
+
+/**
+ * Continuous ledger reconciliation repository (item 2.9).
+ */
+export * as reconciliation from './repositories/reconciliation.js'

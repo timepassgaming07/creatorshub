@@ -52,3 +52,9 @@ export {
   type IdempotencyKeyRecord,
   type NewIdempotencyKeyRecord,
 } from './idempotency.js'
+
+export {
+  ledgerBalanceRollups,
+  type LedgerBalanceRollupRecord,
+  type NewLedgerBalanceRollupRecord,
+} from './reconciliation.js'

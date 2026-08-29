@@ -41,6 +41,8 @@ const NULLABLE_WORKSPACE_ALLOWED = {
   jobs: 'Platform-level background jobs (e.g. partition maintenance) have no workspace, so workspace_id is nullable. Tenant jobs are scoped.',
   idempotency_keys:
     'Public checkout and platform endpoints have no workspace, so workspace_id is nullable. Authenticated tenant requests carry workspace_id.',
+  ledger_balance_rollups:
+    'Platform-level accounts have no workspace, so workspace_id is nullable. Tenant rollups are scoped to the workspace.',
 } as const
 
 async function main(): Promise<void> {

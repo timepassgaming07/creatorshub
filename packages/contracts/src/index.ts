@@ -112,6 +112,14 @@ export {
 
 export type { IdempotencyOptions, IdempotencyRecord } from './idempotency.js'
 
+export { reconciliationStatusSchema } from './reconciliation.js'
+
+export type {
+  AccountReconciliationResult,
+  ReconciliationStatus,
+  WorkspaceReconciliationSummary,
+} from './reconciliation.js'
+
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 
 export type { WorkspaceContext } from './workspace-context.js'

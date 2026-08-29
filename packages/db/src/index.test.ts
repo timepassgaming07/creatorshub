@@ -30,6 +30,7 @@ describe('public surface', () => {
       'ledger',
       'loadDatabaseConfig',
       'outbox',
+      'reconciliation',
       'runMigrations',
       'scoped',
       'workspaceMembers',
