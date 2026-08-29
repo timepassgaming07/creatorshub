@@ -49,6 +49,7 @@ export type AssetId = string & { readonly __brand: 'AssetId' }
 /** Product-to-asset association identifier (UUIDv7). */
 export type ProductAssetId = string & { readonly __brand: 'ProductAssetId' }
 export type DiscountId = string & { readonly __brand: 'DiscountId' }
+export type StorefrontId = string & { readonly __brand: 'StorefrontId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -161,6 +162,11 @@ export function discountId(value: string): DiscountId {
   return value as DiscountId
 }
 
+export function storefrontId(value: string): StorefrontId {
+  assertUuidV7(value, 'storefront id')
+  return value as StorefrontId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -236,6 +242,11 @@ export const discountIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as DiscountId)
+
+export const storefrontIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as StorefrontId)
 
 export const requestIdSchema = z
   .string()

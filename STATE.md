@@ -102,12 +102,23 @@ Slice 3:
 - [x] **3.7** Product create, edit, and publish screens (server actions with RBAC and audit logging, product list, create form, and detail/edit/publish screens)
 - [x] **3.8** Asset management interface with upload progress and failure recovery (`AssetUploader`, direct presigned upload with progress tracking, heuristic malware scanning, deliverability validation, and workspace asset management)
 
+Slice 4:
+
+- [x] **4.1** Schema: `storefronts`, including domain and subdomain columns (`storefronts`, `citext` subdomains, custom domains, theme preferences, and RLS tenant policies)
+- [ ] **4.2** Hostname-to-workspace resolution in middleware
+- [ ] **4.3** Custom domain verification and certificate provisioning
+- [ ] **4.4** Server-rendered storefront home and product detail pages
+- [ ] **4.5** Theme presets applied as token overrides
+- [ ] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots
+- [ ] **4.7** `storefront_events` capture for analytics
+- [ ] **4.8** Storefront editor with live preview
+
 ---
 
 # Active Task
 
-**Slice 4 item 4.1: Schema: `storefronts`, including domain and subdomain columns.**
-Define the multi-tenant public storefront schema with custom domain bindings, subdomain slugs, theme preferences, and Postgres row-level security.
+**Slice 4 item 4.2: Hostname-to-workspace resolution in middleware.**
+Resolve incoming HTTP request hostname to tenant workspace (subdomain or verified custom domain) in edge/Next middleware, rewrite requests to public storefront route handlers, and handle preview routes.
 
 ---
 
@@ -119,7 +130,7 @@ Define the multi-tenant public storefront schema with custom domain bindings, su
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **In Progress.** Schema next |
+| 4 | Storefront | **1 of 8 done.** Hostname resolution next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |

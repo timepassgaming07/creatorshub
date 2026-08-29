@@ -59,6 +59,8 @@ export {
   productIdSchema,
   requestId,
   requestIdSchema,
+  storefrontId,
+  storefrontIdSchema,
   userId,
   userIdSchema,
   variantId,
@@ -77,6 +79,7 @@ export type {
   ProductAssetId,
   ProductId,
   RequestId,
+  StorefrontId,
   UserId,
   VariantId,
   WorkspaceId,
@@ -184,6 +187,33 @@ export type {
   DiscountRecord,
   DiscountType,
 } from './discounts.js'
+
+export {
+  CUSTOM_DOMAIN_PATTERN,
+  CUSTOM_DOMAIN_STATUSES,
+  RESERVED_SUBDOMAINS,
+  STOREFRONT_STATUSES,
+  SUBDOMAIN_PATTERN,
+  THEME_LAYOUT_PRESETS,
+  createStorefrontInputSchema,
+  customDomainSchema,
+  customDomainStatusSchema,
+  storefrontStatusSchema,
+  storefrontThemeSchema,
+  subdomainSchema,
+  themeLayoutPresetSchema,
+  updateStorefrontInputSchema,
+} from './storefronts.js'
+
+export type {
+  CreateStorefrontInput,
+  CustomDomainStatus,
+  StorefrontRecord,
+  StorefrontStatus,
+  StorefrontTheme,
+  ThemeLayoutPreset,
+  UpdateStorefrontInput,
+} from './storefronts.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

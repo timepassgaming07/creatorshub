@@ -88,3 +88,11 @@ export {
   type NewDiscountProductRecord,
   type NewDiscountRecord,
 } from './discounts.js'
+
+export {
+  customDomainStatus,
+  storefrontStatus,
+  storefronts,
+  type NewStorefrontRecord,
+  type StorefrontRecord,
+} from './storefronts.js'

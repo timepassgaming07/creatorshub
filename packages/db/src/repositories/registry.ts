@@ -29,6 +29,7 @@ import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
 import * as outboxRepo from './outbox.js'
 import * as reconciliationRepo from './reconciliation.js'
+import * as storefrontsRepo from './storefronts.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 import * as workspacesRepo from './workspaces.js'
 
@@ -143,6 +144,7 @@ export const REPOSITORY_MODULES = {
   reconciliation: reconciliationRepo,
   catalogue: catalogueRepo,
   discounts: discountsRepo,
+  storefronts: storefrontsRepo,
 } as const
 
 /**
@@ -312,4 +314,28 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'discounts.listApplicableProductIdsForDiscount':
     'Lists applicable product IDs scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'storefronts.createStorefront':
+    'Stamps workspace from scope. Tested in storefronts repository integration suite.',
+
+  'storefronts.updateStorefront':
+    'Updates storefront scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.findStorefrontByWorkspaceId':
+    'Reads storefront scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.findStorefrontById':
+    'Reads storefront by ID scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.findStorefrontBySubdomain':
+    'Reads storefront by subdomain scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.findStorefrontByCustomDomain':
+    'Reads storefront by custom domain scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.publishStorefront':
+    'Publishes storefront scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.updateCustomDomainStatus':
+    'Updates custom domain status scoped to current workspace. Tested in storefronts repository integration suite.',
 }

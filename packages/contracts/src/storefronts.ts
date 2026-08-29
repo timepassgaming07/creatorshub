@@ -1,0 +1,134 @@
+/**
+ * Storefront schemas, constants, and types (@creatorhub/contracts).
+ *
+ * Responsibilities:
+ * - Subdomain and custom domain validation with reserved word guardrails.
+ * - Storefront status and custom domain verification lifecycle states.
+ * - Theme configuration model (accent colors, layout presets, typography).
+ * - Create, update, and wire schemas for storefront multi-tenant public routing.
+ */
+import { z } from 'zod'
+
+import { assetIdSchema, workspaceIdSchema } from './identifiers.js'
+import type { StorefrontId, WorkspaceId } from './identifiers.js'
+
+export const STOREFRONT_STATUSES = ['draft', 'published', 'suspended'] as const
+export type StorefrontStatus = (typeof STOREFRONT_STATUSES)[number]
+
+export const CUSTOM_DOMAIN_STATUSES = ['pending', 'verified', 'failed'] as const
+export type CustomDomainStatus = (typeof CUSTOM_DOMAIN_STATUSES)[number]
+
+export const THEME_LAYOUT_PRESETS = ['minimal', 'showcase', 'grid', 'editorial'] as const
+export type ThemeLayoutPreset = (typeof THEME_LAYOUT_PRESETS)[number]
+
+/**
+ * Reserved subdomains that cannot be claimed by creator storefronts.
+ */
+export const RESERVED_SUBDOMAINS = [
+  'admin',
+  'api',
+  'app',
+  'assets',
+  'auth',
+  'billing',
+  'checkout',
+  'creatorhub',
+  'dashboard',
+  'docs',
+  'help',
+  'mail',
+  'pay',
+  'payment',
+  'payments',
+  'preview',
+  'staging',
+  'status',
+  'storefront',
+  'support',
+  'test',
+  'webhook',
+  'webhooks',
+  'www',
+] as const
+
+export const SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/
+export const CUSTOM_DOMAIN_PATTERN =
+  /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/
+
+export const storefrontStatusSchema = z.enum(STOREFRONT_STATUSES)
+export const customDomainStatusSchema = z.enum(CUSTOM_DOMAIN_STATUSES)
+export const themeLayoutPresetSchema = z.enum(THEME_LAYOUT_PRESETS)
+
+export const subdomainSchema = z
+  .string()
+  .min(3, 'Subdomain must be at least 3 characters.')
+  .max(63, 'Subdomain must not exceed 63 characters.')
+  .toLowerCase()
+  .regex(SUBDOMAIN_PATTERN, 'Subdomain must contain only lowercase letters, digits, and hyphens.')
+  .refine(
+    (sub) => !RESERVED_SUBDOMAINS.includes(sub as (typeof RESERVED_SUBDOMAINS)[number]),
+    'This subdomain is reserved by the platform.',
+  )
+
+export const customDomainSchema = z
+  .string()
+  .min(4, 'Domain must be at least 4 characters.')
+  .max(253, 'Domain must not exceed 253 characters.')
+  .toLowerCase()
+  .regex(CUSTOM_DOMAIN_PATTERN, 'Custom domain must be a valid FQDN (e.g. shop.example.com).')
+
+export const storefrontThemeSchema = z.object({
+  accentColor: z
+    .string()
+    .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Accent color must be a valid hex code.')
+    .default('#4f46e5'),
+  fontPreset: z.enum(['sans', 'serif', 'mono']).default('sans'),
+  layoutPreset: themeLayoutPresetSchema.default('showcase'),
+  heroHeadline: z.string().max(200).optional(),
+  heroSubheadline: z.string().max(500).optional(),
+  logoAssetId: assetIdSchema.optional(),
+  bannerAssetId: assetIdSchema.optional(),
+})
+
+export type StorefrontTheme = z.infer<typeof storefrontThemeSchema>
+
+export const createStorefrontInputSchema = z.object({
+  workspaceId: workspaceIdSchema,
+  subdomain: subdomainSchema,
+  customDomain: customDomainSchema.optional(),
+  title: z.string().trim().min(1, 'Title is required.').max(100),
+  tagline: z.string().trim().max(200).optional(),
+  description: z.string().trim().max(1000).optional(),
+  themeConfig: storefrontThemeSchema.optional(),
+})
+
+export type CreateStorefrontInput = z.infer<typeof createStorefrontInputSchema>
+
+export const updateStorefrontInputSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required.').max(100).optional(),
+  tagline: z.string().trim().max(200).optional().nullable(),
+  description: z.string().trim().max(1000).optional().nullable(),
+  customDomain: customDomainSchema.optional().nullable(),
+  themeConfig: storefrontThemeSchema.partial().optional(),
+  status: storefrontStatusSchema.optional(),
+})
+
+export type UpdateStorefrontInput = z.infer<typeof updateStorefrontInputSchema>
+
+export type StorefrontRecord = {
+  readonly id: StorefrontId
+  readonly workspaceId: WorkspaceId
+  readonly subdomain: string
+  readonly customDomain: string | null
+  readonly customDomainStatus: CustomDomainStatus
+  readonly customDomainVerificationToken: string | null
+  readonly customDomainVerifiedAt: Date | null
+  readonly title: string
+  readonly tagline: string | null
+  readonly description: string | null
+  readonly themeConfig: StorefrontTheme
+  readonly status: StorefrontStatus
+  readonly publishedAt: Date | null
+  readonly createdAt: Date
+  readonly updatedAt: Date
+}

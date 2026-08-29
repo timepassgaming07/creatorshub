@@ -35,6 +35,7 @@ describe('public surface', () => {
       'reconciliation',
       'runMigrations',
       'scoped',
+      'storefronts',
       'workspaceMembers',
       'workspaces',
     ])
