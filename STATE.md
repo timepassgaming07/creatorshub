@@ -98,7 +98,7 @@ Slice 3:
 - [x] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection (`AssetStorageService`, `detectMimeType`, `validateMimeType`)
 - [x] **3.4** Malware scanning; an asset is not deliverable until marked clean (`HeuristicMalwareScanner`, `AssetNotDeliverableError`, `assertAssetDeliverable`, `updateAssetScanStatus`)
 - [x] **3.5** Pricing model, including the currency decision per workspace (`resolveEffectivePrice`, `validateProductPricing`, `calculateSavings`)
-- [ ] **3.6** Schema and rules for `discounts`
+- [x] **3.6** Schema and rules for `discounts` (`discounts`, `discount_products`, `evaluateDiscount`, repository, and integration suite)
 - [ ] **3.7** Product create, edit, and publish screens
 - [ ] **3.8** Asset management interface with upload progress and failure recovery
 
@@ -106,8 +106,8 @@ Slice 3:
 
 # Active Task
 
-**Slice 3 item 3.6: Schema and rules for `discounts`.**
-Multi-tenant discount schema (`fixed_amount`, `percentage`), coupon code validation, usage limits, expiration dates, product scope bindings, and discount evaluation domain rules.
+**Slice 3 item 3.7: Product create, edit, and publish screens.**
+Server actions and UI forms for product creation, slug uniqueness checks, variant management, pricing configuration, discount attachment, and publishing state transitions.
 
 ---
 
@@ -118,7 +118,7 @@ Multi-tenant discount schema (`fixed_amount`, `percentage`), coupon code validat
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **5 of 8 done.** Discounts next |
+| 3 | Catalogue | **6 of 8 done.** Product screens next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

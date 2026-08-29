@@ -23,6 +23,7 @@ import type { UserId } from '@creatorhub/contracts'
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
 import * as catalogueRepo from './catalogue.js'
+import * as discountsRepo from './discounts.js'
 import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
@@ -141,6 +142,7 @@ export const REPOSITORY_MODULES = {
   idempotency: idempotencyRepo,
   reconciliation: reconciliationRepo,
   catalogue: catalogueRepo,
+  discounts: discountsRepo,
 } as const
 
 /**
@@ -283,4 +285,25 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'catalogue.listAssetsForProduct':
     'Lists assets for product scoped to workspace. Tested in catalogue repository integration suite.',
+
+  'discounts.createDiscount':
+    'Stamps workspace from scope. Tested in discounts repository integration suite.',
+
+  'discounts.findDiscountById':
+    'Reads discount by ID scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'discounts.findDiscountByCode':
+    'Reads discount by code scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'discounts.listDiscounts':
+    'Lists discounts scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'discounts.incrementDiscountUsage':
+    'Increments discount usage scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'discounts.bindProductsToDiscount':
+    'Binds products to discount scoped to current workspace. Tested in discounts repository integration suite.',
+
+  'discounts.listApplicableProductIdsForDiscount':
+    'Lists applicable product IDs scoped to current workspace. Tested in discounts repository integration suite.',
 }

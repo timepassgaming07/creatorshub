@@ -78,3 +78,13 @@ export {
   type ProductRecord,
   type ProductVariantRecord,
 } from './catalogue.js'
+
+export {
+  discountProducts,
+  discountType,
+  discounts,
+  type DiscountProductRecord,
+  type DiscountRecord,
+  type NewDiscountProductRecord,
+  type NewDiscountRecord,
+} from './discounts.js'

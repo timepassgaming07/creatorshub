@@ -71,3 +71,13 @@ export {
   type ProductPriceInput,
   type VariantPriceInput,
 } from './catalogue/pricing.js'
+
+/**
+ * Discount evaluation domain rules (Item 3.6).
+ */
+export {
+  evaluateDiscount,
+  type DiscountEvaluationFailure,
+  type DiscountEvaluationResult,
+  type DiscountEvaluationSuccess,
+} from './catalogue/discounts.js'

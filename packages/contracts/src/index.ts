@@ -43,6 +43,8 @@ export {
   InvalidIdentifierError,
   assetId,
   assetIdSchema,
+  discountId,
+  discountIdSchema,
   jobId,
   jobIdSchema,
   ledgerAccountId,
@@ -67,6 +69,7 @@ export {
 
 export type {
   AssetId,
+  DiscountId,
   JobId,
   LedgerAccountId,
   LedgerEntryId,
@@ -164,6 +167,23 @@ export type {
   UpdateProductInput,
   VariantInventoryPolicy,
 } from './catalogue.js'
+
+export {
+  COUPON_CODE_PATTERN,
+  DISCOUNT_TYPES,
+  couponCodeSchema,
+  createDiscountInputSchema,
+  currencyCodeSchema,
+  discountEvaluationContextSchema,
+  discountTypeSchema,
+} from './discounts.js'
+
+export type {
+  CreateDiscountInput,
+  DiscountEvaluationContext,
+  DiscountRecord,
+  DiscountType,
+} from './discounts.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 
