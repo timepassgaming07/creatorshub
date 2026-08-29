@@ -45,7 +45,7 @@ ALTER TABLE storefronts FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
 CREATE POLICY storefronts_tenant_isolation ON storefronts
   FOR SELECT TO creatorhub_app
-  USING (workspace_id = app_current_workspace_id());--> statement-breakpoint
+  USING (workspace_id = app_current_workspace_id() OR status = 'published');--> statement-breakpoint
 
 CREATE POLICY storefronts_tenant_insert ON storefronts
   FOR INSERT TO creatorhub_app

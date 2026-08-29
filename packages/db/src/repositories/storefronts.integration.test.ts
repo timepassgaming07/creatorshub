@@ -282,4 +282,52 @@ describe('Storefront Repository (Item 4.1)', () => {
     })
     expect(byCustomDomain?.id).toBe(s1.id)
   })
+
+  it('resolves published storefront by subdomain or custom domain publicly (4.2)', async () => {
+    // ws1 creates and publishes a storefront
+    await inScope(ws1Id, async (scope) => {
+      const sf = await storefrontsRepo.createStorefront(scope, {
+        workspaceId: workspaceId(ws1Id),
+        subdomain: 'public-subdomain',
+        customDomain: 'public-domain.com',
+        title: 'Publicly Resolved Store',
+      })
+      await storefrontsRepo.publishStorefront(scope, storefrontId(sf.id))
+    })
+
+    // ws2 creates a draft storefront
+    await inScope(ws2Id, async (scope) => {
+      await storefrontsRepo.createStorefront(scope, {
+        workspaceId: workspaceId(ws2Id),
+        subdomain: 'draft-subdomain',
+        customDomain: 'draft-domain.com',
+        title: 'Draft Store',
+      })
+    })
+
+    // Public resolution by subdomain
+    const resolvedBySub = await db.resolveStorefrontByHostname('public-subdomain')
+    expect(resolvedBySub).not.toBeNull()
+    expect(resolvedBySub?.workspaceId).toBe(ws1Id)
+    expect(resolvedBySub?.title).toBe('Publicly Resolved Store')
+    expect(resolvedBySub?.status).toBe('published')
+
+    // Public resolution with case-insensitivity
+    const resolvedCase = await db.resolveStorefrontByHostname('PUBLIC-SUBDOMAIN')
+    expect(resolvedCase).not.toBeNull()
+    expect(resolvedCase?.workspaceId).toBe(ws1Id)
+
+    // Public resolution by custom domain
+    const resolvedByCustom = await db.resolveStorefrontByHostname('PUBLIC-DOMAIN.COM')
+    expect(resolvedByCustom).not.toBeNull()
+    expect(resolvedByCustom?.workspaceId).toBe(ws1Id)
+
+    // Draft storefronts must not be resolved publicly
+    const draftResolved = await db.resolveStorefrontByHostname('draft-subdomain')
+    expect(draftResolved).toBeNull()
+
+    // Non-existent hostname returns null
+    const unknownResolved = await db.resolveStorefrontByHostname('unknown-domain.io')
+    expect(unknownResolved).toBeNull()
+  })
 })

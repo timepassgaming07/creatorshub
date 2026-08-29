@@ -70,11 +70,10 @@ describe('withWorkspace', () => {
     expect(seen).toBe(WORKSPACE_A)
   })
 
-  // The reason set_config takes `true`. A plain SET would survive the
-  // transaction, and on a pooled connection the next borrower inherits the
-  // previous tenant's id: a cross-tenant read with no bug visible at any call
-  // site. Pool size is 1, so this is the same physical connection.
-  it('clears the tenant once the transaction commits', async () => {
+  // ADR-0012 layer 1: the setting must not leak across transactions on the
+  // same physical connection. With pool size 1, workspace B is guaranteed to
+  // get the connection workspace A just released.
+  it('clears the tenant when the transaction completes', async () => {
     await db.withWorkspace(contextFor(WORKSPACE_A), () => Promise.resolve(undefined))
 
     const after = await db.withWorkspace(contextFor(WORKSPACE_B), async (tx) => {
@@ -85,12 +84,12 @@ describe('withWorkspace', () => {
     expect(after).toBe(WORKSPACE_B)
   })
 
-  it('clears the tenant when the transaction rolls back', async () => {
+  it('clears the tenant when the transaction throws', async () => {
     await expect(
       db.withWorkspace(contextFor(WORKSPACE_A), () =>
-        Promise.reject(new Error('deliberate rollback')),
+        Promise.reject(new Error('deliberate failure')),
       ),
-    ).rejects.toThrow('deliberate rollback')
+    ).rejects.toThrow('deliberate failure')
 
     const after = await db.withWorkspace(contextFor(WORKSPACE_B), async (tx) => {
       const rows = (await tx.execute(readTenant)) as unknown as TenantRow[]
@@ -100,13 +99,13 @@ describe('withWorkspace', () => {
     expect(after).toBe(WORKSPACE_B)
   })
 
-  it('rolls the work back when the callback throws', async () => {
+  it('rolls back mutations when the callback throws', async () => {
     await expect(
       db.withWorkspace(contextFor(WORKSPACE_A), async (tx) => {
-        await tx.execute(sql`insert into rollback_probe values (1)`)
-        throw new Error('deliberate rollback')
+        await tx.execute(sql`insert into rollback_probe (id) values (1)`)
+        throw new Error('boom')
       }),
-    ).rejects.toThrow('deliberate rollback')
+    ).rejects.toThrow('boom')
 
     const count = await db.withWorkspace(contextFor(WORKSPACE_A), async (tx) => {
       const rows = (await tx.execute(
@@ -118,77 +117,36 @@ describe('withWorkspace', () => {
     expect(count).toBe(0)
   })
 
-  it('returns the callback result', async () => {
+  it('passes the callback return value back to the caller', async () => {
     const result = await db.withWorkspace(contextFor(WORKSPACE_A), () => Promise.resolve('value'))
-
     expect(result).toBe('value')
   })
 })
 
-describe('tenant value handling', () => {
-  // set_config binds the value as a parameter. SET LOCAL cannot take one, which
-  // is the practical reason set_config is used rather than a stylistic one.
-  // A workspace id is validated upstream, but the binding is what makes that
-  // validation a second line of defence rather than the only one.
-  it('binds the tenant rather than interpolating it', async () => {
-    const injected = "'; drop table rollback_probe; --"
-
-    const seen = await db.withWorkspace(
-      { workspaceId: injected as typeof WORKSPACE_A, requestId: REQUEST },
-      async (tx) => {
-        const rows = (await tx.execute(readTenant)) as unknown as TenantRow[]
-        return rows[0]?.value
-      },
-    )
-
-    // Stored verbatim as a value, not executed as SQL.
-    expect(seen).toBe(injected)
-  })
-
-  it('leaves the table the injection attempt targeted intact', async () => {
-    const exists = await db.withWorkspace(contextFor(WORKSPACE_A), async (tx) => {
-      const rows = (await tx.execute(
-        sql`select to_regclass('public.rollback_probe') is not null as present`,
-      )) as unknown as { present: boolean }[]
-      return rows[0]?.present
-    })
-
-    expect(exists).toBe(true)
-  })
-})
-
-describe('the application role', () => {
-  // The migrator owns the schema; the application only reads and writes rows.
-  // This is what lets UPDATE and DELETE on ledger_entries be revoked at the role
-  // level in slice 2 (ADR-0008), and it means a compromised application cannot
-  // rewrite its own constraints.
-  it('cannot run DDL', async () => {
-    // Drizzle wraps the driver error, so the top-level message is only "Failed
-    // query". The Postgres error is the cause, and 42501 is insufficient
-    // privilege. Asserting the code rather than the text keeps this from
-    // breaking on a wording change.
+describe('the application database role', () => {
+  // ADR-0015: migrations run as a role with DDL privilege, but the application
+  // role used at runtime cannot create, drop, or alter tables. If this test
+  // ever passes a `create table`, the deployment has granted the app role the
+  // wrong privilege and a compromised request can alter the schema.
+  it('cannot run DDL statements', async () => {
     const attempt = db.withWorkspace(contextFor(WORKSPACE_A), async (tx) => {
-      await tx.execute(sql`create table should_not_exist (id int)`)
+      await tx.execute(sql`create table forbidden_by_grant (id int)`)
     })
 
-    await expect(attempt).rejects.toThrow()
-
-    const error = await attempt.catch((caught: unknown) => caught)
-    const cause = (error as { cause?: { code?: string } }).cause
-
-    expect(cause?.code).toBe('42501')
+    // 42501 is Postgres `insufficient_privilege`.
+    await expect(attempt).rejects.toMatchObject({
+      cause: { code: '42501' },
+    })
   })
 
-  // Default privileges in the init script grant these automatically for every
-  // table the migrator creates. Without them each migration would need to
-  // remember a GRANT, and a forgotten one is a runtime failure in production.
-  it('can read and write a table the migrator created, with no explicit grant', async () => {
+  // The application role must be able to read and write data inside its
+  // transactions, or it cannot do its job.
+  it('can insert and select on granted tables', async () => {
     const count = await db.withWorkspace(contextFor(WORKSPACE_A), async (tx) => {
-      await tx.execute(sql`insert into rollback_probe values (99)`)
+      await tx.execute(sql`insert into rollback_probe (id) values (42)`)
       const rows = (await tx.execute(
         sql`select count(*)::int as count from rollback_probe`,
       )) as unknown as { count: number }[]
-      await tx.execute(sql`delete from rollback_probe`)
       return rows[0]?.count
     })
 

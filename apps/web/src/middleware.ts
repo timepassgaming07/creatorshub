@@ -1,17 +1,16 @@
 /**
- * Per-request Content Security Policy.
+ * Multi-tenant Edge Middleware (Implementation Plan §4.2 & Security §9).
  *
- * This is the only place a nonce can be generated. `next.config.ts` sets the
- * static security headers, because those apply to every response including static
- * assets and cannot be skipped by a route that forgets a helper. A nonce cannot
- * live there: it has to differ per response, and a value baked into the config is
- * the same for every visitor forever, which is the same as having no nonce.
- *
- * Pays off technical debt item 1, recorded in STATE.md, and closes the last gap
- * in security.md §9.
+ * Responsibilities:
+ * 1. Generate per-response CSP nonce and security headers.
+ * 2. Hostname-to-workspace tenant resolution (subdomain and custom domain).
+ * 3. Transparent URL rewriting for public storefront rendering.
+ * 4. Preservation of CSP headers across rewritten requests and responses.
  */
 import { NextResponse, type NextRequest } from 'next/server'
+
 import { buildCsp, generateNonce } from './lib/csp'
+import { resolveHostname } from './lib/hostname'
 
 /** The response header a browser reads the policy from. */
 export const CSP_HEADER = 'Content-Security-Policy'
@@ -20,40 +19,53 @@ export function middleware(request: NextRequest): NextResponse {
   const nonce = generateNonce()
   const csp = buildCsp({ nonce, development: process.env.NODE_ENV === 'development' })
 
-  /**
-   * Set on the request as well as the response, and this is the part that is easy
-   * to get wrong.
-   *
-   * Next parses the policy off the *request* header and stamps the nonce onto
-   * every script tag it renders itself. Setting it only on the response leaves
-   * the browser enforcing a nonce that none of the framework's own scripts carry,
-   * which blocks the entire application while the header looks perfectly correct
-   * in a network tab.
-   *
-   * That is also why there is no separate `x-nonce`: one value in one place,
-   * parsed by the framework, rather than a second copy that can drift from the
-   * policy actually being enforced.
-   */
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set(CSP_HEADER, csp)
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } })
-  response.headers.set(CSP_HEADER, csp)
+  const { pathname, search } = request.nextUrl
+  const host = request.headers.get('host')
+  const resolution = resolveHostname(host, process.env['PLATFORM_ROOT_DOMAIN'])
 
+  // Prevent rewriting for internal framework/API paths
+  const isApi = pathname.startsWith('/api/')
+
+  let response: NextResponse
+
+  if (resolution.type === 'subdomain' && !isApi) {
+    requestHeaders.set('x-creatorhub-target', 'storefront-subdomain')
+    requestHeaders.set('x-creatorhub-subdomain', resolution.subdomain)
+    requestHeaders.set('x-creatorhub-pathname', pathname)
+
+    const rewriteUrl = new URL(`/s/${resolution.subdomain}${pathname}${search}`, request.url)
+    response = NextResponse.rewrite(rewriteUrl, {
+      request: { headers: requestHeaders },
+    })
+  } else if (resolution.type === 'custom-domain' && !isApi) {
+    requestHeaders.set('x-creatorhub-target', 'storefront-custom-domain')
+    requestHeaders.set('x-creatorhub-custom-domain', resolution.domain)
+    requestHeaders.set('x-creatorhub-pathname', pathname)
+
+    const rewriteUrl = new URL(`/c/${resolution.domain}${pathname}${search}`, request.url)
+    response = NextResponse.rewrite(rewriteUrl, {
+      request: { headers: requestHeaders },
+    })
+  } else if (resolution.type === 'reserved' && !isApi) {
+    const rewriteUrl = new URL('/_not-found', request.url)
+    response = NextResponse.rewrite(rewriteUrl, {
+      request: { headers: requestHeaders },
+    })
+  } else {
+    requestHeaders.set('x-creatorhub-target', 'platform')
+    response = NextResponse.next({ request: { headers: requestHeaders } })
+  }
+
+  response.headers.set(CSP_HEADER, csp)
   return response
 }
 
 export const config = {
   /**
-   * Every path except Next's own static output and the favicon.
-   *
-   * `_next/static` and `_next/image` are immutable build artefacts that no policy
-   * needs to protect and which would otherwise pay for a nonce generation on
-   * every asset request. Everything else is covered, including `/api/auth/*`:
-   * Better Auth's routes return JSON rather than HTML, so the policy is close to
-   * irrelevant to them, but excluding them would mean the one part of the app
-   * handling credentials is the one part with no policy, and that is not a
-   * sentence worth being able to write.
+   * Match all requests except static assets and favicon.
    */
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

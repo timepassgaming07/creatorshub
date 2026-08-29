@@ -105,7 +105,7 @@ Slice 3:
 Slice 4:
 
 - [x] **4.1** Schema: `storefronts`, including domain and subdomain columns (`storefronts`, `citext` subdomains, custom domains, theme preferences, and RLS tenant policies)
-- [ ] **4.2** Hostname-to-workspace resolution in middleware
+- [x] **4.2** Hostname-to-workspace resolution in middleware (edge routing library `hostname.ts`, middleware subdomain/custom-domain URL rewriting, CSP preservation, `resolveStorefrontByHostname`, public loaders, and server actions)
 - [ ] **4.3** Custom domain verification and certificate provisioning
 - [ ] **4.4** Server-rendered storefront home and product detail pages
 - [ ] **4.5** Theme presets applied as token overrides
@@ -117,8 +117,8 @@ Slice 4:
 
 # Active Task
 
-**Slice 4 item 4.2: Hostname-to-workspace resolution in middleware.**
-Resolve incoming HTTP request hostname to tenant workspace (subdomain or verified custom domain) in edge/Next middleware, rewrite requests to public storefront route handlers, and handle preview routes.
+**Slice 4 item 4.3: Custom domain verification and certificate provisioning.**
+Implement custom domain challenge verification service (DNS TXT / CNAME validation), automatic token generation, lifecycle state management (pending/verified/failed), and certificate readiness tracking.
 
 ---
 
@@ -130,7 +130,7 @@ Resolve incoming HTTP request hostname to tenant workspace (subdomain or verifie
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **1 of 8 done.** Hostname resolution next |
+| 4 | Storefront | **2 of 8 done.** Custom domain verification next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |

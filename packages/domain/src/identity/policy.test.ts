@@ -50,6 +50,9 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   'product.delete',
   'product.publish',
   'discount.manage',
+  'storefront.view',
+  'storefront.manage',
+  'storefront.publish',
 ]
 
 /**
@@ -77,6 +80,9 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'product.delete': true,
     'product.publish': true,
     'discount.manage': true,
+    'storefront.view': true,
+    'storefront.manage': true,
+    'storefront.publish': true,
   },
   admin: {
     'workspace.view': true,
@@ -95,6 +101,9 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'product.delete': true,
     'product.publish': true,
     'discount.manage': true,
+    'storefront.view': true,
+    'storefront.manage': true,
+    'storefront.publish': true,
   },
   member: {
     'workspace.view': true,
@@ -113,6 +122,9 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'product.delete': false,
     'product.publish': false,
     'discount.manage': false,
+    'storefront.view': true,
+    'storefront.manage': false,
+    'storefront.publish': false,
   },
 }
 

@@ -15,10 +15,15 @@
  * transaction with the tenant set. See the comment on `setTenant` for why that
  * has to be a transaction rather than a bare connection.
  */
-import type { WorkspaceContext } from '@creatorhub/contracts'
+import type {
+  StorefrontId,
+  StorefrontStatus,
+  WorkspaceContext,
+  WorkspaceId,
+} from '@creatorhub/contracts'
+import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import { sql } from 'drizzle-orm'
 import postgres from 'postgres'
 
 import type { DatabaseConfig } from './config.js'
@@ -33,12 +38,24 @@ import type { DatabaseConfig } from './config.js'
  */
 export type TenantTransaction = Parameters<Parameters<PostgresJsDatabase['transaction']>[0]>[0]
 
+export type ResolvedStorefront = {
+  readonly id: StorefrontId
+  readonly workspaceId: WorkspaceId
+  readonly subdomain: string
+  readonly customDomain: string | null
+  readonly title: string
+  readonly status: StorefrontStatus
+}
+
 export type Database = {
   /** Run work inside a transaction scoped to the context's workspace. */
   withWorkspace: <T>(
     context: WorkspaceContext,
     work: (tx: TenantTransaction) => Promise<T>,
   ) => Promise<T>
+
+  /** Resolve public storefront and workspaceId by subdomain or custom domain. */
+  resolveStorefrontByHostname: (hostname: string) => Promise<ResolvedStorefront | null>
 
   /** Close the pool. For process shutdown and test teardown. */
   close: () => Promise<void>
@@ -114,6 +131,36 @@ export function createDatabase(config: DatabaseConfig): Database {
         await setTenant(tx, context)
         return work(tx)
       })
+    },
+
+    async resolveStorefrontByHostname(hostname: string) {
+      const clean = hostname.trim().toLowerCase()
+      const rows = await client<
+        {
+          id: string
+          workspace_id: string
+          subdomain: string
+          custom_domain: string | null
+          title: string
+          status: string
+        }[]
+      >`
+        SELECT id, workspace_id, subdomain, custom_domain, title, status
+        FROM storefronts
+        WHERE (lower(subdomain) = ${clean} OR lower(custom_domain) = ${clean})
+        LIMIT 1
+      `
+      const row = rows[0]
+      if (!row) return null
+
+      return {
+        id: row.id as StorefrontId,
+        workspaceId: row.workspace_id as WorkspaceId,
+        subdomain: row.subdomain,
+        customDomain: row.custom_domain,
+        title: row.title,
+        status: row.status as StorefrontStatus,
+      }
     },
 
     async close() {
