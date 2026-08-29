@@ -189,12 +189,15 @@ export type {
 } from './discounts.js'
 
 export {
+  CERTIFICATE_STATUSES,
   CUSTOM_DOMAIN_PATTERN,
   CUSTOM_DOMAIN_STATUSES,
+  DEFAULT_PLATFORM_CNAME_TARGET,
   RESERVED_SUBDOMAINS,
   STOREFRONT_STATUSES,
   SUBDOMAIN_PATTERN,
   THEME_LAYOUT_PRESETS,
+  buildDomainChallenge,
   createStorefrontInputSchema,
   customDomainSchema,
   customDomainStatusSchema,
@@ -206,8 +209,11 @@ export {
 } from './storefronts.js'
 
 export type {
+  CertificateStatus,
   CreateStorefrontInput,
+  CustomDomainChallenge,
   CustomDomainStatus,
+  CustomDomainVerificationResult,
   StorefrontRecord,
   StorefrontStatus,
   StorefrontTheme,

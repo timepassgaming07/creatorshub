@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildDomainChallenge,
   createStorefrontInputSchema,
   customDomainSchema,
   RESERVED_SUBDOMAINS,
@@ -115,5 +116,27 @@ describe('Storefront Input Schemas', () => {
     expect(input.tagline).toBeNull()
     expect(input.customDomain).toBe('store.customdomain.org')
     expect(input.status).toBe('published')
+  })
+})
+
+describe('buildDomainChallenge', () => {
+  it('constructs correct TXT and CNAME challenge records', () => {
+    const challenge = buildDomainChallenge('Shop.JaneDoe.COM', 'ch_verify_123456789abcdef')
+
+    expect(challenge.domain).toBe('shop.janedoe.com')
+    expect(challenge.verificationToken).toBe('ch_verify_123456789abcdef')
+    expect(challenge.txtRecord.host).toBe('_creatorhub-challenge.shop.janedoe.com')
+    expect(challenge.txtRecord.value).toBe('ch_verify_123456789abcdef')
+    expect(challenge.cnameRecord.host).toBe('shop.janedoe.com')
+    expect(challenge.cnameRecord.target).toBe('cname.creatorhub.com')
+  })
+
+  it('supports custom CNAME target override', () => {
+    const challenge = buildDomainChallenge(
+      'merch.creator.io',
+      'ch_verify_token',
+      'custom.creatorhub.local',
+    )
+    expect(challenge.cnameRecord.target).toBe('custom.creatorhub.local')
   })
 })

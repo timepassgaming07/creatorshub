@@ -115,6 +115,59 @@ export const updateStorefrontInputSchema = z.object({
 
 export type UpdateStorefrontInput = z.infer<typeof updateStorefrontInputSchema>
 
+export const CERTIFICATE_STATUSES = ['pending', 'issuing', 'active', 'failed'] as const
+export type CertificateStatus = (typeof CERTIFICATE_STATUSES)[number]
+
+export type CustomDomainChallenge = {
+  readonly domain: string
+  readonly verificationToken: string
+  readonly txtRecord: {
+    readonly host: string
+    readonly value: string
+  }
+  readonly cnameRecord: {
+    readonly host: string
+    readonly target: string
+  }
+}
+
+export type CustomDomainVerificationResult =
+  | {
+      readonly verified: true
+      readonly method: 'txt' | 'cname'
+      readonly verifiedAt: Date
+    }
+  | {
+      readonly verified: false
+      readonly reason: 'token_mismatch' | 'cname_mismatch' | 'dns_lookup_failed' | 'not_configured'
+      readonly details: string
+    }
+
+export const DEFAULT_PLATFORM_CNAME_TARGET = 'cname.creatorhub.com'
+
+/**
+ * Builds the expected DNS TXT and CNAME verification records for a custom domain.
+ */
+export function buildDomainChallenge(
+  domain: string,
+  verificationToken: string,
+  cnameTarget: string = DEFAULT_PLATFORM_CNAME_TARGET,
+): CustomDomainChallenge {
+  const cleanDomain = domain.toLowerCase().trim()
+  return {
+    domain: cleanDomain,
+    verificationToken,
+    txtRecord: {
+      host: `_creatorhub-challenge.${cleanDomain}`,
+      value: verificationToken,
+    },
+    cnameRecord: {
+      host: cleanDomain,
+      target: cnameTarget,
+    },
+  }
+}
+
 export type StorefrontRecord = {
   readonly id: StorefrontId
   readonly workspaceId: WorkspaceId
