@@ -78,6 +78,13 @@
       "when": 1785800000000,
       "tag": "0010_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785820000000,
+      "tag": "0011_idempotency",
+      "breakpoints": true
     }
   ]
 }

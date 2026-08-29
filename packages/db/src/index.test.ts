@@ -24,6 +24,7 @@ describe('public surface', () => {
       'assertSameWorkspace',
       'auditLog',
       'createDatabase',
+      'idempotency',
       'insertValues',
       'jobs',
       'ledger',

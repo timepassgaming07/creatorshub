@@ -46,3 +46,9 @@ export {
 export { outbox, type NewOutboxRecord, type OutboxRecord } from './outbox.js'
 
 export { jobStatus, jobs, type JobTableRecord, type NewJobTableRecord } from './jobs.js'
+
+export {
+  idempotencyKeys,
+  type IdempotencyKeyRecord,
+  type NewIdempotencyKeyRecord,
+} from './idempotency.js'

@@ -22,6 +22,7 @@ import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
+import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
 import * as outboxRepo from './outbox.js'
@@ -135,6 +136,7 @@ export const REPOSITORY_MODULES = {
   ledger: ledgerRepo,
   outbox: outboxRepo,
   jobs: jobsRepo,
+  idempotency: idempotencyRepo,
 } as const
 
 /**
@@ -214,4 +216,19 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
     'Internal error/backoff transition on claimed job id. Tested in jobs integration suite.',
 
   'jobs.runWorkerBatch': 'Worker batch runner orchestrator. Tested in jobs integration suite.',
+
+  'idempotency.hashPayload':
+    'A pure function computing a deterministic SHA-256 hash. Touches no database and has no tenant.',
+
+  'idempotency.acquireIdempotencyKey':
+    'Stamps workspace from scope. Tested in idempotency repository integration suite.',
+
+  'idempotency.recordIdempotencyResponse':
+    'Updates response status for scoped key. Tested in idempotency repository integration suite.',
+
+  'idempotency.releaseIdempotencyKey':
+    'Releases reservation for scoped key. Tested in idempotency repository integration suite.',
+
+  'idempotency.withIdempotency':
+    'Idempotency wrapper orchestration. Tested in idempotency repository integration suite.',
 }

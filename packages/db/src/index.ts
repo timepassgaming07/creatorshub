@@ -66,3 +66,12 @@ export type { OutboxEventProposal, OutboxPublishResult } from './repositories/ou
  */
 export * as jobs from './repositories/jobs.js'
 export type { JobHandler, JobHandlerMap, WorkerBatchResult } from './repositories/jobs.js'
+
+/**
+ * Idempotency repository (item 2.8).
+ */
+export * as idempotency from './repositories/idempotency.js'
+export type {
+  IdempotencyAcquireResult,
+  IdempotencyExecutionResult,
+} from './repositories/idempotency.js'

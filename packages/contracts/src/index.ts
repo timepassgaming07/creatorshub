@@ -101,6 +101,17 @@ export {
 
 export type { BackoffOptions, EnqueueJobInput, JobRecord, JobStatus } from './jobs.js'
 
+export {
+  IdempotencyConflictError,
+  IdempotencyInProgressError,
+  canonicalizeJson,
+  idempotencyKeyStringSchema,
+  idempotencyOptionsSchema,
+  idempotencyScopeSchema,
+} from './idempotency.js'
+
+export type { IdempotencyOptions, IdempotencyRecord } from './idempotency.js'
+
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 
 export type { WorkspaceContext } from './workspace-context.js'

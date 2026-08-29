@@ -88,13 +88,14 @@ Slice 2:
 - [x] **2.5** Property-based test suite for balance invariants (`fast-check` proving conservation of money, idempotency replay, and compensating refund invariants)
 - [x] **2.6** Schema: `outbox`, and the publisher using `FOR UPDATE SKIP LOCKED`
 - [x] **2.7** Schema: `jobs`, worker loop, retry with backoff, dead-letter handling
+- [x] **2.8** Schema: `idempotency_keys`, and the middleware that enforces them
 
 ---
 
 # Active Task
 
-**Slice 2 item 2.8: Schema: `idempotency_keys`, and the middleware that enforces them.**
-Deduplicating mutating HTTP requests and operations using `idempotency_keys` table with scope, request hashing, cached response replay, and expiry.
+**Slice 2 item 2.9: Reconciliation job comparing derived balances against a materialised rollup.**
+Continuous financial reconciliation verifying that live derived balances from append-only `ledger_entries` match materialised rollups down to the minor unit, raising alarms on any variance.
 
 ---
 
@@ -104,7 +105,7 @@ Deduplicating mutating HTTP requests and operations using `idempotency_keys` tab
 |---|---|---|
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
-| 2 | Ledger, outbox, idempotency | **7 of 9 done.** Idempotency next |
+| 2 | Ledger, outbox, idempotency | **8 of 9 done.** Reconciliation next |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
