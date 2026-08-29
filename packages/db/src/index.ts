@@ -32,6 +32,8 @@ export { CrossTenantWriteError, assertSameWorkspace, insertValues, scoped } from
 export type { RepositoryScope, TenantTable } from './repository.js'
 
 export * as workspaceMembers from './repositories/workspace-members.js'
+export * as workspaces from './repositories/workspaces.js'
+export type { WorkspaceRecord, WorkspaceStatus } from './repositories/workspaces.js'
 
 /**
  * The audit log (item 1.10). Append-only and partitioned monthly, both enforced

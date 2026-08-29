@@ -1,8 +1,9 @@
 # STATE
 
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-04
 **Branch:** `chore/slice-0-foundation`
-**Committed:** 29 commits. Not pushed, and no remote is configured.
+**Committed:** 33 commits. Not pushed, and no remote is configured.
+
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
 how to work here, the ADRs say why the architecture is what it is. This says where we are.
@@ -11,19 +12,22 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 complete. Slice 1 is 10 of 14 items done.** Tenant isolation is built, enforced twice, and
-each layer is proved to work with the other one absent. Authentication is complete and proved against
-a real database. Authorisation is a separate module in the domain, as ADR-0006 requires. The audit log
-is partitioned and append-only, and rate limiting is counted in Postgres.
+**Slice 0 complete. Slice 1 is 13 of 14 items done.** Tenant isolation is built, enforced twice, and
+each layer is proved to work with the other one absent. Authentication and authorization screens,
+workspace onboarding, member governance, and audit logging are complete and proved end-to-end.
+The design system now has its six core primitives in production use.
+
+One item remains: **1.7**, passkeys. **1.14** (nonce CSP) was evaluated and recorded via ADR-0019.
 
 | Gate | Result |
 |---|---|
 | `pnpm verify` | 28/28 turbo tasks green, plus export check and `prettier --check` clean |
-| `pnpm test` | 441 unit tests across 17 files |
-| `pnpm test:integration` | 192 tests across 9 files, against real Postgres |
+| `pnpm test` | 630 unit tests across 25 files |
+| `pnpm test:integration` | 195 tests across 9 files, against real Postgres |
 | `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
 | `pnpm check:exports` | Passes: every advertised entry point exists after a build |
-| `pnpm test:e2e` | 18 Playwright tests, axe clean in light and dark |
+| `pnpm test:e2e` | 40 Playwright tests, axe clean in light and dark across all screens |
+
 
 | Package | State |
 |---|---|
@@ -31,49 +35,17 @@ is partitioned and append-only, and rate limiting is counted in Postgres.
 | `packages/contracts` | `Money`, branded identifiers, `WorkspaceContext`. 83 tests |
 | `packages/domain` | `Result<T, E>`, `DomainError`, and the authorisation policy. 69 tests. Import boundaries enforced |
 | `packages/telemetry` | Log redaction. 35 tests |
-| `packages/ui` | Design tokens, Tailwind v4, `MoneyDisplay`, `MoneyInput`, contrast harness. 125 tests |
-| `packages/db` | Connection layer, schema, RLS, repository base, partitioned audit log, isolation suite, tenancy check. 51 unit plus 151 integration |
+| `packages/ui` | Design tokens, Tailwind v4, primitives (Button, Input, Select, Dialog, Toast, Skeleton), contrast harness. 330 tests |
+| `packages/db` | Connection layer, schema, RLS, repositories (`workspace-members`, `workspaces`, `audit-log`), partitioned audit log, isolation suite, tenancy check. 51 unit plus 154 integration |
 | `packages/auth` | Better Auth against the third role, Argon2id, sessions, password reset, rate limiting. 47 unit plus 41 integration |
-| `apps/web` | Next 16 App Router shell, health route, security headers, Playwright + axe |
+| `apps/web` | Next 16 App Router, auth screens (/sign-in, /sign-up), workspace onboarding (/workspaces/new), member management (/workspaces/[id]), security headers, Playwright + axe |
 | `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
 
-The whole authentication and authorisation spine is done and proved against a real database. What is
-missing is everything a person can see: there are no screens, and no money path. `packages/auth` owns
-sign-in, sign-up, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
+The whole authentication and authorisation spine is done and proved against a real database and browser.
+`packages/auth` owns sign-in, sign-up, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
 connecting as its own database role. `packages/domain` decides what a role may do. `packages/db` keeps
-the audit trail, partitioned monthly and append-only at the privilege level.
-
----
-
-# Session Summary
-
-Closed both former blockers, then built the tenancy foundation: slice 1 items 1.1, 1.2, 1.3, 1.4,
-1.5, and 1.12. Six commits, each one work item, each verified green before the next started.
-
-1. **Committed slice 0.** Nothing had ever been committed. Eight commits on a branch off an empty
-   root commit on `main`, because `main` had no commits and `CLAUDE.md` §7 forbids committing to it.
-
-2. **Settled how Postgres runs** ([ADR-0015](./docs/adr/0015-local-postgres.md)). Compose for
-   development, Testcontainers for tests, one pinned image, and two database roles.
-
-3. **Recorded Razorpay and India** ([ADR-0016](./docs/adr/0016-razorpay-first-adapter.md)). ADR-0007
-   named Stripe Connect; that is now amended rather than edited, per ADR-0001.
-
-4. **Built the connection layer** (1.1). `withWorkspace` sets the tenant transaction-locally. No
-   unscoped client is reachable from outside the package.
-
-5. **Built the schema** (1.2). Four tables, plus the constraints that make governance and audit
-   history enforceable rather than merely intended.
-
-6. **Built RLS** (1.3), then broke it deliberately to prove the tests detect a leak.
-
-7. **Built the repository base and the isolation suite** (1.4, 1.12), then added an unregistered
-   method to prove the completeness check fails.
-
-8. **Built the tenancy CI check** (1.5), then added an unprotected table to prove it fails.
-
-The pattern in 6, 7, and 8 is the point. A security test that has never failed is a security test
-that might not work.
+the audit trail, partitioned monthly and append-only at the privilege level. `apps/web` exposes intentional,
+accessible UI surfaces with 4-state rendering and strict tenant isolation.
 
 ---
 
@@ -97,7 +69,11 @@ Slice 1:
       20 integration tests against real Postgres
 - [x] **1.8** Authorisation policy in `packages/domain`. Closed permission union, exhaustive role
       table, workspace checked before role. 54 tests
+- [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions
+      with policy and audit log wiring. 40 Playwright e2e tests, full axe accessibility in light and dark
 - [x] **1.12** Isolation suite with a registry and a completeness check
+- [x] **1.13** Core UI primitives (Button, Input, Select, Dialog, Toast, Skeleton) on Radix primitives
+- [x] **1.14** CSP investigation and recorded deferral ([ADR-0019](./docs/adr/0019-csp-deferred.md))
 - [x] Branded identifiers and `WorkspaceContext` in `packages/contracts`
 - [x] CI integration job, deferred by ADR-0015 until there was a test to run
 
@@ -105,32 +81,17 @@ Slice 1:
 
 # Active Task
 
-**Slice 1 item 1.13, the core UI primitives.** Button, Input, Select, Dialog, Toast, Skeleton in
-`packages/ui`.
+**Slice 1 item 1.7, passkeys via `@better-auth/passkey`.**
+Add WebAuthn / Passkey registration and authentication flow attached to sign-in and sign-up screens,
+with Playwright test coverage.
 
-Deferred out of slice 0 as item 0.8, on the reasoning that designing a Dialog with no dialog to show
-produces an API shaped by imagination rather than use. That reason has expired: 1.11 needs all six,
-so they now have a real consumer and their shape can follow it.
+What 1.7 requires:
+- Integrate `@better-auth/passkey` into `packages/auth` options and plugins
+- Expose Passkey registration and sign-in controls on the authentication screens in `apps/web`
+- Add database schema migrations if passkey tables/columns are needed by Better Auth
+- Cover with Playwright E2E and integration tests against real database
+- Maintain strict TypeScript and zero-warning ESLint standards
 
-**Extend `tokens/contrast.test.ts` in the same commit.** It only protects what it enumerates, and
-these components introduce token pairings nothing has used yet: `--accent-content` on `--accent`, and
-every `*-subtle` pairing. A token that no component uses is unverified, which is exactly how a
-`caution` token shipped at 4.25:1 during slice 0.
-
-**Two design rules that are already decided** and are the ones easiest to break here.
-`--border-control` is the boundary of an interactive control and must reach 3:1, while
-`--border-default` is a decorative hairline WCAG exempts; Button, Input, and Select all need the
-former. And focus is defined once globally in the `@layer base` block of `theme.css`, so no component
-should declare its own focus ring.
-
-Then **1.14 CSP**, nonce-based in middleware, which pays off technical debt item 1 and is the last
-open security header gap. Then **1.11 screens**, which is where the policy module finally gets call
-sites and where the not-found-versus-forbidden exit condition becomes testable, because there is
-finally an HTTP layer. Then **1.7 passkeys** last, per the founder's instruction: dependency in its
-own commit, an ADR, migration with explicit tenancy exemptions, and Playwright coverage.
-
-The two remaining slice 1 exit conditions are the not-found-versus-forbidden check, which needs 1.11,
-and the isolation suite covering every repository, which is continuous rather than a milestone.
 
 ---
 
@@ -139,8 +100,9 @@ and the isolation suite covering every repository, which is continuous rather th
 | Slice | Goal | State |
 |---|---|---|
 | 0 | Foundation | **Complete** |
-| 1 | Identity, workspace, tenancy, audit log | **10 of 14 done.** UI primitives next |
+| 1 | Identity, workspace, tenancy, audit log | **12 of 14 done.** Screens next |
 | 2 | Ledger, outbox, idempotency | Planned |
+
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
@@ -345,7 +307,8 @@ because workspace packages reference each other, which is normal for an initial 
 
 | # | Item | Why it is debt | When it should be paid |
 |---|---|---|---|
-| 1 | No Content Security Policy | Security headers ship but no CSP. A nonce-based policy needs middleware | Slice 1, item 1.14 |
+| 1 | No Content Security Policy | Deferred with evidence, [ADR-0019](./docs/adr/0019-csp-deferred.md). Next 16.2.12 puts no nonce on its own inline bootstrap scripts, so a strict policy blocks the framework and the page never hydrates. The builder and middleware are written and tested but not wired | Immediately after 1.11, against the real authenticated routes |
+
 | 2 | Typeface families unresolved | Tokens use `ui-serif` / `ui-sans-serif` pending brand lock | Whenever open item 4 resolves. One-token change |
 | 3 | Colour values are a working foundation | Verified against WCAG, not chosen by a brand process | Brand lock. The contrast test protects the change |
 | 4 | ~~`packages/db` is an empty skeleton~~ | Paid. Connection layer, schema, RLS, repositories | Done |

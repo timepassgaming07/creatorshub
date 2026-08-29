@@ -15,10 +15,13 @@
     "test:a11y": "playwright test --grep @a11y"
   },
   "dependencies": {
+    "@creatorhub/auth": "workspace:*",
     "@creatorhub/contracts": "workspace:*",
+    "@creatorhub/db": "workspace:*",
     "@creatorhub/domain": "workspace:*",
     "@creatorhub/telemetry": "workspace:*",
     "@creatorhub/ui": "workspace:*",
+    "better-auth": "1.6.25",
     "next": "16.2.12",
     "react": "19.2.8",
     "react-dom": "19.2.8"

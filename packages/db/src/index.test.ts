@@ -29,6 +29,7 @@ describe('public surface', () => {
       'runMigrations',
       'scoped',
       'workspaceMembers',
+      'workspaces',
     ])
   })
 
@@ -58,5 +59,6 @@ describe('public surface', () => {
   it('exposes repositories only as scoped namespaces', () => {
     expect(typeof publicApi.workspaceMembers.listMembers).toBe('function')
     expect(typeof publicApi.auditLog.writeAuditLog).toBe('function')
+    expect(typeof publicApi.workspaces.findCurrentWorkspace).toBe('function')
   })
 })

@@ -28,6 +28,20 @@ export default function HomePage() {
         <p className="text-body-lg text-content-secondary">
           The operating system for digital businesses. This repository is at the foundation stage.
         </p>
+        <div className="mt-2 flex items-center gap-4">
+          <a
+            href="/sign-in"
+            className="bg-accent text-accent-content hover:bg-accent-hover inline-flex h-10 items-center justify-center rounded-md px-4 text-body font-medium transition-colors"
+          >
+            Sign in
+          </a>
+          <a
+            href="/sign-up"
+            className="bg-surface-raised text-content-primary border-border-control hover:bg-surface-sunken inline-flex h-10 items-center justify-center rounded-md border px-4 text-body font-medium transition-colors"
+          >
+            Create account
+          </a>
+        </div>
       </header>
 
       <section aria-labelledby="money" className="flex flex-col gap-4">

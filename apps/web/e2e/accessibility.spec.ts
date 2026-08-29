@@ -12,7 +12,12 @@ import { expect, test } from '@playwright/test'
  * Tagged @a11y so `pnpm test:a11y` can run them alone.
  */
 
-const PAGES = [{ path: '/', name: 'home' }]
+const PAGES = [
+  { path: '/', name: 'home' },
+  { path: '/sign-in', name: 'sign-in' },
+  { path: '/sign-up', name: 'sign-up' },
+  { path: '/workspaces/new', name: 'new-workspace' },
+]
 
 for (const page_ of PAGES) {
   test(`${page_.name} has no detectable accessibility violations @a11y`, async ({ page }) => {

@@ -23,6 +23,7 @@ import type { UserId } from '@creatorhub/contracts'
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
 import * as workspaceMembersRepo from './workspace-members.js'
+import * as workspacesRepo from './workspaces.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,6 +128,7 @@ export const WRITE_CASES: readonly WriteCase[] = [
 export const REPOSITORY_MODULES = {
   'workspace-members': workspaceMembersRepo,
   'audit-log': auditLogRepo,
+  workspaces: workspacesRepo,
 } as const
 
 /**
@@ -151,4 +153,13 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'audit-log.ensureAuditPartitions':
     "DDL, not a tenant-scoped read or write. Creating next month's partition is the same operation for every workspace, and row policies have nothing to say about it.",
+
+  'workspaces.findCurrentWorkspace':
+    'Reads only the workspace id stamped in scope.context.workspaceId. A foreign workspace id is not expressible as a parameter.',
+
+  'workspaces.createWorkspace':
+    'Stamps id from scope.context.workspaceId, so a foreign tenant cannot be named. Covered by RLS tests.',
+
+  'workspaces.updateCurrentWorkspace':
+    'Updates only the workspace id stamped in scope.context.workspaceId. A foreign tenant cannot be named.',
 }
