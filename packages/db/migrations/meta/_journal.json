@@ -57,6 +57,13 @@
       "when": 1785740000000,
       "tag": "0007_passkeys",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785760000000,
+      "tag": "0008_ledger",
+      "breakpoints": true
     }
   ]
 }

@@ -71,8 +71,7 @@ Slice 1:
       `creatorhub_auth`, WebAuthn options and credential management, sign-in alternative and
       dashboard credential management, integration and Playwright test coverage.
 - [x] **1.8** Authorisation policy in `packages/domain`. Closed permission union, exhaustive role
-      table, workspace checked before role. 54 tests
-- [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions
+      table, workspace checked before role. 54 te- [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions
       with policy and audit log wiring. 40 Playwright e2e tests, full axe accessibility in light and dark
 - [x] **1.12** Isolation suite with a registry and a completeness check
 - [x] **1.13** Core UI primitives (Button, Input, Select, Dialog, Toast, Skeleton) on Radix primitives
@@ -80,12 +79,18 @@ Slice 1:
 - [x] Branded identifiers and `WorkspaceContext` in `packages/contracts`
 - [x] CI integration job, deferred by ADR-0015 until there was a test to run
 
+Slice 2:
+
+- [x] **2.1** Schema: `ledger_accounts`, `ledger_transactions`, `ledger_entries`
+- [x] **2.2** Deferred constraint trigger enforcing debits equal credits per transaction (`verify_ledger_transaction_balanced`)
+- [x] **2.3** Rules rejecting `UPDATE` and `DELETE` on `ledger_entries` (`block_ledger_entries_mutation_trigger` and role revocation)
+
 ---
 
 # Active Task
 
-**Slice 2: Ledger, outbox, idempotency.**
-Double-entry immutable ledger, transactional outbox pattern, and idempotency guarantees for all financial operations.
+**Slice 2 item 2.4: Ledger service.**
+Post a balanced transaction, derive a balance, never store one.
 
 ---
 
@@ -94,10 +99,9 @@ Double-entry immutable ledger, transactional outbox pattern, and idempotency gua
 | Slice | Goal | State |
 |---|---|---|
 | 0 | Foundation | **Complete** |
-| 1 | Identity, workspace, tenancy, audit log | **12 of 14 done.** Screens next |
-| 2 | Ledger, outbox, idempotency | Planned |
-
-| 3 | Catalogue | Planned |
+| 1 | Identity, workspace, tenancy, audit log | **Complete** |
+| 2 | Ledger, outbox, idempotency | **3 of 9 done.** Service next |
+| 3 | Catalogue | Planned |ed |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

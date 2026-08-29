@@ -24,13 +24,18 @@ import {
 import { startTestDatabase } from '../src/testing/harness.js'
 
 /**
- * audit_logs is the single table allowed a nullable workspace_id, because
- * platform-level actions genuinely have no workspace. Its policy is still
- * asserted, so this exempts it from one rule rather than from tenancy.
+ * Tables allowed a nullable workspace_id because platform-level records
+ * genuinely have no workspace. Policies are still asserted and enforced.
  */
 const NULLABLE_WORKSPACE_ALLOWED = {
   audit_logs:
     'Platform-level actions have no workspace, so workspace_id is nullable. The policy admits only the current tenant, so platform rows stay invisible to every tenant.',
+  ledger_accounts:
+    'Platform-level, processor, and tax authority accounts have no workspace, so workspace_id is nullable. The policy isolates tenant-specific accounts to the current workspace.',
+  ledger_transactions:
+    'Platform-level transactions (e.g. system adjustments, processor fees) have no workspace, so workspace_id is nullable. Tenant transactions carry workspace_id.',
+  ledger_entries:
+    'Entries referencing platform-level accounts have no workspace, so workspace_id is nullable. Tenant entries carry workspace_id for reporting and RLS.',
 } as const
 
 async function main(): Promise<void> {
