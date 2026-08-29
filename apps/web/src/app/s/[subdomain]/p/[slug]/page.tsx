@@ -1,9 +1,10 @@
 /**
- * Creator subdomain product detail page (Item 4.4).
+ * Creator subdomain product detail page (Item 4.4 & 4.5).
  * Route: /s/[subdomain]/p/[slug]
  */
 import { notFound } from 'next/navigation'
 import { getPublicProductDetailBySubdomain } from '@/lib/storefront-actions'
+import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { ProductDetailView } from '@/components/storefront/ProductDetailView'
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
@@ -30,12 +31,14 @@ export default async function SubdomainProductDetailPage({
   const basePath = `/s/${subdomain}`
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)]">
-      <StorefrontHeader storefront={storefront} basePath={basePath} />
-      <main className="flex-1">
-        <ProductDetailView data={data} basePath={basePath} />
-      </main>
-      <StorefrontFooter storefront={storefront} />
-    </div>
+    <StorefrontThemeProvider theme={storefront.themeConfig}>
+      <div className="flex min-h-screen flex-col">
+        <StorefrontHeader storefront={storefront} basePath={basePath} />
+        <main className="flex-1">
+          <ProductDetailView data={data} basePath={basePath} />
+        </main>
+        <StorefrontFooter storefront={storefront} />
+      </div>
+    </StorefrontThemeProvider>
   )
 }

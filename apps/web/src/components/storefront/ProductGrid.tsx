@@ -1,15 +1,23 @@
 /**
  * Storefront product grid component (Item 4.4).
  */
+import type { ThemeLayoutPreset } from '@creatorhub/contracts'
+import { LAYOUT_PRESET_MAP } from '@/lib/theme'
 import { ProductCard, type StorefrontProductItem } from './ProductCard'
 
 type ProductGridProps = {
   readonly products: readonly StorefrontProductItem[]
   readonly basePath: string
   readonly accentColor?: string | undefined
+  readonly layoutPreset?: ThemeLayoutPreset | undefined
 }
 
-export function ProductGrid({ products, basePath, accentColor }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  basePath,
+  accentColor,
+  layoutPreset = 'showcase',
+}: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-[var(--border-default)] p-12 text-center">
@@ -36,8 +44,10 @@ export function ProductGrid({ products, basePath, accentColor }: ProductGridProp
     )
   }
 
+  const gridCols = LAYOUT_PRESET_MAP[layoutPreset].gridCols
+
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={`grid gap-6 ${gridCols}`}>
       {products.map((prod) => (
         <ProductCard key={prod.id} product={prod} basePath={basePath} accentColor={accentColor} />
       ))}

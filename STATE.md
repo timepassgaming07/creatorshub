@@ -108,7 +108,7 @@ Slice 4:
 - [x] **4.2** Hostname-to-workspace resolution in middleware (edge routing library `hostname.ts`, middleware subdomain/custom-domain URL rewriting, CSP preservation, `resolveStorefrontByHostname`, public loaders, and server actions)
 - [x] **4.3** Custom domain verification and certificate provisioning (DNS TXT/CNAME challenge validation `domain-verification.ts`, token generator, `initiateCustomDomainAction`, `verifyCustomDomainAction`, `removeCustomDomainAction`, audit logging)
 - [x] **4.4** Server-rendered storefront home and product detail pages (`/s/[subdomain]`, `/c/[domain]`, `/s/[subdomain]/p/[slug]`, `/c/[domain]/p/[slug]`, `StorefrontHeader`, `StorefrontHero`, `ProductGrid`, `ProductCard`, `ProductDetailView`, `StorefrontFooter`)
-- [ ] **4.5** Theme presets applied as token overrides
+- [x] **4.5** Theme presets applied as token overrides (`theme.ts`, `StorefrontThemeProvider`, WCAG contrast calculation, font family stacks, and layout preset grids)
 - [ ] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots
 - [ ] **4.7** `storefront_events` capture for analytics
 - [ ] **4.8** Storefront editor with live preview
@@ -117,8 +117,8 @@ Slice 4:
 
 # Active Task
 
-**Slice 4 item 4.5: Theme presets applied as token overrides.**
-Implement CSS custom property theme token override injector for storefront pages (accent color, font family presets 'sans'/'serif'/'mono', layout presets 'minimal'/'showcase'/'grid'/'editorial', and contrast-safe text computation).
+**Slice 4 item 4.6: SEO: metadata, Open Graph, structured data, sitemap, robots.**
+Implement dynamic Next.js `generateMetadata` for storefront home and product detail pages (titles, descriptions, Open Graph, Twitter cards, canonical URLs), JSON-LD structured data (`WebSite`, `Product`, `Offer`), dynamic `sitemap.xml` route, and multi-tenant `robots.txt`.
 
 ---
 
@@ -130,7 +130,7 @@ Implement CSS custom property theme token override injector for storefront pages
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **4 of 8 done.** Theme preset token overrides next |
+| 4 | Storefront | **5 of 8 done.** SEO metadata and sitemaps next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |
