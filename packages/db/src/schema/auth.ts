@@ -27,6 +27,7 @@
 import { sql } from 'drizzle-orm'
 import {
   bigint,
+  boolean,
   index,
   integer,
   pgTable,
@@ -255,6 +256,38 @@ export const rateLimits = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// passkeys
+// ---------------------------------------------------------------------------
+
+/**
+ * WebAuthn passkey credentials (item 1.7).
+ *
+ * Reached only by `creatorhub_auth` (ADR-0017). Passkey credentials belong to
+ * a person, not a workspace.
+ */
+export const passkeys = pgTable(
+  'passkeys',
+  {
+    id: primaryKey(),
+    name: text('name'),
+    publicKey: text('public_key').notNull(),
+    userId: userReference(),
+    credentialId: text('credential_id').notNull(),
+    counter: integer('counter').notNull().default(0),
+    deviceType: text('device_type').notNull(),
+    backedUp: boolean('backed_up').notNull().default(false),
+    transports: text('transports'),
+    createdAt: createdAt(),
+    aaguid: text('aaguid'),
+  },
+  (table) => [
+    uniqueIndex('uq_passkeys__credential_id').on(table.credentialId),
+    index('idx_passkeys__user').on(table.userId),
+    index('idx_passkeys__created_at').on(table.createdAt),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Registry entries
 // ---------------------------------------------------------------------------
 
@@ -262,7 +295,7 @@ export const rateLimits = pgTable(
  * Declared exemptions for the tenancy check (item 1.5), with reasons.
  *
  * The check requires every table to have `workspace_id` or an entry here. These
- * three are genuinely not tenant-scoped, and each still needs RLS enabled,
+ * five are genuinely not tenant-scoped, and each still needs RLS enabled,
  * forced, and a policy, which the check enforces separately.
  */
 export const AUTH_TABLES_WITHOUT_WORKSPACE = {
@@ -274,4 +307,6 @@ export const AUTH_TABLES_WITHOUT_WORKSPACE = {
     'A verification token is issued before any workspace context exists, and often before the user has one. Reached only by creatorhub_auth (ADR-0017).',
   rate_limits:
     'A rate limit is counted before there is a session, so before any workspace is known. Keyed by address and path, or by account, neither of which is a tenant. Reached only by creatorhub_auth (ADR-0017).',
+  passkeys:
+    'A passkey credential belongs to a person, not a workspace. Reached only by creatorhub_auth (ADR-0017).',
 } as const

@@ -13,7 +13,7 @@ import { use, useCallback, useEffect, useState, type SyntheticEvent } from 'reac
 import { useRouter } from 'next/navigation'
 import { Button, Dialog, Input, Select, Skeleton, SkeletonText, useToast } from '@creatorhub/ui'
 
-import { signOut } from '@/lib/auth-client'
+import { signOut, authClient } from '@/lib/auth-client'
 import {
   getWorkspaceDataAction,
   inviteMemberAction,
@@ -43,6 +43,21 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | undefined>(undefined)
+
+  // Passkeys state
+  const [passkeysList, setPasskeysList] = useState<
+    {
+      id: string
+      name?: string | null | undefined
+      createdAt?: string | Date | undefined
+      deviceType?: string | undefined
+    }[]
+  >([])
+  const [passkeysLoading, setPasskeysLoading] = useState(true)
+  const [addPasskeyOpen, setAddPasskeyOpen] = useState(false)
+  const [passkeyName, setPasskeyName] = useState('')
+  const [addingPasskey, setAddingPasskey] = useState(false)
+  const [passkeyError, setPasskeyError] = useState<string | undefined>(undefined)
 
   const loadWorkspace = useCallback(async () => {
     try {
@@ -99,6 +114,100 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
       isMounted = false
     }
   }, [workspaceId])
+
+  const loadPasskeys = useCallback(async () => {
+    try {
+      const res = await authClient.passkey.listUserPasskeys()
+      if (res.data) {
+        setPasskeysList(res.data)
+      }
+      setPasskeysLoading(false)
+    } catch {
+      setPasskeysLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+    void authClient.passkey
+      .listUserPasskeys()
+      .then((res) => {
+        if (!isMounted) return
+        if (res.data) {
+          setPasskeysList(res.data)
+        }
+        setPasskeysLoading(false)
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setPasskeysLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  async function handleAddPasskey(e: SyntheticEvent) {
+    e.preventDefault()
+    setPasskeyError(undefined)
+    setAddingPasskey(true)
+
+    try {
+      const result = await authClient.passkey.addPasskey({
+        name: passkeyName ? passkeyName : 'Passkey Credential',
+      })
+
+      if (result.error) {
+        setPasskeyError(result.error.message ?? 'Failed to register passkey. Please try again.')
+        setAddingPasskey(false)
+        return
+      }
+
+      toast.show({
+        title: 'Passkey registered',
+        description: 'You can now sign in securely using this passkey.',
+        variant: 'success',
+      })
+
+      setPasskeyName('')
+      setAddPasskeyOpen(false)
+      setAddingPasskey(false)
+      void loadPasskeys()
+    } catch {
+      setPasskeyError('Passkey registration was cancelled or not supported by this browser.')
+      setAddingPasskey(false)
+    }
+  }
+
+  async function handleDeletePasskey(id: string, name?: string | null) {
+    try {
+      const result = await authClient.passkey.deletePasskey({ id })
+
+      if (result.error) {
+        toast.show({
+          title: 'Could not delete passkey',
+          description: result.error.message ?? 'Failed to delete passkey.',
+          variant: 'critical',
+        })
+        return
+      }
+
+      toast.show({
+        title: 'Passkey removed',
+        description: name ? `Removed passkey "${name}".` : 'Passkey removed successfully.',
+        variant: 'info',
+      })
+
+      void loadPasskeys()
+    } catch {
+      toast.show({
+        title: 'Error',
+        description: 'Failed to delete passkey.',
+        variant: 'critical',
+      })
+    }
+  }
 
   async function handleInviteSubmit(e: SyntheticEvent) {
     e.preventDefault()
@@ -485,6 +594,120 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+      </section>
+
+      {/* Security & Passkeys Surface */}
+      <section aria-labelledby="passkeys-heading" className="flex flex-col gap-4">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-1">
+            <h2 id="passkeys-heading" className="font-display text-heading text-content-primary">
+              Security & Passkeys
+            </h2>
+            <p className="text-caption text-content-secondary">
+              Passkeys let you sign in securely without typing passwords using biometric hardware or
+              security keys.
+            </p>
+          </div>
+
+          <Dialog
+            open={addPasskeyOpen}
+            onOpenChange={setAddPasskeyOpen}
+            title="Register a new passkey"
+            description="Your device will prompt you to authenticate via Touch ID, Face ID, Windows Hello, or a security key."
+            trigger={
+              <Button variant="secondary" size="medium">
+                Add passkey
+              </Button>
+            }
+          >
+            <form
+              onSubmit={(e) => {
+                void handleAddPasskey(e)
+              }}
+              className="mt-4 flex flex-col gap-4"
+            >
+              {passkeyError && (
+                <div
+                  role="alert"
+                  className="bg-critical-subtle text-critical border-critical rounded-sm border p-3 text-caption"
+                >
+                  {passkeyError}
+                </div>
+              )}
+
+              <Input
+                label="Passkey name / Device label"
+                type="text"
+                value={passkeyName}
+                onChange={(e) => {
+                  setPasskeyName(e.target.value)
+                }}
+                disabled={addingPasskey}
+                placeholder="e.g. MacBook Touch ID, Work YubiKey"
+              />
+
+              <div className="mt-4 flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setAddPasskeyOpen(false)
+                  }}
+                  disabled={addingPasskey}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={addingPasskey}
+                  loadingLabel="Registering passkey..."
+                >
+                  Register passkey
+                </Button>
+              </div>
+            </form>
+          </Dialog>
+        </div>
+
+        {passkeysLoading ? (
+          <div className="bg-surface-raised border-border-control flex flex-col gap-3 rounded-lg border p-6">
+            <Skeleton className="h-6 w-2/5" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : passkeysList.length === 0 ? (
+          <div className="bg-surface-raised border-border-control flex flex-col items-center gap-3 rounded-lg border p-8 text-center">
+            <p className="text-body text-content-secondary">
+              No passkeys registered yet. Add a passkey to enable instant, phishing-resistant
+              sign-in.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface-raised border-border-control divide-border-subtle divide-y overflow-hidden rounded-lg border shadow-elevation-1">
+            {passkeysList.map((pk) => (
+              <div key={pk.id} className="flex items-center justify-between px-6 py-4">
+                <div className="flex flex-col">
+                  <span className="text-content-primary font-medium">{pk.name ?? 'Passkey'}</span>
+                  <span className="text-caption text-content-secondary">
+                    {pk.createdAt
+                      ? `Added on ${new Date(pk.createdAt).toLocaleDateString()}`
+                      : 'Registered passkey'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeletePasskey(pk.id, pk.name)
+                  }}
+                  className="text-caption text-critical hover:opacity-80 rounded-sm px-2 py-1 focus:outline-none"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </section>

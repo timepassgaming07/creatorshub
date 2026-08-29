@@ -40,6 +40,7 @@
  * migrations beside it are the single source of truth. This file is configured to
  * match that schema, not to create it.
  */
+import { passkey } from '@better-auth/passkey'
 import type { BetterAuthOptions } from 'better-auth'
 import pg from 'pg'
 
@@ -153,6 +154,15 @@ const RATE_LIMIT_FIELDS = {
   lastRequest: 'last_request',
 } as const
 
+const PASSKEY_FIELDS = {
+  publicKey: 'public_key',
+  userId: 'user_id',
+  credentialID: 'credential_id',
+  deviceType: 'device_type',
+  backedUp: 'backed_up',
+  createdAt: 'created_at',
+} as const
+
 // ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
@@ -231,7 +241,7 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
        * Tokens hashed at rest. The row stores a hash, not the value that was
        * emailed, so a leaked database backup yields no working links.
        */
-      storeIdentifier: 'hashed',
+      storeIdentifier: 'hashed' as const,
     },
 
     // -------------------------------------------------------------------
@@ -378,5 +388,19 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
       /** Per-path, per-address. See ADDRESS_LIMITS for why these are loose. */
       customRules: { ...ADDRESS_LIMITS },
     },
+
+    // -------------------------------------------------------------------
+    // Passkeys / WebAuthn (item 1.7)
+    // -------------------------------------------------------------------
+    plugins: [
+      passkey({
+        schema: {
+          passkey: {
+            modelName: 'passkeys',
+            fields: PASSKEY_FIELDS,
+          },
+        },
+      }),
+    ],
   }
 }

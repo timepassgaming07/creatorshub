@@ -23,6 +23,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@better-auth/passkey": "1.6.25",
     "@creatorhub/contracts": "workspace:*",
     "@creatorhub/db": "workspace:*",
     "@creatorhub/domain": "workspace:*",

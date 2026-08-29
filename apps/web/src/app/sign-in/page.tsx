@@ -20,6 +20,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
   async function handleSubmit(e: SyntheticEvent) {
@@ -58,6 +59,35 @@ export default function SignInPage() {
     }
   }
 
+  async function handlePasskeySignIn() {
+    setError(undefined)
+    setPasskeyLoading(true)
+
+    try {
+      const result = await signIn.passkey()
+
+      if (result.error) {
+        setError(
+          result.error.message ??
+            'Passkey sign-in failed. Please try again or use your email and password.',
+        )
+        setPasskeyLoading(false)
+        return
+      }
+
+      toast.show({
+        title: 'Signed in with passkey',
+        description: 'Welcome back to CreatorHub.',
+        variant: 'success',
+      })
+
+      router.push('/workspaces/new')
+    } catch {
+      setError('Passkey authentication was cancelled or failed. Please try again.')
+      setPasskeyLoading(false)
+    }
+  }
+
   return (
     <main id="main" className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="bg-surface-raised border-border-control w-full max-w-md rounded-lg border p-8 shadow-elevation-1">
@@ -70,6 +100,7 @@ export default function SignInPage() {
 
         <form
           onSubmit={(e) => {
+            e.preventDefault()
             void handleSubmit(e)
           }}
           className="flex flex-col gap-6"
@@ -96,7 +127,7 @@ export default function SignInPage() {
               onChange={(e) => {
                 setEmail(e.target.value)
               }}
-              disabled={loading}
+              disabled={loading || passkeyLoading}
               placeholder="you@example.com"
             />
 
@@ -110,7 +141,7 @@ export default function SignInPage() {
               onChange={(e) => {
                 setPassword(e.target.value)
               }}
-              disabled={loading}
+              disabled={loading || passkeyLoading}
             />
           </div>
 
@@ -121,8 +152,30 @@ export default function SignInPage() {
             fullWidth
             loading={loading}
             loadingLabel="Signing in..."
+            disabled={passkeyLoading}
           >
             Sign in
+          </Button>
+
+          <div className="flex items-center gap-4">
+            <div className="bg-border-subtle h-px flex-1" />
+            <span className="text-caption text-content-tertiary">or</span>
+            <div className="bg-border-subtle h-px flex-1" />
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="large"
+            fullWidth
+            loading={passkeyLoading}
+            loadingLabel="Verifying passkey..."
+            disabled={loading}
+            onClick={() => {
+              void handlePasskeySignIn()
+            }}
+          >
+            Sign in with a passkey
           </Button>
 
           <p className="text-caption text-content-secondary text-center">

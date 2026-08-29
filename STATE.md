@@ -12,21 +12,21 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 complete. Slice 1 is 13 of 14 items done.** Tenant isolation is built, enforced twice, and
+**Slice 0 and Slice 1 are complete (14 of 14 items done).** Tenant isolation is built, enforced twice, and
 each layer is proved to work with the other one absent. Authentication and authorization screens,
-workspace onboarding, member governance, and audit logging are complete and proved end-to-end.
-The design system now has its six core primitives in production use.
+passkey biometric login, workspace onboarding, member governance, and audit logging are complete and proved end-to-end.
+The design system has its six core primitives in production use.
 
-One item remains: **1.7**, passkeys. **1.14** (nonce CSP) was evaluated and recorded via ADR-0019.
+All 14 items of Slice 1 are complete and verified.
 
 | Gate | Result |
 |---|---|
 | `pnpm verify` | 28/28 turbo tasks green, plus export check and `prettier --check` clean |
 | `pnpm test` | 630 unit tests across 25 files |
-| `pnpm test:integration` | 195 tests across 9 files, against real Postgres |
+| `pnpm test:integration` | 202 tests across 10 files, against real Postgres |
 | `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
 | `pnpm check:exports` | Passes: every advertised entry point exists after a build |
-| `pnpm test:e2e` | 40 Playwright tests, axe clean in light and dark across all screens |
+| `pnpm test:e2e` | 44 Playwright tests, axe clean in light and dark across all screens |
 
 
 | Package | State |
@@ -36,16 +36,16 @@ One item remains: **1.7**, passkeys. **1.14** (nonce CSP) was evaluated and reco
 | `packages/domain` | `Result<T, E>`, `DomainError`, and the authorisation policy. 69 tests. Import boundaries enforced |
 | `packages/telemetry` | Log redaction. 35 tests |
 | `packages/ui` | Design tokens, Tailwind v4, primitives (Button, Input, Select, Dialog, Toast, Skeleton), contrast harness. 330 tests |
-| `packages/db` | Connection layer, schema, RLS, repositories (`workspace-members`, `workspaces`, `audit-log`), partitioned audit log, isolation suite, tenancy check. 51 unit plus 154 integration |
-| `packages/auth` | Better Auth against the third role, Argon2id, sessions, password reset, rate limiting. 47 unit plus 41 integration |
-| `apps/web` | Next 16 App Router, auth screens (/sign-in, /sign-up), workspace onboarding (/workspaces/new), member management (/workspaces/[id]), security headers, Playwright + axe |
+| `packages/db` | Connection layer, schema, RLS, repositories (`workspace-members`, `workspaces`, `audit-log`), partitioned audit log, isolation suite, tenancy check. 51 unit plus 157 integration |
+| `packages/auth` | Better Auth against the third role, Argon2id, sessions, passkeys (@better-auth/passkey), password reset, rate limiting. 47 unit plus 45 integration |
+| `apps/web` | Next 16 App Router, auth screens (/sign-in, /sign-up), passkeys UI, workspace onboarding (/workspaces/new), member management (/workspaces/[id]), security headers, Playwright + axe |
 | `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
 
 The whole authentication and authorisation spine is done and proved against a real database and browser.
-`packages/auth` owns sign-in, sign-up, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
+`packages/auth` owns sign-in, sign-up, passkeys, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
 connecting as its own database role. `packages/domain` decides what a role may do. `packages/db` keeps
 the audit trail, partitioned monthly and append-only at the privilege level. `apps/web` exposes intentional,
-accessible UI surfaces with 4-state rendering and strict tenant isolation.
+accessible UI surfaces with 4-state rendering, passkeys, and strict tenant isolation.
 
 ---
 
@@ -67,6 +67,9 @@ Slice 1:
       CSRF via trusted origins, revocation and device list. Column mapping is explicit per field
       ([ADR-0018](./docs/adr/0018-email-verification-two-columns.md) for `email_verified`).
       20 integration tests against real Postgres
+- [x] **1.7** Passkeys via `@better-auth/passkey`. Migration `0007_passkeys.sql` isolated to
+      `creatorhub_auth`, WebAuthn options and credential management, sign-in alternative and
+      dashboard credential management, integration and Playwright test coverage.
 - [x] **1.8** Authorisation policy in `packages/domain`. Closed permission union, exhaustive role
       table, workspace checked before role. 54 tests
 - [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions
@@ -81,17 +84,8 @@ Slice 1:
 
 # Active Task
 
-**Slice 1 item 1.7, passkeys via `@better-auth/passkey`.**
-Add WebAuthn / Passkey registration and authentication flow attached to sign-in and sign-up screens,
-with Playwright test coverage.
-
-What 1.7 requires:
-- Integrate `@better-auth/passkey` into `packages/auth` options and plugins
-- Expose Passkey registration and sign-in controls on the authentication screens in `apps/web`
-- Add database schema migrations if passkey tables/columns are needed by Better Auth
-- Cover with Playwright E2E and integration tests against real database
-- Maintain strict TypeScript and zero-warning ESLint standards
-
+**Slice 2: Ledger, outbox, idempotency.**
+Double-entry immutable ledger, transactional outbox pattern, and idempotency guarantees for all financial operations.
 
 ---
 

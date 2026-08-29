@@ -82,6 +82,7 @@ export default function SignUpPage() {
 
         <form
           onSubmit={(e) => {
+            e.preventDefault()
             void handleSubmit(e)
           }}
           className="flex flex-col gap-6"

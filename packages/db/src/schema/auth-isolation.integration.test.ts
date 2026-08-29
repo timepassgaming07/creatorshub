@@ -164,9 +164,9 @@ describe('creatorhub_auth', () => {
 
 describe('creatorhub_app', () => {
   // The direction that would rot silently. Default privileges grant the app role
-  // every migrator-created table, so migration 0003 revokes these three. Remove
+  // every migrator-created table, so migration 0003 and 0007 revoke them. Remove
   // the REVOKE and only this test fails.
-  it.each(['sessions', 'accounts', 'verification_tokens'])(
+  it.each(['sessions', 'accounts', 'verification_tokens', 'passkeys'])(
     'cannot read the authentication table %s',
     async (table) => {
       await expect(app`select count(*) from ${app(table)}`).rejects.toMatchObject({
@@ -213,7 +213,7 @@ describe('policy configuration', () => {
   // The tenancy check asserts this too, from the catalogue. Duplicated here
   // deliberately: this file is where someone reads to understand the auth
   // tables, and a reader should not have to trust another file for it.
-  it.each(['sessions', 'accounts', 'verification_tokens'])(
+  it.each(['sessions', 'accounts', 'verification_tokens', 'passkeys'])(
     '%s has row level security enabled and forced',
     async (table) => {
       const [row] = await control<{ relrowsecurity: boolean; relforcerowsecurity: boolean }[]>`
@@ -227,7 +227,7 @@ describe('policy configuration', () => {
 
   // A policy with no role clause applies to every role, which would hand these
   // rows to any role added later. Every policy on these tables names its role.
-  it.each(['sessions', 'accounts', 'verification_tokens'])(
+  it.each(['sessions', 'accounts', 'verification_tokens', 'passkeys'])(
     'every policy on %s names the role it applies to',
     async (table) => {
       const rows = await control<{ roles: string[] }[]>`

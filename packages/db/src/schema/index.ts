@@ -18,4 +18,11 @@ export {
   workspaces,
 } from './identity.js'
 
-export { AUTH_TABLES_WITHOUT_WORKSPACE, accounts, sessions, verificationTokens } from './auth.js'
+export {
+  AUTH_TABLES_WITHOUT_WORKSPACE,
+  accounts,
+  passkeys,
+  rateLimits,
+  sessions,
+  verificationTokens,
+} from './auth.js'
