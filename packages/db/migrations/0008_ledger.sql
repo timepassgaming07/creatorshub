@@ -170,7 +170,7 @@ ALTER TABLE ledger_entries FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY ledger_accounts_tenant_isolation ON ledger_accounts
   FOR SELECT
   TO creatorhub_app
-  USING (workspace_id = app_current_workspace_id());--> statement-breakpoint
+  USING (workspace_id IS NULL OR workspace_id = app_current_workspace_id());--> statement-breakpoint
 
 CREATE POLICY ledger_accounts_tenant_insert ON ledger_accounts
   FOR INSERT

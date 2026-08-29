@@ -26,6 +26,15 @@ export type WorkspaceId = string & { readonly __brand: 'WorkspaceId' }
 /** A person. Owned by the auth library's table (ADR-0006). */
 export type UserId = string & { readonly __brand: 'UserId' }
 
+/** Double-entry ledger account identifier (UUIDv7). */
+export type LedgerAccountId = string & { readonly __brand: 'LedgerAccountId' }
+
+/** Double-entry ledger transaction identifier (UUIDv7). */
+export type LedgerTransactionId = string & { readonly __brand: 'LedgerTransactionId' }
+
+/** Double-entry ledger entry identifier (UUIDv7). */
+export type LedgerEntryId = string & { readonly __brand: 'LedgerEntryId' }
+
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
  * one request.
@@ -92,6 +101,21 @@ export function userId(value: string): UserId {
   return value as UserId
 }
 
+export function ledgerAccountId(value: string): LedgerAccountId {
+  assertUuidV7(value, 'ledger account id')
+  return value as LedgerAccountId
+}
+
+export function ledgerTransactionId(value: string): LedgerTransactionId {
+  assertUuidV7(value, 'ledger transaction id')
+  return value as LedgerTransactionId
+}
+
+export function ledgerEntryId(value: string): LedgerEntryId {
+  assertUuidV7(value, 'ledger entry id')
+  return value as LedgerEntryId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -122,6 +146,21 @@ export const userIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as UserId)
+
+export const ledgerAccountIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as LedgerAccountId)
+
+export const ledgerTransactionIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as LedgerTransactionId)
+
+export const ledgerEntryIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as LedgerEntryId)
 
 export const requestIdSchema = z
   .string()

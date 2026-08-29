@@ -44,3 +44,17 @@ export {
 } from './identity/policy.js'
 
 export type { Membership, Permission, WorkspaceRole } from './identity/policy.js'
+
+/**
+ * Double-entry ledger invariants and postings (ADR-0008, item 2.4, 2.5).
+ */
+export { deriveAccountBalance, validateBalancedTransaction } from './ledger/invariants.js'
+
+export {
+  createOrderPaymentPosting,
+  createPayoutPosting,
+  createRefundPosting,
+  type OrderPaymentPostingParams,
+  type PayoutPostingParams,
+  type RefundPostingParams,
+} from './ledger/postings.js'

@@ -84,13 +84,15 @@ Slice 2:
 - [x] **2.1** Schema: `ledger_accounts`, `ledger_transactions`, `ledger_entries`
 - [x] **2.2** Deferred constraint trigger enforcing debits equal credits per transaction (`verify_ledger_transaction_balanced`)
 - [x] **2.3** Rules rejecting `UPDATE` and `DELETE` on `ledger_entries` (`block_ledger_entries_mutation_trigger` and role revocation)
+- [x] **2.4** Ledger service: post a balanced transaction, derive a balance, never store one
+- [x] **2.5** Property-based test suite for balance invariants (`fast-check` proving conservation of money, idempotency replay, and compensating refund invariants)
 
 ---
 
 # Active Task
 
-**Slice 2 item 2.4: Ledger service.**
-Post a balanced transaction, derive a balance, never store one.
+**Slice 2 item 2.6: Schema: `outbox`, and the publisher using `FOR UPDATE SKIP LOCKED`.**
+Transactional outbox pattern ensuring dual-write atomicity between database operations and event messaging.
 
 ---
 
@@ -100,8 +102,8 @@ Post a balanced transaction, derive a balance, never store one.
 |---|---|---|
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
-| 2 | Ledger, outbox, idempotency | **3 of 9 done.** Service next |
-| 3 | Catalogue | Planned |ed |
+| 2 | Ledger, outbox, idempotency | **5 of 9 done.** Outbox next |
+| 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

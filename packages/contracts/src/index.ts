@@ -41,6 +41,12 @@ export type { BasisPoints, CurrencyCode, Money, MoneyWire } from './money.js'
 
 export {
   InvalidIdentifierError,
+  ledgerAccountId,
+  ledgerAccountIdSchema,
+  ledgerEntryId,
+  ledgerEntryIdSchema,
+  ledgerTransactionId,
+  ledgerTransactionIdSchema,
   requestId,
   requestIdSchema,
   userId,
@@ -49,7 +55,39 @@ export {
   workspaceIdSchema,
 } from './identifiers.js'
 
-export type { RequestId, UserId, WorkspaceId } from './identifiers.js'
+export type {
+  LedgerAccountId,
+  LedgerEntryId,
+  LedgerTransactionId,
+  RequestId,
+  UserId,
+  WorkspaceId,
+} from './identifiers.js'
+
+export {
+  LEDGER_ACCOUNT_KINDS,
+  LEDGER_ACCOUNT_OWNER_TYPES,
+  LEDGER_ENTRY_DIRECTIONS,
+  LEDGER_TRANSACTION_KINDS,
+  getAccountNormalBalance,
+  ledgerAccountKindSchema,
+  ledgerAccountOwnerTypeSchema,
+  ledgerEntryDirectionSchema,
+  ledgerEntryProposalSchema,
+  ledgerTransactionKindSchema,
+  postTransactionInputSchema,
+} from './ledger.js'
+
+export type {
+  AccountBalance,
+  AccountNormalBalance,
+  LedgerAccountKind,
+  LedgerAccountOwnerType,
+  LedgerEntryDirection,
+  LedgerEntryProposal,
+  LedgerTransactionKind,
+  PostTransactionInput,
+} from './ledger.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

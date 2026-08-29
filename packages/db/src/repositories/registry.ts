@@ -22,6 +22,7 @@ import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
+import * as ledgerRepo from './ledger.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 import * as workspacesRepo from './workspaces.js'
 
@@ -129,6 +130,7 @@ export const REPOSITORY_MODULES = {
   'workspace-members': workspaceMembersRepo,
   'audit-log': auditLogRepo,
   workspaces: workspacesRepo,
+  ledger: ledgerRepo,
 } as const
 
 /**
@@ -162,4 +164,22 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'workspaces.updateCurrentWorkspace':
     'Updates only the workspace id stamped in scope.context.workspaceId. A foreign tenant cannot be named.',
+
+  'ledger.findAccountById':
+    'Reads account ensuring it belongs to current tenant or is a platform account. Tested in ledger repository integration suite.',
+
+  'ledger.findOrCreateWorkspaceAccount':
+    'Stamps workspace from scope, so a foreign tenant cannot be named. Tested in ledger repository integration suite.',
+
+  'ledger.listAccounts':
+    'Scoped to scope.context.workspaceId. Tested in ledger repository integration suite.',
+
+  'ledger.postTransaction':
+    'Stamps workspace from scope and validates balance invariants. Tested in ledger repository integration suite.',
+
+  'ledger.getAccountBalance':
+    'Derives live balance for tenant account. Tested in ledger repository integration suite.',
+
+  'ledger.listEntriesForAccount':
+    'Lists chronological entries for tenant account. Tested in ledger repository integration suite.',
 }

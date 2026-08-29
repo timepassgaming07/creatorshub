@@ -25,6 +25,7 @@ describe('public surface', () => {
       'auditLog',
       'createDatabase',
       'insertValues',
+      'ledger',
       'loadDatabaseConfig',
       'runMigrations',
       'scoped',

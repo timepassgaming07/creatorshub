@@ -48,3 +48,9 @@ export type {
   AuditOptions,
   AuditRecord,
 } from './repositories/audit-log.js'
+
+/**
+ * Double-entry ledger repository (item 2.4).
+ */
+export * as ledger from './repositories/ledger.js'
+export type { PostTransactionResult } from './repositories/ledger.js'
