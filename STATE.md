@@ -97,7 +97,7 @@ Slice 3:
 - [x] **3.2** `packages/storage` — storage port, plus the first adapter (`@creatorhub/storage` with `MemoryStorageDriver` and `S3StorageDriver` AWS SigV4 presigner)
 - [x] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection (`AssetStorageService`, `detectMimeType`, `validateMimeType`)
 - [x] **3.4** Malware scanning; an asset is not deliverable until marked clean (`HeuristicMalwareScanner`, `AssetNotDeliverableError`, `assertAssetDeliverable`, `updateAssetScanStatus`)
-- [ ] **3.5** Pricing model, including the currency decision per workspace
+- [x] **3.5** Pricing model, including the currency decision per workspace (`resolveEffectivePrice`, `validateProductPricing`, `calculateSavings`)
 - [ ] **3.6** Schema and rules for `discounts`
 - [ ] **3.7** Product create, edit, and publish screens
 - [ ] **3.8** Asset management interface with upload progress and failure recovery
@@ -106,8 +106,8 @@ Slice 3:
 
 # Active Task
 
-**Slice 3 item 3.5: Pricing model, including the currency decision per workspace.**
-Workspace base currency configuration, multi-currency price calculations, compare-at pricing, minor-unit formatting, and invariant enforcement.
+**Slice 3 item 3.6: Schema and rules for `discounts`.**
+Multi-tenant discount schema (`fixed_amount`, `percentage`), coupon code validation, usage limits, expiration dates, product scope bindings, and discount evaluation domain rules.
 
 ---
 
@@ -118,7 +118,7 @@ Workspace base currency configuration, multi-currency price calculations, compar
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **4 of 8 done.** Pricing model next |
+| 3 | Catalogue | **5 of 8 done.** Discounts next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

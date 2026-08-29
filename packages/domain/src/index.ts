@@ -58,3 +58,16 @@ export {
   type PayoutPostingParams,
   type RefundPostingParams,
 } from './ledger/postings.js'
+
+/**
+ * Catalogue pricing and currency calculation rules (Item 3.5).
+ */
+export {
+  InvalidPricingError,
+  calculateSavings,
+  resolveEffectivePrice,
+  validateProductPricing,
+  type DiscountSavings,
+  type ProductPriceInput,
+  type VariantPriceInput,
+} from './catalogue/pricing.js'
