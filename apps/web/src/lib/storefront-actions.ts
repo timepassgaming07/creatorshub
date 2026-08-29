@@ -15,6 +15,8 @@ import {
   type CustomDomainChallenge,
   customDomainSchema,
   productId,
+  type RecordStorefrontEventInput,
+  recordStorefrontEventInputSchema,
   requestId,
   storefrontId,
   type StorefrontRecord,
@@ -787,6 +789,67 @@ export async function getPublicProductDetailByCustomDomain(
           role: a.productAsset.role,
         })),
       },
+    }
+  })
+}
+
+/**
+ * Ingests a privacy-respecting storefront event (page_view, product_view, checkout_started).
+ */
+export async function recordStorefrontEventAction(
+  rawInput: RecordStorefrontEventInput,
+  userAgentHeader?: string,
+): Promise<StorefrontActionResult<{ readonly eventId: string }>> {
+  const parsed = recordStorefrontEventInputSchema.safeParse(rawInput)
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid storefront event payload.',
+    }
+  }
+
+  const {
+    storefrontId: sfId,
+    productId: pId,
+    eventType,
+    visitorSessionId,
+    referrer,
+    utmSource,
+    utmMedium,
+    utmCampaign,
+    metadata,
+  } = parsed.data
+
+  const db = getDatabase()
+  const sf = await db.resolveStorefrontById(storefrontId(sfId))
+  if (!sf) {
+    return { success: false, error: 'Storefront not found.' }
+  }
+
+  const context = workspaceContext({
+    workspaceId: sf.workspaceId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: requestId(`req-sf-event-${randomUUID().slice(0, 8)}`),
+  })
+
+  return db.withWorkspace(context, async (tx) => {
+    const scope = { tx, context }
+    const row = await storefronts.recordStorefrontEvent(scope, {
+      storefrontId: sf.id,
+      productId: pId ? productId(pId) : null,
+      eventType,
+      visitorSessionId: visitorSessionId ?? null,
+      referrer: referrer ?? null,
+      userAgent: userAgentHeader?.slice(0, 500) ?? null,
+      utmSource: utmSource ?? null,
+      utmMedium: utmMedium ?? null,
+      utmCampaign: utmCampaign ?? null,
+      metadata: metadata ?? {},
+    })
+
+    return {
+      success: true,
+      data: { eventId: row.id },
     }
   })
 }

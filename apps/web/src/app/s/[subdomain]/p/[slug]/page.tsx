@@ -1,5 +1,5 @@
 /**
- * Creator subdomain product detail page (Item 4.4, 4.5, 4.6).
+ * Creator subdomain product detail page (Item 4.4, 4.5, 4.6, 4.7).
  * Route: /s/[subdomain]/p/[slug]
  */
 import type { Metadata } from 'next'
@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { getPublicProductDetailBySubdomain } from '@/lib/storefront-actions'
 import { buildProductMetadata, generateProductJsonLd } from '@/lib/seo'
 import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
+import { StorefrontTelemetry } from '@/components/storefront/StorefrontTelemetry'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { ProductDetailView } from '@/components/storefront/ProductDetailView'
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
@@ -47,7 +48,7 @@ export default async function SubdomainProductDetailPage({
     notFound()
   }
 
-  const { storefront } = data
+  const { storefront, product } = data
   const basePath = `/s/${subdomain}`
   const platformRoot = process.env['PLATFORM_ROOT_DOMAIN'] ?? 'creatorhub.com'
   const canonicalUrl = `https://${subdomain}.${platformRoot}/p/${slug}`
@@ -55,6 +56,7 @@ export default async function SubdomainProductDetailPage({
 
   return (
     <StorefrontThemeProvider theme={storefront.themeConfig}>
+      <StorefrontTelemetry storefrontId={storefront.id} productId={product.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -110,15 +110,15 @@ Slice 4:
 - [x] **4.4** Server-rendered storefront home and product detail pages (`/s/[subdomain]`, `/c/[domain]`, `/s/[subdomain]/p/[slug]`, `/c/[domain]/p/[slug]`, `StorefrontHeader`, `StorefrontHero`, `ProductGrid`, `ProductCard`, `ProductDetailView`, `StorefrontFooter`)
 - [x] **4.5** Theme presets applied as token overrides (`theme.ts`, `StorefrontThemeProvider`, WCAG contrast calculation, font family stacks, and layout preset grids)
 - [x] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots (`seo.ts`, dynamic `generateMetadata`, JSON-LD `WebSite`/`Product`/`Offer`, `sitemap.xml`, `robots.txt`)
-- [ ] **4.7** `storefront_events` capture for analytics
+- [x] **4.7** `storefront_events` capture for analytics (`storefront_events` schema & migration `0016`, `/api/events` beacon ingestion, `StorefrontTelemetry` component, UTM and referrer attribution)
 - [ ] **4.8** Storefront editor with live preview
 
 ---
 
 # Active Task
 
-**Slice 4 item 4.7: `storefront_events` capture for analytics.**
-Implement privacy-respecting storefront telemetry pipeline: `storefront_events` database schema and migrations, ingest endpoint / beacon action (`page_view`, `product_view`, `checkout_started`), client-side tracking hooks, and integration with RLS tenant policies.
+**Slice 4 item 4.8: Storefront editor with live preview.**
+Implement interactive creator studio storefront customizer (`/workspaces/[id]/storefront`): title/tagline editor, theme customizer (accent colors, font presets, layout presets), custom domain configuration with real-time DNS status checker, and responsive split-screen live preview panel.
 
 ---
 
@@ -130,7 +130,7 @@ Implement privacy-respecting storefront telemetry pipeline: `storefront_events` 
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **6 of 8 done.** Storefront events capture next |
+| 4 | Storefront | **7 of 8 done.** Storefront editor with live preview next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |

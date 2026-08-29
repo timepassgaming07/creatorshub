@@ -91,8 +91,12 @@ export {
 
 export {
   customDomainStatus,
+  storefrontEventType,
+  storefrontEvents,
   storefrontStatus,
   storefronts,
+  type NewStorefrontEventRow,
   type NewStorefrontRecord,
+  type StorefrontEventRow,
   type StorefrontRecord,
 } from './storefronts.js'

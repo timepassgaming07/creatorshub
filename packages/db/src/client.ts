@@ -57,6 +57,9 @@ export type Database = {
   /** Resolve public storefront and workspaceId by subdomain or custom domain. */
   resolveStorefrontByHostname: (hostname: string) => Promise<ResolvedStorefront | null>
 
+  /** Resolve public storefront and workspaceId by storefront ID. */
+  resolveStorefrontById: (id: StorefrontId) => Promise<ResolvedStorefront | null>
+
   /** Close the pool. For process shutdown and test teardown. */
   close: () => Promise<void>
 }
@@ -148,6 +151,35 @@ export function createDatabase(config: DatabaseConfig): Database {
         SELECT id, workspace_id, subdomain, custom_domain, title, status
         FROM storefronts
         WHERE (lower(subdomain) = ${clean} OR lower(custom_domain) = ${clean})
+        LIMIT 1
+      `
+      const row = rows[0]
+      if (!row) return null
+
+      return {
+        id: row.id as StorefrontId,
+        workspaceId: row.workspace_id as WorkspaceId,
+        subdomain: row.subdomain,
+        customDomain: row.custom_domain,
+        title: row.title,
+        status: row.status as StorefrontStatus,
+      }
+    },
+
+    async resolveStorefrontById(id: StorefrontId) {
+      const rows = await client<
+        {
+          id: string
+          workspace_id: string
+          subdomain: string
+          custom_domain: string | null
+          title: string
+          status: string
+        }[]
+      >`
+        SELECT id, workspace_id, subdomain, custom_domain, title, status
+        FROM storefronts
+        WHERE id = ${id}
         LIMIT 1
       `
       const row = rows[0]

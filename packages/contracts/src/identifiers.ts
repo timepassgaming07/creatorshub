@@ -50,6 +50,7 @@ export type AssetId = string & { readonly __brand: 'AssetId' }
 export type ProductAssetId = string & { readonly __brand: 'ProductAssetId' }
 export type DiscountId = string & { readonly __brand: 'DiscountId' }
 export type StorefrontId = string & { readonly __brand: 'StorefrontId' }
+export type StorefrontEventId = string & { readonly __brand: 'StorefrontEventId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -167,6 +168,11 @@ export function storefrontId(value: string): StorefrontId {
   return value as StorefrontId
 }
 
+export function storefrontEventId(value: string): StorefrontEventId {
+  assertUuidV7(value, 'storefront event id')
+  return value as StorefrontEventId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -247,6 +253,11 @@ export const storefrontIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as StorefrontId)
+
+export const storefrontEventIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as StorefrontEventId)
 
 export const requestIdSchema = z
   .string()

@@ -13,6 +13,8 @@
 import type {
   CreateStorefrontInput,
   CustomDomainStatus,
+  ProductId,
+  StorefrontEventType,
   StorefrontId,
   StorefrontTheme,
   UpdateStorefrontInput,
@@ -21,9 +23,16 @@ import { eq } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
-import { type NewStorefrontRecord, type StorefrontRecord, storefronts } from '../schema/index.js'
+import {
+  type NewStorefrontEventRow,
+  type NewStorefrontRecord,
+  type StorefrontEventRow,
+  type StorefrontRecord,
+  storefrontEvents,
+  storefronts,
+} from '../schema/index.js'
 
-export type { NewStorefrontRecord, StorefrontRecord }
+export type { NewStorefrontEventRow, NewStorefrontRecord, StorefrontEventRow, StorefrontRecord }
 
 /**
  * Creates a storefront record for the current workspace.
@@ -187,6 +196,49 @@ export async function updateCustomDomainStatus(
 
   if (!row) {
     throw new Error(`Storefront ${id} not found or not accessible to tenant.`)
+  }
+
+  return row
+}
+
+/**
+ * Inserts a telemetry event record for a storefront.
+ */
+export async function recordStorefrontEvent(
+  scope: RepositoryScope,
+  input: {
+    storefrontId: StorefrontId
+    productId?: ProductId | null
+    eventType: StorefrontEventType
+    visitorSessionId?: string | null
+    referrer?: string | null
+    userAgent?: string | null
+    utmSource?: string | null
+    utmMedium?: string | null
+    utmCampaign?: string | null
+    metadata?: Record<string, unknown>
+  },
+): Promise<StorefrontEventRow> {
+  const [row] = await scope.tx
+    .insert(storefrontEvents)
+    .values(
+      insertValues<NewStorefrontEventRow>(scope, {
+        storefrontId: input.storefrontId,
+        productId: input.productId ?? null,
+        eventType: input.eventType,
+        visitorSessionId: input.visitorSessionId ?? null,
+        referrer: input.referrer ?? null,
+        userAgent: input.userAgent ?? null,
+        utmSource: input.utmSource ?? null,
+        utmMedium: input.utmMedium ?? null,
+        utmCampaign: input.utmCampaign ?? null,
+        metadata: input.metadata ?? {},
+      }),
+    )
+    .returning()
+
+  if (!row) {
+    throw new Error(`Failed to record storefront event for storefront '${input.storefrontId}'`)
   }
 
   return row

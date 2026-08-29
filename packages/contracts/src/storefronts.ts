@@ -9,7 +9,12 @@
  */
 import { z } from 'zod'
 
-import { assetIdSchema, workspaceIdSchema } from './identifiers.js'
+import {
+  assetIdSchema,
+  productIdSchema,
+  storefrontIdSchema,
+  workspaceIdSchema,
+} from './identifiers.js'
 import type { StorefrontId, WorkspaceId } from './identifiers.js'
 
 export const STOREFRONT_STATUSES = ['draft', 'published', 'suspended'] as const
@@ -184,4 +189,38 @@ export type StorefrontRecord = {
   readonly publishedAt: Date | null
   readonly createdAt: Date
   readonly updatedAt: Date
+}
+
+export const STOREFRONT_EVENT_TYPES = ['page_view', 'product_view', 'checkout_started'] as const
+export type StorefrontEventType = (typeof STOREFRONT_EVENT_TYPES)[number]
+export const storefrontEventTypeSchema = z.enum(STOREFRONT_EVENT_TYPES)
+
+export const recordStorefrontEventInputSchema = z.object({
+  storefrontId: storefrontIdSchema,
+  productId: productIdSchema.optional().nullable(),
+  eventType: storefrontEventTypeSchema,
+  visitorSessionId: z.string().max(128).optional().nullable(),
+  referrer: z.string().max(2000).optional().nullable(),
+  utmSource: z.string().max(100).optional().nullable(),
+  utmMedium: z.string().max(100).optional().nullable(),
+  utmCampaign: z.string().max(100).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+export type RecordStorefrontEventInput = z.infer<typeof recordStorefrontEventInputSchema>
+
+export type StorefrontEventRecord = {
+  readonly id: string
+  readonly workspaceId: string
+  readonly storefrontId: string
+  readonly productId: string | null
+  readonly eventType: StorefrontEventType
+  readonly visitorSessionId: string | null
+  readonly referrer: string | null
+  readonly userAgent: string | null
+  readonly utmSource: string | null
+  readonly utmMedium: string | null
+  readonly utmCampaign: string | null
+  readonly metadata: Record<string, unknown>
+  readonly createdAt: Date
 }

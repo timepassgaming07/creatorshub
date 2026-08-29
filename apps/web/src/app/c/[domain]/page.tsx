@@ -1,5 +1,5 @@
 /**
- * Custom domain storefront homepage (Item 4.4, 4.5, 4.6).
+ * Custom domain storefront homepage (Item 4.4, 4.5, 4.6, 4.7).
  * Route: /c/[domain]
  */
 import type { Metadata } from 'next'
@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { getPublicStorefrontDataByCustomDomain } from '@/lib/storefront-actions'
 import { buildStorefrontMetadata, generateStorefrontJsonLd } from '@/lib/seo'
 import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
+import { StorefrontTelemetry } from '@/components/storefront/StorefrontTelemetry'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { StorefrontHero } from '@/components/storefront/StorefrontHero'
 import { ProductGrid } from '@/components/storefront/ProductGrid'
@@ -43,6 +44,7 @@ export default async function CustomDomainStorefrontPage({
 
   return (
     <StorefrontThemeProvider theme={storefront.themeConfig}>
+      <StorefrontTelemetry storefrontId={storefront.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

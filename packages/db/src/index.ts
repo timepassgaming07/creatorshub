@@ -97,8 +97,10 @@ export type {
  */
 export * as discounts from './repositories/discounts.js'
 
-/**
- * Storefront repository (item 4.1).
- */
 export * as storefronts from './repositories/storefronts.js'
-export type { NewStorefrontRecord, StorefrontRecord } from './repositories/storefronts.js'
+export type {
+  NewStorefrontEventRow,
+  NewStorefrontRecord,
+  StorefrontEventRow,
+  StorefrontRecord,
+} from './repositories/storefronts.js'
