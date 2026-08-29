@@ -23,6 +23,7 @@ import type { UserId } from '@creatorhub/contracts'
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
 import * as ledgerRepo from './ledger.js'
+import * as outboxRepo from './outbox.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 import * as workspacesRepo from './workspaces.js'
 
@@ -131,6 +132,7 @@ export const REPOSITORY_MODULES = {
   'audit-log': auditLogRepo,
   workspaces: workspacesRepo,
   ledger: ledgerRepo,
+  outbox: outboxRepo,
 } as const
 
 /**
@@ -182,4 +184,19 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'ledger.listEntriesForAccount':
     'Lists chronological entries for tenant account. Tested in ledger repository integration suite.',
+
+  'outbox.writeOutboxEvent':
+    'Stamps workspace from scope. Tested in outbox repository integration suite.',
+
+  'outbox.claimUnpublishedEvents':
+    'Polled with FOR UPDATE SKIP LOCKED for asynchronous publication. Tested in outbox integration suite.',
+
+  'outbox.markPublished':
+    'Internal status update on claimed outbox event. Tested in outbox integration suite.',
+
+  'outbox.recordPublishError':
+    'Internal error update on claimed outbox event. Tested in outbox integration suite.',
+
+  'outbox.publishOutboxBatch':
+    'Orchestrator over claim, dispatch, and markPublished. Tested in outbox integration suite.',
 }

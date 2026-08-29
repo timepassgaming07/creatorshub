@@ -54,3 +54,9 @@ export type {
  */
 export * as ledger from './repositories/ledger.js'
 export type { PostTransactionResult } from './repositories/ledger.js'
+
+/**
+ * Transactional outbox repository (item 2.6).
+ */
+export * as outbox from './repositories/outbox.js'
+export type { OutboxEventProposal, OutboxPublishResult } from './repositories/outbox.js'

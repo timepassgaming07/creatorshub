@@ -42,3 +42,5 @@ export {
   type NewLedgerEntry,
   type NewLedgerTransaction,
 } from './ledger.js'
+
+export { outbox, type NewOutboxRecord, type OutboxRecord } from './outbox.js'

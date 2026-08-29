@@ -36,6 +36,8 @@ const NULLABLE_WORKSPACE_ALLOWED = {
     'Platform-level transactions (e.g. system adjustments, processor fees) have no workspace, so workspace_id is nullable. Tenant transactions carry workspace_id.',
   ledger_entries:
     'Entries referencing platform-level accounts have no workspace, so workspace_id is nullable. Tenant entries carry workspace_id for reporting and RLS.',
+  outbox:
+    'Platform-level domain events have no workspace, so workspace_id is nullable. Scoped for tenant events.',
 } as const
 
 async function main(): Promise<void> {

@@ -27,6 +27,7 @@ describe('public surface', () => {
       'insertValues',
       'ledger',
       'loadDatabaseConfig',
+      'outbox',
       'runMigrations',
       'scoped',
       'workspaceMembers',

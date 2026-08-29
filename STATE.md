@@ -86,13 +86,14 @@ Slice 2:
 - [x] **2.3** Rules rejecting `UPDATE` and `DELETE` on `ledger_entries` (`block_ledger_entries_mutation_trigger` and role revocation)
 - [x] **2.4** Ledger service: post a balanced transaction, derive a balance, never store one
 - [x] **2.5** Property-based test suite for balance invariants (`fast-check` proving conservation of money, idempotency replay, and compensating refund invariants)
+- [x] **2.6** Schema: `outbox`, and the publisher using `FOR UPDATE SKIP LOCKED`
 
 ---
 
 # Active Task
 
-**Slice 2 item 2.6: Schema: `outbox`, and the publisher using `FOR UPDATE SKIP LOCKED`.**
-Transactional outbox pattern ensuring dual-write atomicity between database operations and event messaging.
+**Slice 2 item 2.7: Schema: `jobs`, worker loop, retry with backoff, dead-letter handling.**
+Postgres-backed asynchronous work queue (ADR-0009) with atomic enqueueing, concurrent job claiming via `FOR UPDATE SKIP LOCKED`, exponential backoff with jitter, and dead-letter state transitions.
 
 ---
 
@@ -102,7 +103,7 @@ Transactional outbox pattern ensuring dual-write atomicity between database oper
 |---|---|---|
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
-| 2 | Ledger, outbox, idempotency | **5 of 9 done.** Outbox next |
+| 2 | Ledger, outbox, idempotency | **6 of 9 done.** Jobs next |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
