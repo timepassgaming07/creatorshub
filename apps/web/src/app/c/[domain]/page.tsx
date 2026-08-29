@@ -1,9 +1,11 @@
 /**
- * Custom domain storefront homepage (Item 4.4 & 4.5).
+ * Custom domain storefront homepage (Item 4.4, 4.5, 4.6).
  * Route: /c/[domain]
  */
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPublicStorefrontDataByCustomDomain } from '@/lib/storefront-actions'
+import { buildStorefrontMetadata, generateStorefrontJsonLd } from '@/lib/seo'
 import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { StorefrontHero } from '@/components/storefront/StorefrontHero'
@@ -12,6 +14,17 @@ import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 
 type CustomDomainStorefrontPageProps = {
   readonly params: Promise<{ readonly domain: string }>
+}
+
+export async function generateMetadata({
+  params,
+}: CustomDomainStorefrontPageProps): Promise<Metadata> {
+  const { domain } = await params
+  const data = await getPublicStorefrontDataByCustomDomain(domain)
+  if (!data) return { title: 'Storefront Not Found' }
+
+  const canonicalUrl = `https://${domain}`
+  return buildStorefrontMetadata({ storefront: data.storefront, canonicalUrl })
 }
 
 export default async function CustomDomainStorefrontPage({
@@ -25,9 +38,15 @@ export default async function CustomDomainStorefrontPage({
 
   const { storefront, products } = data
   const basePath = `/c/${domain}`
+  const canonicalUrl = `https://${domain}`
+  const jsonLd = generateStorefrontJsonLd(data, canonicalUrl)
 
   return (
     <StorefrontThemeProvider theme={storefront.themeConfig}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="flex min-h-screen flex-col">
         <StorefrontHeader storefront={storefront} basePath={basePath} />
         <main className="flex-1">

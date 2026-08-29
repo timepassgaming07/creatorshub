@@ -109,7 +109,7 @@ Slice 4:
 - [x] **4.3** Custom domain verification and certificate provisioning (DNS TXT/CNAME challenge validation `domain-verification.ts`, token generator, `initiateCustomDomainAction`, `verifyCustomDomainAction`, `removeCustomDomainAction`, audit logging)
 - [x] **4.4** Server-rendered storefront home and product detail pages (`/s/[subdomain]`, `/c/[domain]`, `/s/[subdomain]/p/[slug]`, `/c/[domain]/p/[slug]`, `StorefrontHeader`, `StorefrontHero`, `ProductGrid`, `ProductCard`, `ProductDetailView`, `StorefrontFooter`)
 - [x] **4.5** Theme presets applied as token overrides (`theme.ts`, `StorefrontThemeProvider`, WCAG contrast calculation, font family stacks, and layout preset grids)
-- [ ] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots
+- [x] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots (`seo.ts`, dynamic `generateMetadata`, JSON-LD `WebSite`/`Product`/`Offer`, `sitemap.xml`, `robots.txt`)
 - [ ] **4.7** `storefront_events` capture for analytics
 - [ ] **4.8** Storefront editor with live preview
 
@@ -117,8 +117,8 @@ Slice 4:
 
 # Active Task
 
-**Slice 4 item 4.6: SEO: metadata, Open Graph, structured data, sitemap, robots.**
-Implement dynamic Next.js `generateMetadata` for storefront home and product detail pages (titles, descriptions, Open Graph, Twitter cards, canonical URLs), JSON-LD structured data (`WebSite`, `Product`, `Offer`), dynamic `sitemap.xml` route, and multi-tenant `robots.txt`.
+**Slice 4 item 4.7: `storefront_events` capture for analytics.**
+Implement privacy-respecting storefront telemetry pipeline: `storefront_events` database schema and migrations, ingest endpoint / beacon action (`page_view`, `product_view`, `checkout_started`), client-side tracking hooks, and integration with RLS tenant policies.
 
 ---
 
@@ -130,7 +130,7 @@ Implement dynamic Next.js `generateMetadata` for storefront home and product det
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **5 of 8 done.** SEO metadata and sitemaps next |
+| 4 | Storefront | **6 of 8 done.** Storefront events capture next |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |

@@ -1,9 +1,11 @@
 /**
- * Creator subdomain storefront homepage (Item 4.4 & 4.5).
+ * Creator subdomain storefront homepage (Item 4.4, 4.5, 4.6).
  * Route: /s/[subdomain]
  */
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPublicStorefrontDataBySubdomain } from '@/lib/storefront-actions'
+import { buildStorefrontMetadata, generateStorefrontJsonLd } from '@/lib/seo'
 import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { StorefrontHero } from '@/components/storefront/StorefrontHero'
@@ -13,6 +15,20 @@ import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 type SubdomainStorefrontPageProps = {
   readonly params: Promise<{ readonly subdomain: string }>
   readonly searchParams?: Promise<{ readonly previewWorkspaceId?: string }>
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: SubdomainStorefrontPageProps): Promise<Metadata> {
+  const { subdomain } = await params
+  const sParams = await searchParams
+  const data = await getPublicStorefrontDataBySubdomain(subdomain, sParams?.previewWorkspaceId)
+  if (!data) return { title: 'Storefront Not Found' }
+
+  const platformRoot = process.env['PLATFORM_ROOT_DOMAIN'] ?? 'creatorhub.com'
+  const canonicalUrl = `https://${subdomain}.${platformRoot}`
+  return buildStorefrontMetadata({ storefront: data.storefront, canonicalUrl })
 }
 
 export default async function SubdomainStorefrontPage({
@@ -30,9 +46,16 @@ export default async function SubdomainStorefrontPage({
 
   const { storefront, products } = data
   const basePath = `/s/${subdomain}`
+  const platformRoot = process.env['PLATFORM_ROOT_DOMAIN'] ?? 'creatorhub.com'
+  const canonicalUrl = `https://${subdomain}.${platformRoot}`
+  const jsonLd = generateStorefrontJsonLd(data, canonicalUrl)
 
   return (
     <StorefrontThemeProvider theme={storefront.themeConfig}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="flex min-h-screen flex-col">
         <StorefrontHeader storefront={storefront} basePath={basePath} />
         <main className="flex-1">
