@@ -94,7 +94,7 @@ Slice 2:
 Slice 3:
 
 - [x] **3.1** Schema: `products`, `product_variants`, `assets`, `product_assets`
-- [ ] **3.2** `packages/storage` — storage port, plus the first adapter
+- [x] **3.2** `packages/storage` — storage port, plus the first adapter (`@creatorhub/storage` with `MemoryStorageDriver` and `S3StorageDriver` AWS SigV4 presigner)
 - [ ] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection
 - [ ] **3.4** Malware scanning; an asset is not deliverable until marked clean
 - [ ] **3.5** Pricing model, including the currency decision per workspace
@@ -106,8 +106,8 @@ Slice 3:
 
 # Active Task
 
-**Slice 3 item 3.2: `packages/storage` — storage port, plus the first adapter.**
-Port interface for object storage (presigned upload/download URLs, multipart, metadata inspection), with local filesystem / memory adapter for testing and S3 / Cloudflare R2 adapter for production.
+**Slice 3 item 3.3: Upload flow: presigned direct upload, size and content-type validation by inspection.**
+Direct client-to-storage upload lifecycle, post-upload inspection, magic-number MIME type verification, and asset registry integration.
 
 ---
 
@@ -118,7 +118,7 @@ Port interface for object storage (presigned upload/download URLs, multipart, me
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **1 of 8 done.** Storage port next |
+| 3 | Catalogue | **2 of 8 done.** Direct upload flow next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
