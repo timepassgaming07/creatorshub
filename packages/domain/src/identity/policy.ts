@@ -85,6 +85,14 @@ export type Permission =
   | 'billing.view'
   | 'billing.manage'
 
+  // Catalogue and Products (Slice 3)
+  | 'product.view'
+  | 'product.create'
+  | 'product.update'
+  | 'product.delete'
+  | 'product.publish'
+  | 'discount.manage'
+
 /**
  * Which permissions each role holds.
  *
@@ -116,6 +124,12 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'audit.view',
     'billing.view',
     'billing.manage',
+    'product.view',
+    'product.create',
+    'product.update',
+    'product.delete',
+    'product.publish',
+    'discount.manage',
   ],
 
   /**
@@ -134,6 +148,12 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'member.remove',
     'audit.view',
     'billing.view',
+    'product.view',
+    'product.create',
+    'product.update',
+    'product.delete',
+    'product.publish',
+    'discount.manage',
   ],
 
   /**
@@ -142,7 +162,7 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
    * No `audit.view`: the audit log records who did what, including things a
    * member has no business knowing about. It is a governance surface.
    */
-  member: ['workspace.view', 'member.view'],
+  member: ['workspace.view', 'member.view', 'product.view', 'product.create', 'product.update'],
 }
 
 // ---------------------------------------------------------------------------

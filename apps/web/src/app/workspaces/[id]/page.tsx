@@ -476,6 +476,16 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
           )}
 
           <Button
+            variant="secondary"
+            size="medium"
+            onClick={() => {
+              router.push(`/workspaces/${workspaceId}/products`)
+            }}
+          >
+            Products
+          </Button>
+
+          <Button
             variant="ghost"
             size="medium"
             onClick={() => {

@@ -99,15 +99,15 @@ Slice 3:
 - [x] **3.4** Malware scanning; an asset is not deliverable until marked clean (`HeuristicMalwareScanner`, `AssetNotDeliverableError`, `assertAssetDeliverable`, `updateAssetScanStatus`)
 - [x] **3.5** Pricing model, including the currency decision per workspace (`resolveEffectivePrice`, `validateProductPricing`, `calculateSavings`)
 - [x] **3.6** Schema and rules for `discounts` (`discounts`, `discount_products`, `evaluateDiscount`, repository, and integration suite)
-- [ ] **3.7** Product create, edit, and publish screens
+- [x] **3.7** Product create, edit, and publish screens (server actions with RBAC and audit logging, product list, create form, and detail/edit/publish screens)
 - [ ] **3.8** Asset management interface with upload progress and failure recovery
 
 ---
 
 # Active Task
 
-**Slice 3 item 3.7: Product create, edit, and publish screens.**
-Server actions and UI forms for product creation, slug uniqueness checks, variant management, pricing configuration, discount attachment, and publishing state transitions.
+**Slice 3 item 3.8: Asset management interface with upload progress and failure recovery.**
+UI upload component, multipart/chunked direct storage upload with presigned URLs, progress reporting, scan status feedback, and failure recovery.
 
 ---
 
@@ -118,7 +118,7 @@ Server actions and UI forms for product creation, slug uniqueness checks, varian
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
-| 3 | Catalogue | **6 of 8 done.** Product screens next |
+| 3 | Catalogue | **7 of 8 done.** Asset management interface next |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |

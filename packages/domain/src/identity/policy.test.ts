@@ -44,6 +44,12 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   'audit.view',
   'billing.view',
   'billing.manage',
+  'product.view',
+  'product.create',
+  'product.update',
+  'product.delete',
+  'product.publish',
+  'discount.manage',
 ]
 
 /**
@@ -65,6 +71,12 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'audit.view': true,
     'billing.view': true,
     'billing.manage': true,
+    'product.view': true,
+    'product.create': true,
+    'product.update': true,
+    'product.delete': true,
+    'product.publish': true,
+    'discount.manage': true,
   },
   admin: {
     'workspace.view': true,
@@ -77,6 +89,12 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'audit.view': true,
     'billing.view': true,
     'billing.manage': false,
+    'product.view': true,
+    'product.create': true,
+    'product.update': true,
+    'product.delete': true,
+    'product.publish': true,
+    'discount.manage': true,
   },
   member: {
     'workspace.view': true,
@@ -89,6 +107,12 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'audit.view': false,
     'billing.view': false,
     'billing.manage': false,
+    'product.view': true,
+    'product.create': true,
+    'product.update': true,
+    'product.delete': false,
+    'product.publish': false,
+    'discount.manage': false,
   },
 }
 
