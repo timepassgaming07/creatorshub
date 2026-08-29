@@ -41,6 +41,8 @@ export type { BasisPoints, CurrencyCode, Money, MoneyWire } from './money.js'
 
 export {
   InvalidIdentifierError,
+  jobId,
+  jobIdSchema,
   ledgerAccountId,
   ledgerAccountIdSchema,
   ledgerEntryId,
@@ -56,6 +58,7 @@ export {
 } from './identifiers.js'
 
 export type {
+  JobId,
   LedgerAccountId,
   LedgerEntryId,
   LedgerTransactionId,
@@ -88,6 +91,15 @@ export type {
   LedgerTransactionKind,
   PostTransactionInput,
 } from './ledger.js'
+
+export {
+  JOB_STATUSES,
+  calculateExponentialBackoff,
+  enqueueJobInputSchema,
+  jobStatusSchema,
+} from './jobs.js'
+
+export type { BackoffOptions, EnqueueJobInput, JobRecord, JobStatus } from './jobs.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

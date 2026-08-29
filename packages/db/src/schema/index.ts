@@ -44,3 +44,5 @@ export {
 } from './ledger.js'
 
 export { outbox, type NewOutboxRecord, type OutboxRecord } from './outbox.js'
+
+export { jobStatus, jobs, type JobTableRecord, type NewJobTableRecord } from './jobs.js'

@@ -38,6 +38,7 @@ const NULLABLE_WORKSPACE_ALLOWED = {
     'Entries referencing platform-level accounts have no workspace, so workspace_id is nullable. Tenant entries carry workspace_id for reporting and RLS.',
   outbox:
     'Platform-level domain events have no workspace, so workspace_id is nullable. Scoped for tenant events.',
+  jobs: 'Platform-level background jobs (e.g. partition maintenance) have no workspace, so workspace_id is nullable. Tenant jobs are scoped.',
 } as const
 
 async function main(): Promise<void> {

@@ -87,13 +87,14 @@ Slice 2:
 - [x] **2.4** Ledger service: post a balanced transaction, derive a balance, never store one
 - [x] **2.5** Property-based test suite for balance invariants (`fast-check` proving conservation of money, idempotency replay, and compensating refund invariants)
 - [x] **2.6** Schema: `outbox`, and the publisher using `FOR UPDATE SKIP LOCKED`
+- [x] **2.7** Schema: `jobs`, worker loop, retry with backoff, dead-letter handling
 
 ---
 
 # Active Task
 
-**Slice 2 item 2.7: Schema: `jobs`, worker loop, retry with backoff, dead-letter handling.**
-Postgres-backed asynchronous work queue (ADR-0009) with atomic enqueueing, concurrent job claiming via `FOR UPDATE SKIP LOCKED`, exponential backoff with jitter, and dead-letter state transitions.
+**Slice 2 item 2.8: Schema: `idempotency_keys`, and the middleware that enforces them.**
+Deduplicating mutating HTTP requests and operations using `idempotency_keys` table with scope, request hashing, cached response replay, and expiry.
 
 ---
 
@@ -103,7 +104,7 @@ Postgres-backed asynchronous work queue (ADR-0009) with atomic enqueueing, concu
 |---|---|---|
 | 0 | Foundation | **Complete** |
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
-| 2 | Ledger, outbox, idempotency | **6 of 9 done.** Jobs next |
+| 2 | Ledger, outbox, idempotency | **7 of 9 done.** Idempotency next |
 | 3 | Catalogue | Planned |
 | 4 | Storefront | Planned |
 | 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |

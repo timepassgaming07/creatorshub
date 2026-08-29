@@ -22,6 +22,7 @@ import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
+import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
 import * as outboxRepo from './outbox.js'
 import * as workspaceMembersRepo from './workspace-members.js'
@@ -133,6 +134,7 @@ export const REPOSITORY_MODULES = {
   workspaces: workspacesRepo,
   ledger: ledgerRepo,
   outbox: outboxRepo,
+  jobs: jobsRepo,
 } as const
 
 /**
@@ -199,4 +201,17 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'outbox.publishOutboxBatch':
     'Orchestrator over claim, dispatch, and markPublished. Tested in outbox integration suite.',
+
+  'jobs.enqueueJob': 'Stamps workspace from scope. Tested in jobs repository integration suite.',
+
+  'jobs.claimJobs':
+    'Polled with FOR UPDATE SKIP LOCKED by background workers. Tested in jobs integration suite.',
+
+  'jobs.completeJob':
+    'Internal status transition on claimed job id. Tested in jobs integration suite.',
+
+  'jobs.failJob':
+    'Internal error/backoff transition on claimed job id. Tested in jobs integration suite.',
+
+  'jobs.runWorkerBatch': 'Worker batch runner orchestrator. Tested in jobs integration suite.',
 }

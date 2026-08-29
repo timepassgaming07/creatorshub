@@ -60,3 +60,9 @@ export type { PostTransactionResult } from './repositories/ledger.js'
  */
 export * as outbox from './repositories/outbox.js'
 export type { OutboxEventProposal, OutboxPublishResult } from './repositories/outbox.js'
+
+/**
+ * Asynchronous jobs repository (item 2.7).
+ */
+export * as jobs from './repositories/jobs.js'
+export type { JobHandler, JobHandlerMap, WorkerBatchResult } from './repositories/jobs.js'

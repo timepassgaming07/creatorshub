@@ -35,6 +35,8 @@ export type LedgerTransactionId = string & { readonly __brand: 'LedgerTransactio
 /** Double-entry ledger entry identifier (UUIDv7). */
 export type LedgerEntryId = string & { readonly __brand: 'LedgerEntryId' }
 
+export type JobId = string & { readonly __brand: 'JobId' }
+
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
  * one request.
@@ -116,6 +118,11 @@ export function ledgerEntryId(value: string): LedgerEntryId {
   return value as LedgerEntryId
 }
 
+export function jobId(value: string): JobId {
+  assertUuidV7(value, 'job id')
+  return value as JobId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -161,6 +168,11 @@ export const ledgerEntryIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as LedgerEntryId)
+
+export const jobIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as JobId)
 
 export const requestIdSchema = z
   .string()
