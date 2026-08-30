@@ -100,3 +100,30 @@ export {
   type StorefrontEventRow,
   type StorefrontRecord,
 } from './storefronts.js'
+
+export {
+  orderItems,
+  orderPaymentStatus,
+  orderStatus,
+  orderTransitionActorType,
+  orderTransitions,
+  orders,
+  type NewOrderItemRecord,
+  type NewOrderRecord,
+  type NewOrderTransitionRecord,
+  type OrderItemRecord,
+  type OrderRecord,
+  type OrderTransitionRecord,
+} from './orders.js'
+
+export {
+  paymentAccountStatus,
+  paymentAccounts,
+  paymentProvider,
+  paymentStatus,
+  payments,
+  type NewPaymentAccountRecord,
+  type NewPaymentRowRecord,
+  type PaymentAccountRecord,
+  type PaymentRowRecord,
+} from './payments.js'

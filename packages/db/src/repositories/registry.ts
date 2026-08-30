@@ -27,7 +27,9 @@ import * as discountsRepo from './discounts.js'
 import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
+import * as ordersRepo from './orders.js'
 import * as outboxRepo from './outbox.js'
+import * as paymentsRepo from './payments.js'
 import * as reconciliationRepo from './reconciliation.js'
 import * as storefrontsRepo from './storefronts.js'
 import * as workspaceMembersRepo from './workspace-members.js'
@@ -145,6 +147,8 @@ export const REPOSITORY_MODULES = {
   catalogue: catalogueRepo,
   discounts: discountsRepo,
   storefronts: storefrontsRepo,
+  orders: ordersRepo,
+  payments: paymentsRepo,
 } as const
 
 /**
@@ -341,4 +345,52 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'storefronts.recordStorefrontEvent':
     'Stamps workspace from scope. Tested in storefronts repository integration suite.',
+
+  'orders.createOrder':
+    'Stamps workspace from scope. Tested in orders repository integration suite.',
+
+  'orders.findOrderById':
+    'Reads order by ID scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.findOrderByCheckoutSessionId':
+    'Reads order by session ID scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.findOrderWithItems':
+    'Reads order and items scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.listOrders':
+    'Lists orders scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.updateOrderStatus':
+    'Updates order status scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.recordOrderTransition':
+    'Records order transition scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.listOrderTransitions':
+    'Lists order transitions scoped to current workspace. Tested in orders repository integration suite.',
+
+  'payments.createPaymentAccount':
+    'Stamps workspace from scope. Tested in payments repository integration suite.',
+
+  'payments.findPaymentAccount':
+    'Reads payment account scoped to current workspace. Tested in payments repository integration suite.',
+
+  'payments.findActivePaymentAccount':
+    'Reads active payment account scoped to current workspace. Tested in payments repository integration suite.',
+
+  'payments.updatePaymentAccountStatus':
+    'Updates payment account scoped to current workspace. Tested in payments repository integration suite.',
+
+  'payments.createPayment':
+    'Stamps workspace from scope. Tested in payments repository integration suite.',
+
+  'payments.findPaymentById':
+    'Reads payment by ID scoped to current workspace. Tested in payments repository integration suite.',
+
+  'payments.findPaymentByProviderPaymentId':
+    'Reads payment by provider ID scoped to current workspace. Tested in payments repository integration suite.',
+
+  'payments.updatePaymentStatus':
+    'Updates payment status scoped to current workspace. Tested in payments repository integration suite.',
 }

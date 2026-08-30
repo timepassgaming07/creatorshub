@@ -113,6 +113,20 @@
       "when": 1772325000000,
       "tag": "0015_storefronts",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1772326000000,
+      "tag": "0016_storefront_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1772327000000,
+      "tag": "0017_orders_and_payments",
+      "breakpoints": true
     }
   ]
 }
