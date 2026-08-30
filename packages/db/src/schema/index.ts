@@ -127,3 +127,10 @@ export {
   type PaymentAccountRecord,
   type PaymentRowRecord,
 } from './payments.js'
+
+export {
+  webhookEventStatus,
+  webhookEvents,
+  type NewWebhookEventRecord,
+  type WebhookEventRecord,
+} from './webhooks.js'

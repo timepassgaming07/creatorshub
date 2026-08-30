@@ -114,3 +114,10 @@ export type {
 
 export * as payments from './repositories/payments.js'
 export type { CreatePaymentAccountInput, CreatePaymentRowInput } from './repositories/payments.js'
+
+export * as webhooks from './repositories/webhooks.js'
+export type {
+  RecordWebhookEventParams,
+  RecordWebhookEventResult,
+  UpdateWebhookEventStatusOptions,
+} from './repositories/webhooks.js'

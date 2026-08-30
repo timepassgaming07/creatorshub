@@ -121,7 +121,7 @@ Slice 5:
 - [x] **5.4** Server-authoritative pricing: totals computed from server state only (`packages/domain/src/orders/pricing.ts`, server catalog price resolution, zero-float proportional discount allocation, basis-point tax computation, line-item sum invariant, and unit test suite)
 - [x] **5.5** Tax calculation and the `tax_payable` ledger posting (`packages/domain/src/orders/tax.ts`, Indian GST intra/inter-state rules, export zero-rating, GSTIN validation, and balanced `tax_payable` double-entry ledger posting integration)
 - [x] **5.6** Checkout session creation and the hosted redirect (`apps/web/src/lib/checkout-actions.ts`, `/api/checkout/session`, server-authoritative checkout orchestration, discount and GST tax pipeline, database order initialization, and PaymentProvider hosted session redirect)
-- [ ] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing
+- [x] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing (`webhook_events` migration `0018`, Drizzle schema, RLS policies, repository with `(workspace_id, provider, provider_event_id)` deduplication, `/api/webhooks/[provider]` route with HMAC signature verification, and integration test suite)
 - [ ] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016)
 - [ ] **5.9** Payment success writes the balanced ledger transaction in one commit
 - [ ] **5.10** Schema and flows for `refunds` and `disputes`
@@ -131,8 +131,8 @@ Slice 5:
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.7: Schema: webhook_events; signature verification and exactly-once processing).**
-Next up: Create migration `0018_webhook_events.sql`, contracts and Drizzle schema for `webhook_events`, repository for signature verification, idempotency tracking (`received`, `processing`, `processed`, `failed`), retry counters, and transactional webhook ingestion handler with integration test coverage.
+**Slice 5: Checkout and payments (Item 5.8: Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016)).**
+Next up: Implement `RazorpayPaymentProvider` in `packages/payments/src/adapters/razorpay.ts` implementing `PaymentProvider` interface, supporting UPI, cards, netbanking, Razorpay Orders API, Payment verification, Transfers / Route for split settlement, and validating against conformance test suite.
 
 ---
 

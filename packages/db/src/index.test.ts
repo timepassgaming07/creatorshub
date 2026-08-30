@@ -38,6 +38,7 @@ describe('public surface', () => {
       'runMigrations',
       'scoped',
       'storefronts',
+      'webhooks',
       'workspaceMembers',
       'workspaces',
     ])

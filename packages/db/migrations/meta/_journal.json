@@ -127,6 +127,13 @@
       "when": 1772327000000,
       "tag": "0017_orders_and_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1772328000000,
+      "tag": "0018_webhook_events",
+      "breakpoints": true
     }
   ]
 }

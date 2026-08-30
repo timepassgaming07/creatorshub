@@ -294,6 +294,15 @@ export type {
   PaymentStatusType,
 } from './payments.js'
 
+export {
+  WEBHOOK_EVENT_STATUSES,
+  recordWebhookEventInputSchema,
+  webhookEventRecordSchema,
+  webhookEventStatusSchema,
+} from './webhooks.js'
+
+export type { RecordWebhookEventInput, WebhookEventRecord, WebhookEventStatus } from './webhooks.js'
+
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 
 export type { WorkspaceContext } from './workspace-context.js'

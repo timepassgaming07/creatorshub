@@ -32,6 +32,7 @@ import * as outboxRepo from './outbox.js'
 import * as paymentsRepo from './payments.js'
 import * as reconciliationRepo from './reconciliation.js'
 import * as storefrontsRepo from './storefronts.js'
+import * as webhooksRepo from './webhooks.js'
 import * as workspaceMembersRepo from './workspace-members.js'
 import * as workspacesRepo from './workspaces.js'
 
@@ -149,6 +150,7 @@ export const REPOSITORY_MODULES = {
   storefronts: storefrontsRepo,
   orders: ordersRepo,
   payments: paymentsRepo,
+  webhooks: webhooksRepo,
 } as const
 
 /**
@@ -393,4 +395,19 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'payments.updatePaymentStatus':
     'Updates payment status scoped to current workspace. Tested in payments repository integration suite.',
+
+  'webhooks.recordWebhookEvent':
+    'Stamps workspace from scope. Tested in webhooks repository integration suite.',
+
+  'webhooks.findWebhookEventByProviderEventId':
+    'Reads webhook event scoped to current workspace. Tested in webhooks repository integration suite.',
+
+  'webhooks.findWebhookEventById':
+    'Reads webhook event by ID scoped to current workspace. Tested in webhooks repository integration suite.',
+
+  'webhooks.updateWebhookEventStatus':
+    'Updates webhook event scoped to current workspace. Tested in webhooks repository integration suite.',
+
+  'webhooks.listWebhookEvents':
+    'Lists webhook events scoped to current workspace. Tested in webhooks repository integration suite.',
 }
