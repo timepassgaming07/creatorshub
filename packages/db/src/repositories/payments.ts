@@ -25,6 +25,8 @@ import {
   payments,
 } from '../schema/index.js'
 
+export type { NewPaymentAccountRecord, NewPaymentRowRecord, PaymentAccountRecord, PaymentRowRecord }
+
 export type CreatePaymentAccountInput = {
   readonly provider: PaymentProviderType
   readonly providerAccountId: string
@@ -291,4 +293,18 @@ export async function updatePaymentStatus(
   }
 
   return updated
+}
+
+/**
+ * Lists all payments for an order scoped to current workspace.
+ */
+export async function listPaymentsForOrder(
+  scope: RepositoryScope,
+  orderId: string,
+): Promise<readonly PaymentRowRecord[]> {
+  return scope.tx
+    .select()
+    .from(payments)
+    .where(and(scoped(scope, payments), eq(payments.orderId, orderId)))
+    .orderBy(payments.createdAt)
 }

@@ -216,10 +216,29 @@ export class MemoryPaymentProvider implements PaymentProvider {
     const payload = event.payload
 
     if (event.eventType === 'payment.captured' || event.eventType === 'order.paid') {
-      const p = (payload['payment'] ?? payload) as Record<string, unknown>
-      const oId = extractString(p['orderId'] ?? p['notes_order_id'] ?? payload['orderId'])
-      const amt = extractBigInt(p['amount'])
-      const curr = currency(extractString(p['currency'], 'INR'))
+      const paymentWrapper =
+        typeof payload['payment'] === 'object' && payload['payment'] !== null
+          ? (payload['payment'] as Record<string, unknown>)
+          : payload
+      const p =
+        typeof paymentWrapper['entity'] === 'object' && paymentWrapper['entity'] !== null
+          ? (paymentWrapper['entity'] as Record<string, unknown>)
+          : paymentWrapper
+      const notes =
+        typeof p['notes'] === 'object' && p['notes'] !== null
+          ? (p['notes'] as Record<string, unknown>)
+          : {}
+
+      const oId = extractString(
+        notes['order_id'] ??
+          notes['orderId'] ??
+          p['orderId'] ??
+          p['order_id'] ??
+          p['notes_order_id'] ??
+          payload['orderId'],
+      )
+      const amt = extractBigInt(p['amount'] ?? payload['amount'])
+      const curr = currency(extractString(p['currency'] ?? payload['currency'], 'INR'))
 
       const capturedEvent: PaymentCapturedDomainEvent = {
         type: 'payment.captured',
@@ -235,10 +254,29 @@ export class MemoryPaymentProvider implements PaymentProvider {
     }
 
     if (event.eventType === 'payment.failed') {
-      const p = (payload['payment'] ?? payload) as Record<string, unknown>
-      const oId = extractString(p['orderId'] ?? p['notes_order_id'] ?? payload['orderId'])
-      const amt = extractBigInt(p['amount'])
-      const curr = currency(extractString(p['currency'], 'INR'))
+      const paymentWrapper =
+        typeof payload['payment'] === 'object' && payload['payment'] !== null
+          ? (payload['payment'] as Record<string, unknown>)
+          : payload
+      const p =
+        typeof paymentWrapper['entity'] === 'object' && paymentWrapper['entity'] !== null
+          ? (paymentWrapper['entity'] as Record<string, unknown>)
+          : paymentWrapper
+      const notes =
+        typeof p['notes'] === 'object' && p['notes'] !== null
+          ? (p['notes'] as Record<string, unknown>)
+          : {}
+
+      const oId = extractString(
+        notes['order_id'] ??
+          notes['orderId'] ??
+          p['orderId'] ??
+          p['order_id'] ??
+          p['notes_order_id'] ??
+          payload['orderId'],
+      )
+      const amt = extractBigInt(p['amount'] ?? payload['amount'])
+      const curr = currency(extractString(p['currency'] ?? payload['currency'], 'INR'))
 
       const failedEvent: PaymentFailedDomainEvent = {
         type: 'payment.failed',
@@ -254,10 +292,29 @@ export class MemoryPaymentProvider implements PaymentProvider {
     }
 
     if (event.eventType === 'refund.processed') {
-      const r = (payload['refund'] ?? payload) as Record<string, unknown>
-      const oId = extractString(r['orderId'] ?? r['notes_order_id'] ?? payload['orderId'])
-      const amt = extractBigInt(r['amount'])
-      const curr = currency(extractString(r['currency'], 'INR'))
+      const refundWrapper =
+        typeof payload['refund'] === 'object' && payload['refund'] !== null
+          ? (payload['refund'] as Record<string, unknown>)
+          : payload
+      const r =
+        typeof refundWrapper['entity'] === 'object' && refundWrapper['entity'] !== null
+          ? (refundWrapper['entity'] as Record<string, unknown>)
+          : refundWrapper
+      const notes =
+        typeof r['notes'] === 'object' && r['notes'] !== null
+          ? (r['notes'] as Record<string, unknown>)
+          : {}
+
+      const oId = extractString(
+        notes['order_id'] ??
+          notes['orderId'] ??
+          r['orderId'] ??
+          r['order_id'] ??
+          r['notes_order_id'] ??
+          payload['orderId'],
+      )
+      const amt = extractBigInt(r['amount'] ?? payload['amount'])
+      const curr = currency(extractString(r['currency'] ?? payload['currency'], 'INR'))
 
       const refundEvent: RefundProcessedDomainEvent = {
         type: 'refund.processed',

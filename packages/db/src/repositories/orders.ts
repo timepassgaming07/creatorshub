@@ -29,6 +29,15 @@ import {
   orderTransitions,
 } from '../schema/index.js'
 
+export type {
+  NewOrderItemRecord,
+  NewOrderRecord,
+  NewOrderTransitionRecord,
+  OrderItemRecord,
+  OrderRecord,
+  OrderTransitionRecord,
+}
+
 export type CreateOrderItemInput = {
   readonly productId: string
   readonly variantId?: string | null

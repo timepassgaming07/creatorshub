@@ -36,6 +36,7 @@ import {
 import { z } from 'zod'
 
 import { getDatabase } from './db'
+import { fulfillPaidOrder } from './order-fulfillment'
 import { getPaymentProvider } from './payments'
 
 const AUDIT_SALT =
@@ -363,6 +364,130 @@ export async function createCheckoutSessionAction(
       ok: false,
       error: {
         code: 'CHECKOUT_CREATION_FAILED',
+        message: errMessage,
+      },
+    }
+  }
+}
+
+export type VerifyCheckoutResult =
+  | {
+      readonly ok: true
+      readonly data: {
+        readonly orderId: string
+        readonly status: string
+        readonly paymentStatus: string
+        readonly totalAmount: string
+        readonly currency: string
+      }
+    }
+  | {
+      readonly ok: false
+      readonly error: {
+        readonly code: string
+        readonly message: string
+      }
+    }
+
+/**
+ * Verifies a checkout session with the payment provider and fulfills the order if captured.
+ */
+export async function verifyAndFulfillCheckoutSessionAction(
+  checkoutSessionId: string,
+  workspaceIdParam?: string,
+): Promise<VerifyCheckoutResult> {
+  if (!checkoutSessionId) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_SESSION_ID',
+        message: 'Checkout session ID is required.',
+      },
+    }
+  }
+
+  const db = getDatabase()
+  const paymentProvider = getPaymentProvider()
+  const reqId = requestId(`req-vfy-${randomUUID().slice(0, 8)}`)
+
+  try {
+    const wsId = workspaceId(workspaceIdParam ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+    const context = workspaceContext({
+      workspaceId: wsId,
+      actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+      requestId: reqId,
+    })
+
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const orderRecord = await orders.findOrderByCheckoutSessionId(scope, checkoutSessionId)
+
+      if (!orderRecord) {
+        return {
+          ok: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: 'Order for this session was not found.',
+          },
+        }
+      }
+
+      if (orderRecord.status === 'paid') {
+        return {
+          ok: true,
+          data: {
+            orderId: orderRecord.id,
+            status: orderRecord.status,
+            paymentStatus: orderRecord.paymentStatus,
+            totalAmount: orderRecord.totalAmount.toString(),
+            currency: orderRecord.currency,
+          },
+        }
+      }
+
+      // Check payment status with provider
+      const paymentSnapshot = await paymentProvider.getPayment(checkoutSessionId).catch(() => null)
+
+      if (paymentSnapshot?.status === 'captured') {
+        const fulfillResult = await fulfillPaidOrder(scope, {
+          orderId: orderRecord.id,
+          provider: paymentSnapshot.provider,
+          providerPaymentId: paymentSnapshot.providerPaymentId,
+          amount: paymentSnapshot.amount.amount,
+          currency: paymentSnapshot.amount.currency,
+          method: paymentSnapshot.method,
+          capturedAt: paymentSnapshot.capturedAt,
+        })
+
+        return {
+          ok: true,
+          data: {
+            orderId: fulfillResult.order.id,
+            status: fulfillResult.order.status,
+            paymentStatus: fulfillResult.order.paymentStatus,
+            totalAmount: fulfillResult.order.totalAmount.toString(),
+            currency: fulfillResult.order.currency,
+          },
+        }
+      }
+
+      return {
+        ok: true,
+        data: {
+          orderId: orderRecord.id,
+          status: orderRecord.status,
+          paymentStatus: orderRecord.paymentStatus,
+          totalAmount: orderRecord.totalAmount.toString(),
+          currency: orderRecord.currency,
+        },
+      }
+    })
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : 'Verification failed.'
+    return {
+      ok: false,
+      error: {
+        code: 'VERIFICATION_FAILED',
         message: errMessage,
       },
     }

@@ -1,11 +1,13 @@
 /**
- * Inbound Webhook Ingestion API Route (Slice 5 §5.7).
+ * Inbound Webhook Ingestion API Route (Slice 5 §5.7, §5.9).
  *
  * Responsibilities:
  * 1. Receive signed webhook POST requests from payment providers (Razorpay, Stripe, Memory).
  * 2. Cryptographically verify signature using `PaymentProvider.verifyWebhook`.
  * 3. Enforce exactly-once deduplication via `webhooks.recordWebhookEvent`.
- * 4. Return 200 OK fast to acknowledge delivery to the provider.
+ * 4. Fulfill paid orders atomically with balanced ledger transactions on `payment.captured`.
+ * 5. Track failed attempts on `payment.failed`.
+ * 6. Return 200 OK fast to acknowledge delivery to the provider.
  */
 import { randomUUID } from 'node:crypto'
 import {
@@ -19,6 +21,7 @@ import { webhooks } from '@creatorhub/db'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { getDatabase } from '../../../../lib/db'
+import { fulfillPaidOrder, processPaymentFailure } from '../../../../lib/order-fulfillment'
 import { getPaymentProvider } from '../../../../lib/payments'
 
 export async function POST(
@@ -74,15 +77,53 @@ export async function POST(
       requestId: requestId(`req-whk-${randomUUID().slice(0, 8)}`),
     })
 
+    const domainEvent = paymentProvider.toDomainEvent(verified)
+
     const recordResult = await db.withWorkspace(context, async (tx) => {
       const scope = { tx, context }
-      return webhooks.recordWebhookEvent(scope, {
+      const recorded = await webhooks.recordWebhookEvent(scope, {
         provider,
         providerEventId: verified.id,
         eventType: verified.eventType,
         signatureVerified: true,
         payload: verified.payload,
       })
+
+      // If duplicate, do not re-execute side effects
+      if (recorded.isDuplicate) {
+        return recorded
+      }
+
+      // Process domain events atomically in the same database transaction
+      if (domainEvent) {
+        if (domainEvent.type === 'payment.captured') {
+          if (domainEvent.orderId) {
+            await fulfillPaidOrder(scope, {
+              orderId: domainEvent.orderId,
+              provider: domainEvent.provider,
+              providerPaymentId: domainEvent.providerPaymentId,
+              amount: domainEvent.amount.amount,
+              currency: domainEvent.amount.currency,
+              method: domainEvent.method,
+              capturedAt: domainEvent.occurredAt,
+            })
+            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
+          }
+        } else if (domainEvent.type === 'payment.failed') {
+          if (domainEvent.orderId) {
+            await processPaymentFailure(scope, {
+              orderId: domainEvent.orderId,
+              provider: domainEvent.provider,
+              providerPaymentId: domainEvent.providerPaymentId,
+              reason: domainEvent.reason,
+              failedAt: domainEvent.occurredAt,
+            })
+            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
+          }
+        }
+      }
+
+      return recorded
     })
 
     return NextResponse.json(

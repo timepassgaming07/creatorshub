@@ -396,6 +396,9 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
   'payments.updatePaymentStatus':
     'Updates payment status scoped to current workspace. Tested in payments repository integration suite.',
 
+  'payments.listPaymentsForOrder':
+    'Lists payments for an order scoped to current workspace. Tested in payments repository integration suite.',
+
   'webhooks.recordWebhookEvent':
     'Stamps workspace from scope. Tested in webhooks repository integration suite.',
 

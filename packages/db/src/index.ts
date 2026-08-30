@@ -109,11 +109,19 @@ export * as orders from './repositories/orders.js'
 export type {
   CreateOrderInput,
   CreateOrderItemInput,
+  OrderItemRecord,
+  OrderRecord,
+  OrderTransitionRecord,
   OrderWithItems,
 } from './repositories/orders.js'
 
 export * as payments from './repositories/payments.js'
-export type { CreatePaymentAccountInput, CreatePaymentRowInput } from './repositories/payments.js'
+export type {
+  CreatePaymentAccountInput,
+  CreatePaymentRowInput,
+  PaymentAccountRecord,
+  PaymentRowRecord,
+} from './repositories/payments.js'
 
 export * as webhooks from './repositories/webhooks.js'
 export type {

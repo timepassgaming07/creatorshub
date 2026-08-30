@@ -26,10 +26,20 @@ vi.mock('./payments', () => ({
 }))
 
 const mockRecordWebhookEvent = vi.fn()
+const mockUpdateWebhookEventStatus = vi.fn()
 vi.mock('@creatorhub/db', () => ({
   webhooks: {
     recordWebhookEvent: (...args: unknown[]) => mockRecordWebhookEvent(...args) as unknown,
+    updateWebhookEventStatus: (...args: unknown[]) =>
+      mockUpdateWebhookEventStatus(...args) as unknown,
   },
+}))
+
+const mockFulfillPaidOrder = vi.fn()
+const mockProcessPaymentFailure = vi.fn()
+vi.mock('./order-fulfillment', () => ({
+  fulfillPaidOrder: (...args: unknown[]) => mockFulfillPaidOrder(...args) as unknown,
+  processPaymentFailure: (...args: unknown[]) => mockProcessPaymentFailure(...args) as unknown,
 }))
 
 import { POST } from '../app/api/webhooks/[provider]/route'
@@ -38,6 +48,9 @@ describe('Webhook Ingestion API Route (§5.7)', () => {
   beforeEach(() => {
     mockWithWorkspace.mockReset()
     mockRecordWebhookEvent.mockReset()
+    mockUpdateWebhookEventStatus.mockReset()
+    mockFulfillPaidOrder.mockReset()
+    mockProcessPaymentFailure.mockReset()
     memoryPaymentProvider.reset()
   })
 
@@ -97,7 +110,7 @@ describe('Webhook Ingestion API Route (§5.7)', () => {
             status: 'captured',
             notes: {
               workspace_id: wsId,
-              order_id: 'ord_test_123',
+              order_id: '018f9e2b-7c5e-7a2e-8c3b-222222222222',
             },
           },
         },
@@ -117,6 +130,13 @@ describe('Webhook Ingestion API Route (§5.7)', () => {
     mockRecordWebhookEvent.mockResolvedValue({
       event: { id: 'whk_evt_rec_001', status: 'received' },
       isDuplicate: false,
+    })
+    mockFulfillPaidOrder.mockResolvedValue({
+      success: true,
+    })
+    mockUpdateWebhookEventStatus.mockResolvedValue({
+      id: 'whk_evt_rec_001',
+      status: 'processed',
     })
 
     const req = new NextRequest('http://localhost:3000/api/webhooks/memory', {
