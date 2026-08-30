@@ -55,6 +55,12 @@ export {
   ledgerEntryIdSchema,
   ledgerTransactionId,
   ledgerTransactionIdSchema,
+  downloadEventId,
+  downloadEventIdSchema,
+  downloadGrantId,
+  downloadGrantIdSchema,
+  entitlementId,
+  entitlementIdSchema,
   orderId,
   orderIdSchema,
   orderItemId,
@@ -91,6 +97,9 @@ export type {
   AssetId,
   DiscountId,
   DisputeId,
+  DownloadEventId,
+  DownloadGrantId,
+  EntitlementId,
   JobId,
   LedgerAccountId,
   LedgerEntryId,
@@ -308,6 +317,27 @@ export {
 } from './webhooks.js'
 
 export type { RecordWebhookEventInput, WebhookEventRecord, WebhookEventStatus } from './webhooks.js'
+
+export {
+  ENTITLEMENT_STATUSES,
+  createDownloadGrantInputSchema,
+  createEntitlementInputSchema,
+  downloadEventRecordSchema,
+  downloadGrantRecordSchema,
+  entitlementRecordSchema,
+  entitlementStatusSchema,
+  recordDownloadEventInputSchema,
+} from './fulfillment.js'
+
+export type {
+  CreateDownloadGrantInput,
+  CreateEntitlementInput,
+  DownloadEventRecord,
+  DownloadGrantRecord,
+  EntitlementRecord,
+  EntitlementStatus,
+  RecordDownloadEventInput,
+} from './fulfillment.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

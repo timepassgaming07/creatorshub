@@ -69,6 +69,9 @@ vi.mock('@creatorhub/db', () => ({
   auditLog: {
     writeAuditLog: vi.fn(),
   },
+  fulfillment: {
+    revokeEntitlementsByOrderId: vi.fn().mockResolvedValue(1),
+  },
 }))
 
 describe('Refund Fulfillment Service (§5.10)', () => {

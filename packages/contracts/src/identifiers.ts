@@ -59,6 +59,9 @@ export type PaymentAccountId = string & { readonly __brand: 'PaymentAccountId' }
 export type RefundId = string & { readonly __brand: 'RefundId' }
 export type DisputeId = string & { readonly __brand: 'DisputeId' }
 export type WebhookEventId = string & { readonly __brand: 'WebhookEventId' }
+export type EntitlementId = string & { readonly __brand: 'EntitlementId' }
+export type DownloadGrantId = string & { readonly __brand: 'DownloadGrantId' }
+export type DownloadEventId = string & { readonly __brand: 'DownloadEventId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -221,6 +224,21 @@ export function webhookEventId(value: string): WebhookEventId {
   return value as WebhookEventId
 }
 
+export function entitlementId(value: string): EntitlementId {
+  assertUuidV7(value, 'entitlement id')
+  return value as EntitlementId
+}
+
+export function downloadGrantId(value: string): DownloadGrantId {
+  assertUuidV7(value, 'download grant id')
+  return value as DownloadGrantId
+}
+
+export function downloadEventId(value: string): DownloadEventId {
+  assertUuidV7(value, 'download event id')
+  return value as DownloadEventId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length < 1 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -345,6 +363,21 @@ export const webhookEventIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as WebhookEventId)
+
+export const entitlementIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as EntitlementId)
+
+export const downloadGrantIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as DownloadGrantId)
+
+export const downloadEventIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as DownloadEventId)
 
 export const requestIdSchema = z
   .string()

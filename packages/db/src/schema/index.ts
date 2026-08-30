@@ -138,3 +138,10 @@ export {
 export { refundStatus, refunds, type NewRefundRecord, type RefundRecord } from './refunds.js'
 
 export { disputeStatus, disputes, type DisputeRecord, type NewDisputeRecord } from './disputes.js'
+
+export {
+  downloadEvents,
+  downloadGrants,
+  entitlementStatus,
+  entitlements,
+} from './fulfillment.js'

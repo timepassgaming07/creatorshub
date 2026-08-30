@@ -23,6 +23,7 @@ import {
 import {
   auditLog,
   disputes,
+  fulfillment,
   ledger,
   orders,
   outbox,
@@ -258,6 +259,15 @@ export async function fulfillRefund(
 
   const ledgerTx = await ledger.postTransaction(scope, postingResult.value)
 
+  // Revoke digital entitlements (Slice 6)
+  if (isFullRefund) {
+    await fulfillment.revokeEntitlementsByOrderId(
+      scope,
+      oId,
+      input.reason ?? 'order_fully_refunded',
+    )
+  }
+
   // 8. Enqueue outbox event
   await outbox.writeOutboxEvent(scope, {
     workspaceId: scope.context.workspaceId,
@@ -405,6 +415,13 @@ export async function fulfillDispute(
       status: disputeRecord.status,
     },
   })
+
+  // Revoke digital entitlements upon dispute creation (Slice 6)
+  await fulfillment.revokeEntitlementsByOrderId(
+    scope,
+    oId,
+    input.reason ?? 'payment_dispute',
+  )
 
   // Write audit log
   await auditLog.writeAuditLog(scope, auditOptions, {

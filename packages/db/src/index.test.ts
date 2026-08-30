@@ -27,6 +27,7 @@ describe('public surface', () => {
       'createDatabase',
       'discounts',
       'disputes',
+      'fulfillment',
       'idempotency',
       'insertValues',
       'jobs',

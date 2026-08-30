@@ -186,6 +186,83 @@ describe('Order Fulfillment Service (§5.9)', () => {
       })
     })
 
+    vi.spyOn(mockOrdersRepo.orders, 'findOrderWithItems').mockResolvedValue({
+      order: mockOrder,
+      items: [
+        {
+          id: 'item_1',
+          workspaceId: wsId,
+          orderId: ordId,
+          productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
+          variantId: null,
+          productTitle: 'Pro Guide',
+          variantTitle: null,
+          unitAmount: 100000n,
+          quantity: 1,
+          subtotalAmount: 84746n,
+          discountAmount: 0n,
+          taxAmount: 15254n,
+          totalAmount: 100000n,
+          metadata: {},
+          createdAt: new Date(),
+        },
+      ],
+    })
+
+    vi.spyOn(mockOrdersRepo.fulfillment, 'findEntitlementsByOrderId').mockResolvedValue([])
+    vi.spyOn(mockOrdersRepo.fulfillment, 'createEntitlement').mockResolvedValue({
+      id: 'ent_1',
+      workspaceId: wsId,
+      orderId: ordId,
+      productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
+      customerEmail: 'buyer@example.com',
+      status: 'active',
+      grantedAt: new Date(),
+      revokedAt: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.spyOn(mockOrdersRepo.catalogue, 'listAssetsForProduct').mockResolvedValue([
+      {
+        productAsset: {
+          id: 'pa_1',
+          workspaceId: wsId,
+          productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
+          variantId: null,
+          assetId: '018f9e2b-7c5e-7a2e-8c3b-666666666666',
+          role: 'deliverable',
+          position: 0,
+          createdAt: new Date(),
+        },
+        asset: {
+          id: '018f9e2b-7c5e-7a2e-8c3b-666666666666',
+          workspaceId: wsId,
+          storageKey: 'assets/guide.pdf',
+          originalFilename: 'guide.pdf',
+          mimeType: 'application/pdf',
+          byteSize: 2048000n,
+          checksumSha256: 'hash_123',
+          scanStatus: 'clean',
+          scanReason: null,
+          scannedAt: new Date(),
+          createdAt: new Date(),
+        },
+      },
+    ])
+    vi.spyOn(mockOrdersRepo.fulfillment, 'createDownloadGrant').mockResolvedValue({
+      id: 'grant_1',
+      workspaceId: wsId,
+      entitlementId: 'ent_1',
+      assetId: 'asset_1',
+      tokenHash: 'hash',
+      maxDownloads: 5,
+      downloadCount: 0,
+      expiresAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
     vi.spyOn(mockOrdersRepo.auditLog, 'writeAuditLog').mockResolvedValue('audit_001')
 
     const input: FulfillPaidOrderInput = {

@@ -25,6 +25,7 @@ import * as auditLogRepo from './audit-log.js'
 import * as catalogueRepo from './catalogue.js'
 import * as discountsRepo from './discounts.js'
 import * as disputesRepo from './disputes.js'
+import * as fulfillmentRepo from './fulfillment.js'
 import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
@@ -155,6 +156,7 @@ export const REPOSITORY_MODULES = {
   webhooks: webhooksRepo,
   refunds: refundsRepo,
   disputes: disputesRepo,
+  fulfillment: fulfillmentRepo,
 } as const
 
 /**
@@ -456,4 +458,31 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'disputes.listDisputesForWorkspace':
     'Lists disputes scoped to current workspace. Tested in disputes repository integration suite.',
+
+  'fulfillment.createEntitlement':
+    'Stamps workspace from scope. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.findEntitlementById':
+    'Reads entitlement by ID scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.findEntitlementsByOrderId':
+    'Reads entitlements for an order scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.findEntitlementsByCustomerEmail':
+    'Reads entitlements by email scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.revokeEntitlementsByOrderId':
+    'Revokes entitlements scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.createDownloadGrant':
+    'Stamps workspace from scope. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.findDownloadGrantByTokenHash':
+    'Reads download grant by token hash scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.findDownloadGrantsByEntitlementId':
+    'Reads download grants for an entitlement scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'fulfillment.consumeDownloadGrant':
+    'Validates, consumes download grant, and records audit event scoped to current workspace. Tested in fulfillment repository integration suite.',
 }

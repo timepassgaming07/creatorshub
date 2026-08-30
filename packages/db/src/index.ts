@@ -23,7 +23,12 @@ export { DatabaseConfigError, loadDatabaseConfig } from './config.js'
 export type { DatabaseConfig } from './config.js'
 
 export { createDatabase } from './client.js'
-export type { Database, ResolvedStorefront, TenantTransaction } from './client.js'
+export type {
+  Database,
+  ResolvedDownloadGrant,
+  ResolvedStorefront,
+  TenantTransaction,
+} from './client.js'
 
 export { MigrationError, runMigrations } from './migrate.js'
 export type { MigrationResult } from './migrate.js'
@@ -145,3 +150,10 @@ export type {
   NewDisputeRecord,
   UpdateDisputeStatusOptions,
 } from './repositories/disputes.js'
+
+export * as fulfillment from './repositories/fulfillment.js'
+export type {
+  ConsumeGrantResult,
+  CreateDownloadGrantRepoInput,
+  CreateEntitlementRepoInput,
+} from './repositories/fulfillment.js'

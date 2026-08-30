@@ -9,6 +9,7 @@
  * 5. Write transactional outbox events for downstream asynchronous workflows.
  * 6. Guarantee idempotency: multiple calls with the same provider payment id replay cleanly.
  */
+import { createHash, randomBytes } from 'node:crypto'
 import {
   basisPoints,
   currency,
@@ -17,11 +18,14 @@ import {
   orderId,
   paymentId,
   percentage,
+  productId,
   type CurrencyCode,
   type PaymentProviderType,
 } from '@creatorhub/contracts'
 import {
   auditLog,
+  catalogue,
+  fulfillment,
   ledger,
   orders,
   outbox,
@@ -55,6 +59,13 @@ export type FulfillPaidOrderResult = {
   readonly payment: PaymentRowRecord
   readonly idempotentReplay: boolean
   readonly transactionId?: string
+  readonly downloadGrants?: readonly {
+    readonly rawToken: string
+    readonly productTitle: string
+    readonly originalFilename: string
+    readonly maxDownloads: number
+    readonly expiresAt: Date
+  }[]
 }
 
 export type ProcessPaymentFailureInput = {
@@ -297,12 +308,71 @@ export async function fulfillPaidOrder(
     },
   })
 
+  // 9. Digital Asset Fulfillment: Issue entitlements & download grants (Slice 6)
+  const orderWithItems = await orders.findOrderWithItems(scope, orderRecord.id)
+  const issuedDownloadGrants: {
+    readonly rawToken: string
+    readonly productTitle: string
+    readonly originalFilename: string
+    readonly maxDownloads: number
+    readonly expiresAt: Date
+  }[] = []
+
+  if (orderWithItems && orderWithItems.items.length > 0) {
+    for (const item of orderWithItems.items) {
+      // Check existing entitlements to prevent duplicates on idempotent retries
+      const existing = await fulfillment.findEntitlementsByOrderId(scope, orderRecord.id)
+      const matchingEntitlement = existing.find((e) => e.productId === item.productId)
+
+      const ent =
+        matchingEntitlement ??
+        (await fulfillment.createEntitlement(scope, {
+          orderId: orderRecord.id,
+          productId: item.productId,
+          customerEmail: orderRecord.customerEmail,
+          metadata: {
+            productTitle: item.productTitle,
+            quantity: item.quantity,
+            unitAmount: item.unitAmount.toString(),
+          },
+        }))
+
+      // Fetch attached digital assets for this product
+      const productAssets = await catalogue.listAssetsForProduct(
+        scope,
+        productId(item.productId),
+      )
+      for (const pa of productAssets) {
+        const rawToken = randomBytes(32).toString('hex')
+        const tokenHash = createHash('sha256').update(rawToken).digest('hex')
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+        await fulfillment.createDownloadGrant(scope, {
+          entitlementId: ent.id,
+          assetId: pa.productAsset.assetId,
+          tokenHash,
+          maxDownloads: 5,
+          expiresAt,
+        })
+
+        issuedDownloadGrants.push({
+          rawToken,
+          productTitle: item.productTitle,
+          originalFilename: pa.asset.originalFilename,
+          maxDownloads: 5,
+          expiresAt,
+        })
+      }
+    }
+  }
+
   return {
     success: true,
     order: updatedOrder,
     payment: paymentRecord,
     idempotentReplay: ledgerTxResult.idempotentReplay,
     transactionId: ledgerTxResult.transaction.id,
+    downloadGrants: issuedDownloadGrants,
   }
 }
 

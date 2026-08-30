@@ -47,6 +47,17 @@ export type ResolvedStorefront = {
   readonly status: StorefrontStatus
 }
 
+export type ResolvedDownloadGrant = {
+  readonly id: string
+  readonly workspaceId: WorkspaceId
+  readonly entitlementId: string
+  readonly assetId: string
+  readonly tokenHash: string
+  readonly maxDownloads: number
+  readonly downloadCount: number
+  readonly expiresAt: Date
+}
+
 export type Database = {
   /** Run work inside a transaction scoped to the context's workspace. */
   withWorkspace: <T>(
@@ -59,6 +70,9 @@ export type Database = {
 
   /** Resolve public storefront and workspaceId by storefront ID. */
   resolveStorefrontById: (id: StorefrontId) => Promise<ResolvedStorefront | null>
+
+  /** Resolve workspaceId and grant by download token hash. */
+  resolveDownloadGrantByTokenHash: (tokenHash: string) => Promise<ResolvedDownloadGrant | null>
 
   /** Close the pool. For process shutdown and test teardown. */
   close: () => Promise<void>
@@ -192,6 +206,39 @@ export function createDatabase(config: DatabaseConfig): Database {
         customDomain: row.custom_domain,
         title: row.title,
         status: row.status as StorefrontStatus,
+      }
+    },
+
+    async resolveDownloadGrantByTokenHash(tokenHash: string) {
+      const rows = await client<
+        {
+          id: string
+          workspace_id: string
+          entitlement_id: string
+          asset_id: string
+          token_hash: string
+          max_downloads: number
+          download_count: number
+          expires_at: Date
+        }[]
+      >`
+        SELECT id, workspace_id, entitlement_id, asset_id, token_hash, max_downloads, download_count, expires_at
+        FROM download_grants
+        WHERE token_hash = ${tokenHash}
+        LIMIT 1
+      `
+      const row = rows[0]
+      if (!row) return null
+
+      return {
+        id: row.id,
+        workspaceId: row.workspace_id as WorkspaceId,
+        entitlementId: row.entitlement_id,
+        assetId: row.asset_id,
+        tokenHash: row.token_hash,
+        maxDownloads: row.max_downloads,
+        downloadCount: row.download_count,
+        expiresAt: row.expires_at,
       }
     },
 

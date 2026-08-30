@@ -126,12 +126,22 @@ Slice 5:
 - [x] **5.10** Schema and flows for `refunds` and `disputes` (migration `0019_refunds_and_disputes.sql`, Drizzle schemas, RLS tenant isolation, repositories, permissions `order.refund` and `dispute.manage`, atomic fulfillment `fulfillRefund` and `fulfillDispute`, compensating double-entry ledger postings `kind: refund` and `kind: dispute`, server action `refundOrderAction`, webhook `refund.processed` integration, unit and integration suites)
 - [x] **5.11** Checkout UI, including the failure and retry paths (`CheckoutForm.tsx`, `CheckoutPendingPoll.tsx`, `CheckoutFailureView.tsx`, `CheckoutSuccessView.tsx`, `/checkout`, `/checkout/[orderId]`, `/s/[subdomain]/checkout`, `/c/[domain]/checkout`, live GST tax calculator, coupon evaluation, resilient UPI polling, and 1-click retry flows)
 
+Slice 6:
+
+- [x] **6.1** Schema: `entitlements` — durable proof of purchase independent of the order (migration `0020_entitlements_and_fulfillment.sql`, Drizzle schema, RLS tenant policies, repositories, integration suite)
+- [x] **6.2** Entitlement lifecycle: granted on payment capture (`fulfillPaidOrder`), revoked on full refund (`fulfillRefund`) and dispute creation (`fulfillDispute`)
+- [x] **6.3** Schema: `download_grants` & `download_events` — SHA-256 hashed download tokens, default 5 download cap, 7-day expiration, download audit logs with IP & UA hashing
+- [x] **6.4** Download API endpoint checking entitlement at request time (`/api/fulfillment/download/[token]`, atomic grant consumption, token verification, storage stream & presigned S3/R2 URL redirect)
+- [x] **6.5** `packages/email` — transactional email port (`EmailProvider`), `MemoryEmailProvider` adapter, creator-branded HTML receipt & fulfillment templates
+- [x] **6.6** Outbox delivery of transactional fulfillment & receipt emails with direct buyer access links
+- [x] **6.7** Buyer-facing download portal (`/fulfillment/[token]`, `/s/[subdomain]/fulfillment/[token]`, `/c/[domain]/fulfillment/[token]`, `DownloadPortalView.tsx` with light creator aesthetic, live download usage meter, expiration notices, and no account required)
+
 ---
 
 # Active Task
 
-**Slice 6: Digital fulfillment & asset delivery.**
-Next up: Implement secure post-purchase digital asset delivery with presigned expiring S3/R2 download URLs, tamper-proof license tokens, streaming content inspection, and fulfillment status notifications.
+**Slice 7: Customers and orders management.**
+Next up: Implement customer directory, purchase history, order search and filtering, customer detail views, manual fulfillment resend, and creator dashboard financial summaries.
 
 ---
 
@@ -145,8 +155,8 @@ Next up: Implement secure post-purchase digital asset delivery with presigned ex
 | 3 | Catalogue | **Complete** |
 | 4 | Storefront | **Complete** |
 | 5 | Checkout and payments | **Complete** |
-| 6 | Fulfilment | Next |
-| 7 | Customers and orders | Planned |
+| 6 | Fulfilment | **Complete** |
+| 7 | Customers and orders | Next |
 | 8 | Affiliate programme and attribution | Planned |
 | 9 | Commission, holds, clawback | Planned |
 | 10 | Analytics and AI surfaces | Planned |
