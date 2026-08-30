@@ -102,3 +102,20 @@ export {
   type InvalidPaymentTransitionError,
   type UnauthorizedOrderTransitionError,
 } from './orders/state-machine.js'
+
+/**
+ * Server-authoritative order pricing (Slice 5 §5.4).
+ */
+export {
+  CURRENCY_MISMATCH,
+  EMPTY_ORDER,
+  INVALID_ORDER_QUANTITY,
+  PRICING_CALCULATION_ERROR,
+  PRODUCT_NOT_PURCHASABLE,
+  calculateServerOrderPricing,
+  type CalculateOrderPricingInput,
+  type CalculatedLineItem,
+  type CalculatedOrderPricing,
+  type CheckoutItemInput,
+  type ServerProductPriceInfo,
+} from './orders/pricing.js'

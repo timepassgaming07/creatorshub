@@ -118,7 +118,7 @@ Slice 5:
 - [x] **5.1** `packages/payments` — the `PaymentProvider` port and its domain-level contract (`@creatorhub/payments` with `PaymentProvider` port, domain error hierarchy, `MemoryPaymentProvider` adapter, HMAC webhook verification, domain event translation, and `paymentProviderConformanceTests` test harness)
 - [x] **5.2** Schema: `orders`, `order_items`, `order_transitions`, `payments`, `payment_accounts` (migration `0017`, Drizzle schemas, RLS tenant isolation, `orders` and `payments` repositories, exact integer minor units, and database integration suites)
 - [x] **5.3** Order state machine with explicit, tested transitions (`packages/domain/src/orders/state-machine.ts`, deterministic order and payment lifecycle graphs, actor transition authorization, terminal predicates, and unit test suite)
-- [ ] **5.4** Server-authoritative pricing: totals computed from server state only
+- [x] **5.4** Server-authoritative pricing: totals computed from server state only (`packages/domain/src/orders/pricing.ts`, server catalog price resolution, zero-float proportional discount allocation, basis-point tax computation, line-item sum invariant, and unit test suite)
 - [ ] **5.5** Tax calculation and the `tax_payable` ledger posting
 - [ ] **5.6** Checkout session creation and the hosted redirect
 - [ ] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing
@@ -131,8 +131,8 @@ Slice 5:
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.4: Server-authoritative pricing: totals computed from server state only).**
-Next up: Build server-authoritative checkout computation in `packages/domain` (`calculateOrderTotals`, `computeLineItemTotal`, discount coupon evaluation integration, preventing any client-submitted pricing overrides, exact minor units arithmetic, and property/unit tests).
+**Slice 5: Checkout and payments (Item 5.5: Tax calculation and the tax_payable ledger posting).**
+Next up: Build tax calculation rules and double-entry ledger postings (`packages/domain/src/ledger/tax.ts` and `createOrderPaymentWithTaxPosting`, computing GST breakdowns, debiting settlement account and crediting `revenue` + `tax_payable` + platform fee, preserving zero-sum balance invariant, and domain unit tests).
 
 ---
 
