@@ -23,6 +23,7 @@ import {
   type PaymentProviderType,
 } from '@creatorhub/contracts'
 import {
+  affiliates,
   auditLog,
   catalogue,
   customers,
@@ -35,7 +36,11 @@ import {
   type PaymentRowRecord,
   type RepositoryScope,
 } from '@creatorhub/db'
-import { canTransitionOrderStatus, createOrderPaymentPosting } from '@creatorhub/domain'
+import {
+  canTransitionOrderStatus,
+  createOrderPaymentPosting,
+  evaluateAttribution,
+} from '@creatorhub/domain'
 
 const AUDIT_SALT =
   process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
@@ -378,6 +383,53 @@ export async function fulfillPaidOrder(
         })
       }
     }
+  }
+
+  // 11. Affiliate Attribution Resolution (Slice 8 §8.5, §8.6)
+  try {
+    const meta = (orderRecord.metadata ?? {}) as Record<string, unknown>
+    const referralCode =
+      (typeof meta['referralCode'] === 'string' ? meta['referralCode'] : null) ??
+      (typeof meta['affiliateCode'] === 'string' ? meta['affiliateCode'] : null) ??
+      (typeof meta['ref'] === 'string' ? meta['ref'] : null)
+
+    if (referralCode) {
+      const existingAttr = await affiliates.findAttributionByOrderId(scope, orderRecord.id)
+      if (!existingAttr) {
+        const link = await affiliates.findAffiliateLinkByCode(scope, referralCode)
+        if (link) {
+          const program = await affiliates.getAffiliateProgram(scope)
+          const promoter = await affiliates.findAffiliateById(scope, link.affiliateId)
+
+          const decision = evaluateAttribution({
+            programIsActive: program?.isActive ?? false,
+            allowSelfReferral: program?.allowSelfReferral ?? false,
+            cookieWindowDays: program?.cookieWindowDays ?? 30,
+            defaultCommissionBps: program?.defaultCommissionBps ?? 2000,
+            customCommissionBps: promoter?.customCommissionBps ?? null,
+            affiliateStatus:
+              (promoter?.status as 'pending' | 'approved' | 'suspended' | 'rejected') ?? 'pending',
+            affiliateEmail: promoter?.email ?? '',
+            buyerEmail: orderRecord.customerEmail,
+            saleAmountMinor: orderRecord.subtotalAmount,
+            clickDate: null,
+            orderDate: orderRecord.createdAt,
+          })
+
+          await affiliates.createAttribution(scope, {
+            orderId: orderRecord.id,
+            affiliateId: link.affiliateId,
+            affiliateLinkId: link.id,
+            commissionBps: decision.commissionBps,
+            commissionAmount: decision.commissionAmountMinor,
+            status: decision.status,
+            rejectionReason: decision.rejectionReason,
+          })
+        }
+      }
+    }
+  } catch {
+    // Non-fatal if attribution encounters unexpected error
   }
 
   return {

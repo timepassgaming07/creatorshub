@@ -107,6 +107,10 @@ export type Permission =
   | 'customer.view'
   | 'customer.manage'
 
+  // Affiliates & Attribution (Slice 8)
+  | 'affiliate.view'
+  | 'affiliate.manage'
+
 /**
  * Which permissions each role holds.
  *
@@ -152,6 +156,8 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'dispute.manage',
     'customer.view',
     'customer.manage',
+    'affiliate.view',
+    'affiliate.manage',
   ],
 
   /**
@@ -184,6 +190,8 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'dispute.manage',
     'customer.view',
     'customer.manage',
+    'affiliate.view',
+    'affiliate.manage',
   ],
 
   /**
@@ -201,6 +209,7 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'storefront.view',
     'order.view',
     'customer.view',
+    'affiliate.view',
   ],
 }
 

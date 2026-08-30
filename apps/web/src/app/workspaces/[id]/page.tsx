@@ -637,6 +637,36 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
           </div>
         </Link>
 
+        {/* Affiliate Programme Card */}
+        <Link
+          href={`/workspaces/${workspaceId}/affiliates`}
+          className="group relative flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-5 shadow-xs transition-all hover:border-neutral-900 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-100"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+              </span>
+              <span className="text-xs font-semibold text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-100">
+                Affiliates →
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+              Affiliate Programme
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Manage promoters, commission rates, track referral conversions, and generate links.
+            </p>
+          </div>
+        </Link>
+
         {/* Digital Assets Card */}
         <Link
           href={`/workspaces/${workspaceId}/assets`}

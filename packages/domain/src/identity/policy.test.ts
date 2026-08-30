@@ -58,6 +58,8 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   'dispute.manage',
   'customer.view',
   'customer.manage',
+  'affiliate.view',
+  'affiliate.manage',
 ]
 
 /**
@@ -93,6 +95,8 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'dispute.manage': true,
     'customer.view': true,
     'customer.manage': true,
+    'affiliate.view': true,
+    'affiliate.manage': true,
   },
   admin: {
     'workspace.view': true,
@@ -119,6 +123,8 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'dispute.manage': true,
     'customer.view': true,
     'customer.manage': true,
+    'affiliate.view': true,
+    'affiliate.manage': true,
   },
   member: {
     'workspace.view': true,
@@ -145,6 +151,8 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'dispute.manage': false,
     'customer.view': true,
     'customer.manage': false,
+    'affiliate.view': true,
+    'affiliate.manage': false,
   },
 }
 

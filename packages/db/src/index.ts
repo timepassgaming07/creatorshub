@@ -165,3 +165,25 @@ export type {
   UpdateCustomerRecordInput,
   UpsertCustomerInput,
 } from './repositories/customers.js'
+
+export * as affiliates from './repositories/affiliates.js'
+export type {
+  AffiliateFilter,
+  CreateAffiliateInput,
+  CreateAffiliateLinkInput,
+  CreateAttributionInput,
+  RecordAffiliateClickInput,
+  UpsertAffiliateProgramInput,
+} from './repositories/affiliates.js'
+export type {
+  AffiliateClickRow,
+  AffiliateLinkRow,
+  AffiliateProgramRow,
+  AffiliateRow,
+  AttributionRow,
+  NewAffiliateClickRow,
+  NewAffiliateLinkRow,
+  NewAffiliateProgramRow,
+  NewAffiliateRow,
+  NewAttributionRow,
+} from './schema/affiliates.js'

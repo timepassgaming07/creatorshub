@@ -57,6 +57,16 @@ export {
   ledgerTransactionIdSchema,
   customerId,
   customerIdSchema,
+  affiliateProgramId,
+  affiliateProgramIdSchema,
+  affiliateId,
+  affiliateIdSchema,
+  affiliateLinkId,
+  affiliateLinkIdSchema,
+  affiliateClickId,
+  affiliateClickIdSchema,
+  attributionId,
+  attributionIdSchema,
   downloadEventId,
   downloadEventIdSchema,
   downloadGrantId,
@@ -350,6 +360,28 @@ export type {
   EntitlementStatus,
   RecordDownloadEventInput,
 } from './fulfillment.js'
+
+export {
+  AFFILIATE_STATUSES,
+  ATTRIBUTION_STATUSES,
+  createAffiliateLinkSchema,
+  createAffiliateSchema,
+  updateAffiliateProgramSchema,
+} from './affiliates.js'
+
+export type {
+  Affiliate,
+  AffiliateClick,
+  AffiliateLink,
+  AffiliateProgram,
+  AffiliateProgramSummary,
+  AffiliateStatus,
+  Attribution,
+  AttributionStatus,
+  CreateAffiliateInput,
+  CreateAffiliateLinkInput,
+  UpdateAffiliateProgramInput,
+} from './affiliates.js'
 
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 

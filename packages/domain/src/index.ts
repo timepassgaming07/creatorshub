@@ -136,3 +136,20 @@ export {
   type TaxComponent,
   type TaxScheme,
 } from './orders/tax.js'
+
+/**
+ * Affiliate attribution and commission invariants (Slice 8 §8.4, §8.5, §8.6, §8.7).
+ */
+export {
+  DEFAULT_WINDOW_DAYS,
+  MAX_COMMISSION_BPS,
+  MIN_COMMISSION_BPS,
+  MS_PER_DAY,
+  calculateCommissionMinor,
+  evaluateAttribution,
+  isClickWithinWindow,
+  isSelfReferral,
+  type AttributionDecision,
+  type EvaluateAttributionParams,
+} from './affiliates/attribution.js'
+

@@ -58,6 +58,16 @@ export type ResolvedDownloadGrant = {
   readonly expiresAt: Date
 }
 
+export type ResolvedAffiliateLink = {
+  readonly id: string
+  readonly workspaceId: WorkspaceId
+  readonly affiliateId: string
+  readonly code: string
+  readonly destinationUrl: string | null
+  readonly clicksCount: number
+  readonly conversionsCount: number
+}
+
 export type Database = {
   /** Run work inside a transaction scoped to the context's workspace. */
   withWorkspace: <T>(
@@ -73,6 +83,9 @@ export type Database = {
 
   /** Resolve workspaceId and grant by download token hash. */
   resolveDownloadGrantByTokenHash: (tokenHash: string) => Promise<ResolvedDownloadGrant | null>
+
+  /** Resolve workspaceId and link by affiliate referral code. */
+  resolveAffiliateLinkByCode: (code: string) => Promise<ResolvedAffiliateLink | null>
 
   /** Close the pool. For process shutdown and test teardown. */
   close: () => Promise<void>
@@ -239,6 +252,37 @@ export function createDatabase(config: DatabaseConfig): Database {
         maxDownloads: row.max_downloads,
         downloadCount: row.download_count,
         expiresAt: row.expires_at,
+      }
+    },
+
+    async resolveAffiliateLinkByCode(code: string) {
+      const rows = await client<
+        {
+          id: string
+          workspace_id: string
+          affiliate_id: string
+          code: string
+          destination_url: string | null
+          clicks_count: number
+          conversions_count: number
+        }[]
+      >`
+        SELECT id, workspace_id, affiliate_id, code, destination_url, clicks_count, conversions_count
+        FROM affiliate_links
+        WHERE code = ${code.toLowerCase().trim()}
+        LIMIT 1
+      `
+      const row = rows[0]
+      if (!row) return null
+
+      return {
+        id: row.id,
+        workspaceId: row.workspace_id as WorkspaceId,
+        affiliateId: row.affiliate_id,
+        code: row.code,
+        destinationUrl: row.destination_url,
+        clicksCount: row.clicks_count,
+        conversionsCount: row.conversions_count,
       }
     },
 

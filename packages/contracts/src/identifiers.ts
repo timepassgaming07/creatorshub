@@ -63,6 +63,11 @@ export type WebhookEventId = string & { readonly __brand: 'WebhookEventId' }
 export type EntitlementId = string & { readonly __brand: 'EntitlementId' }
 export type DownloadGrantId = string & { readonly __brand: 'DownloadGrantId' }
 export type DownloadEventId = string & { readonly __brand: 'DownloadEventId' }
+export type AffiliateProgramId = string & { readonly __brand: 'AffiliateProgramId' }
+export type AffiliateId = string & { readonly __brand: 'AffiliateId' }
+export type AffiliateLinkId = string & { readonly __brand: 'AffiliateLinkId' }
+export type AffiliateClickId = string & { readonly __brand: 'AffiliateClickId' }
+export type AttributionId = string & { readonly __brand: 'AttributionId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -245,6 +250,31 @@ export function downloadEventId(value: string): DownloadEventId {
   return value as DownloadEventId
 }
 
+export function affiliateProgramId(value: string): AffiliateProgramId {
+  assertUuidV7(value, 'affiliate program id')
+  return value as AffiliateProgramId
+}
+
+export function affiliateId(value: string): AffiliateId {
+  assertUuidV7(value, 'affiliate id')
+  return value as AffiliateId
+}
+
+export function affiliateLinkId(value: string): AffiliateLinkId {
+  assertUuidV7(value, 'affiliate link id')
+  return value as AffiliateLinkId
+}
+
+export function affiliateClickId(value: string): AffiliateClickId {
+  assertUuidV7(value, 'affiliate click id')
+  return value as AffiliateClickId
+}
+
+export function attributionId(value: string): AttributionId {
+  assertUuidV7(value, 'attribution id')
+  return value as AttributionId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length < 1 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -389,6 +419,31 @@ export const downloadEventIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as DownloadEventId)
+
+export const affiliateProgramIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AffiliateProgramId)
+
+export const affiliateIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AffiliateId)
+
+export const affiliateLinkIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AffiliateLinkId)
+
+export const affiliateClickIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AffiliateClickId)
+
+export const attributionIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AttributionId)
 
 export const requestIdSchema = z
   .string()

@@ -21,6 +21,7 @@ describe('public surface', () => {
       'CrossTenantWriteError',
       'DatabaseConfigError',
       'MigrationError',
+      'affiliates',
       'assertSameWorkspace',
       'auditLog',
       'catalogue',

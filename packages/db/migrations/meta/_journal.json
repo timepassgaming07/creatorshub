@@ -155,6 +155,13 @@
       "when": 1772331000000,
       "tag": "0021_customers_and_orders_management",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1772332000000,
+      "tag": "0022_affiliate_program_and_attribution",
+      "breakpoints": true
     }
   ]
 }

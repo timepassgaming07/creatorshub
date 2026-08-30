@@ -22,6 +22,7 @@ import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
+import * as affiliatesRepo from './affiliates.js'
 import * as catalogueRepo from './catalogue.js'
 import * as customersRepo from './customers.js'
 import * as discountsRepo from './discounts.js'
@@ -159,6 +160,7 @@ export const REPOSITORY_MODULES = {
   disputes: disputesRepo,
   fulfillment: fulfillmentRepo,
   customers: customersRepo,
+  affiliates: affiliatesRepo,
 } as const
 
 /**
@@ -517,4 +519,55 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'fulfillment.consumeDownloadGrant':
     'Validates, consumes download grant, and records audit event scoped to current workspace. Tested in fulfillment repository integration suite.',
+
+  'affiliates.getAffiliateProgram':
+    'Reads affiliate program scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.upsertAffiliateProgram':
+    'Creates or updates affiliate program scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.createAffiliate':
+    'Stamps workspace from scope. Tested in affiliates repository integration suite.',
+
+  'affiliates.findAffiliateById':
+    'Reads affiliate by ID scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.findAffiliateByEmail':
+    'Reads affiliate by email scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.findAffiliateByUserId':
+    'Reads affiliate by user ID scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.updateAffiliateStatus':
+    'Updates affiliate status scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.listAffiliates':
+    'Lists affiliates scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.countAffiliates':
+    'Counts affiliates scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.getAffiliateProgramSummary':
+    'Aggregates program summary scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.createAffiliateLink':
+    'Stamps workspace from scope. Tested in affiliates repository integration suite.',
+
+  'affiliates.findAffiliateLinkByCode':
+    'Reads affiliate link by code scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.listAffiliateLinks':
+    'Lists affiliate links scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.recordAffiliateClick':
+    'Stamps workspace from scope and increments link clicks. Tested in affiliates repository integration suite.',
+
+  'affiliates.createAttribution':
+    'Stamps workspace from scope and updates affiliate totals. Tested in affiliates repository integration suite.',
+
+  'affiliates.findAttributionByOrderId':
+    'Reads attribution by order ID scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'affiliates.listAttributionsForAffiliate':
+    'Lists attributions for an affiliate scoped to current workspace. Tested in affiliates repository integration suite.',
 }

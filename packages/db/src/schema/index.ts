@@ -151,3 +151,21 @@ export {
   type CustomerRecord,
   type NewCustomerRecord,
 } from './customers.js'
+
+export {
+  affiliateClicks,
+  affiliateLinks,
+  affiliatePrograms,
+  affiliates,
+  attributions,
+  type AffiliateClickRow,
+  type AffiliateLinkRow,
+  type AffiliateProgramRow,
+  type AffiliateRow,
+  type AttributionRow,
+  type NewAffiliateClickRow,
+  type NewAffiliateLinkRow,
+  type NewAffiliateProgramRow,
+  type NewAffiliateRow,
+  type NewAttributionRow,
+} from './affiliates.js'
