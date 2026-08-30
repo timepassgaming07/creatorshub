@@ -20,13 +20,15 @@
     "@creatorhub/contracts": "workspace:*",
     "@creatorhub/db": "workspace:*",
     "@creatorhub/domain": "workspace:*",
+    "@creatorhub/payments": "workspace:*",
     "@creatorhub/storage": "workspace:*",
     "@creatorhub/telemetry": "workspace:*",
     "@creatorhub/ui": "workspace:*",
     "better-auth": "1.6.25",
     "next": "16.2.12",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

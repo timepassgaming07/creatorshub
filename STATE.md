@@ -120,7 +120,7 @@ Slice 5:
 - [x] **5.3** Order state machine with explicit, tested transitions (`packages/domain/src/orders/state-machine.ts`, deterministic order and payment lifecycle graphs, actor transition authorization, terminal predicates, and unit test suite)
 - [x] **5.4** Server-authoritative pricing: totals computed from server state only (`packages/domain/src/orders/pricing.ts`, server catalog price resolution, zero-float proportional discount allocation, basis-point tax computation, line-item sum invariant, and unit test suite)
 - [x] **5.5** Tax calculation and the `tax_payable` ledger posting (`packages/domain/src/orders/tax.ts`, Indian GST intra/inter-state rules, export zero-rating, GSTIN validation, and balanced `tax_payable` double-entry ledger posting integration)
-- [ ] **5.6** Checkout session creation and the hosted redirect
+- [x] **5.6** Checkout session creation and the hosted redirect (`apps/web/src/lib/checkout-actions.ts`, `/api/checkout/session`, server-authoritative checkout orchestration, discount and GST tax pipeline, database order initialization, and PaymentProvider hosted session redirect)
 - [ ] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing
 - [ ] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016)
 - [ ] **5.9** Payment success writes the balanced ledger transaction in one commit
@@ -131,8 +131,8 @@ Slice 5:
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.6: Checkout session creation and the hosted redirect).**
-Next up: Build server action / API endpoint for checkout session initiation (`createCheckoutSessionAction`), orchestrating server pricing validation, discount application, tax calculation, database order initialization (`pending`), provider checkout session dispatch via `PaymentProvider`, and redirect response generation.
+**Slice 5: Checkout and payments (Item 5.7: Schema: webhook_events; signature verification and exactly-once processing).**
+Next up: Create migration `0018_webhook_events.sql`, contracts and Drizzle schema for `webhook_events`, repository for signature verification, idempotency tracking (`received`, `processing`, `processed`, `failed`), retry counters, and transactional webhook ingestion handler with integration test coverage.
 
 ---
 
