@@ -10,6 +10,7 @@
  * - Enforcement of not-found (404) for cross-tenant isolation.
  */
 import { use, useCallback, useEffect, useState, type SyntheticEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, Dialog, Input, Select, Skeleton, SkeletonText, useToast } from '@creatorhub/ui'
 
@@ -506,6 +507,106 @@ export default function WorkspacePage({ params }: { readonly params: Promise<{ i
           </Button>
         </div>
       </header>
+
+      {/* Workspace Modules Hub */}
+      <section
+        aria-labelledby="workspace-hub-heading"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+      >
+        <h2 id="workspace-hub-heading" className="sr-only">
+          Workspace Modules
+        </h2>
+
+        {/* Storefront Studio Card */}
+        <Link
+          href={`/workspaces/${workspaceId}/storefront`}
+          className="group relative flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-5 shadow-xs transition-all hover:border-neutral-900 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-100"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+              </span>
+              <span className="text-xs font-semibold text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-100">
+                Studio →
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+              Storefront Studio
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Live preview, theme tokens, layout presets, and custom domain settings.
+            </p>
+          </div>
+        </Link>
+
+        {/* Product Catalogue Card */}
+        <Link
+          href={`/workspaces/${workspaceId}/products`}
+          className="group relative flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-5 shadow-xs transition-all hover:border-neutral-900 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-100"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                  />
+                </svg>
+              </span>
+              <span className="text-xs font-semibold text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-100">
+                Catalogue →
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+              Product Catalogue
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Create and manage digital courses, templates, pricing, and downloads.
+            </p>
+          </div>
+        </Link>
+
+        {/* Digital Assets Card */}
+        <Link
+          href={`/workspaces/${workspaceId}/assets`}
+          className="group relative flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-5 shadow-xs transition-all hover:border-neutral-900 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-100"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="rounded-lg bg-sky-50 p-2 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </span>
+              <span className="text-xs font-semibold text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-neutral-100">
+                Assets →
+              </span>
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+              Digital Assets
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              Upload deliverables, cover images, and media with antivirus verification.
+            </p>
+          </div>
+        </Link>
+      </section>
 
       {/* Members Management Surface */}
       <section aria-labelledby="members-heading" className="flex flex-col gap-4">

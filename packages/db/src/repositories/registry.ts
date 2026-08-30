@@ -338,4 +338,7 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'storefronts.updateCustomDomainStatus':
     'Updates custom domain status scoped to current workspace. Tested in storefronts repository integration suite.',
+
+  'storefronts.recordStorefrontEvent':
+    'Stamps workspace from scope. Tested in storefronts repository integration suite.',
 }

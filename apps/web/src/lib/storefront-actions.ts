@@ -190,6 +190,134 @@ export async function getStorefrontForWorkspaceAction(
   }
 }
 
+export type PublicStorefrontProduct = {
+  readonly id: string
+  readonly title: string
+  readonly slug: string
+  readonly description: string | null
+  readonly basePrice: string
+  readonly compareAtPrice: string | null
+  readonly currency: string
+}
+
+export type StorefrontEditorData = {
+  readonly storefront: StorefrontRecord
+  readonly workspace: {
+    readonly id: string
+    readonly name: string
+    readonly slug: string
+    readonly defaultCurrency: string
+  }
+  readonly products: readonly PublicStorefrontProduct[]
+  readonly canManage: boolean
+  readonly domainChallenge: CustomDomainChallenge | null
+}
+
+/**
+ * Loads all workspace context, storefront configuration, products, and permissions for Storefront Studio.
+ */
+export async function getStorefrontEditorDataAction(
+  workspaceIdString: string,
+): Promise<StorefrontActionResult<StorefrontEditorData>> {
+  try {
+    const session = await getServerSession()
+    if (!session?.userId) {
+      return { success: false, error: 'Unauthorized: authentication required.' }
+    }
+
+    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
+    if (!wsParsed.success) {
+      return { success: false, error: 'Invalid workspace identifier.' }
+    }
+
+    const db = getDatabase()
+    const targetWsId = wsParsed.data
+    const currentUserId = session.userId
+    const reqId = requestId(`req-storefront-editor-${randomUUID().slice(0, 8)}`)
+
+    const context = workspaceContext({
+      workspaceId: targetWsId,
+      actorId: currentUserId,
+      requestId: reqId,
+    })
+
+    const result = await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
+      if (!membership) {
+        throw new Error('Forbidden: you are not a member of this workspace.')
+      }
+
+      const canManage = can(membership.role, 'storefront.manage')
+      const ws = await workspaces.findCurrentWorkspace(scope)
+      if (!ws) {
+        throw new Error('Workspace not found.')
+      }
+
+      let storefront = await storefronts.findStorefrontByWorkspaceId(scope)
+      if (!storefront) {
+        const defaultSubdomain = ws.slug.toLowerCase()
+        const defaultTitle = ws.name
+
+        storefront = await storefronts.createStorefront(scope, {
+          workspaceId: targetWsId,
+          subdomain: defaultSubdomain,
+          title: defaultTitle,
+          themeConfig: {
+            accentColor: '#4f46e5',
+            fontPreset: 'sans',
+            layoutPreset: 'showcase',
+          },
+        })
+
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: currentUserId,
+          action: 'storefront.create',
+          targetType: 'storefront',
+          targetId: storefront.id,
+          metadata: { subdomain: defaultSubdomain },
+        })
+      }
+
+      // Fetch products for live preview
+      const dbProducts = await catalogue.listProducts(scope)
+      const mappedProducts: PublicStorefrontProduct[] = dbProducts.map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        description: p.description,
+        basePrice: p.basePrice.toString(),
+        compareAtPrice: p.compareAtPrice?.toString() ?? null,
+        currency: p.currency,
+      }))
+
+      const domainChallenge =
+        storefront.customDomain && storefront.customDomainVerificationToken
+          ? buildDomainChallenge(storefront.customDomain, storefront.customDomainVerificationToken)
+          : null
+
+      return {
+        storefront: mapStorefront(storefront),
+        workspace: {
+          id: ws.id,
+          name: ws.name,
+          slug: ws.slug,
+          defaultCurrency: ws.defaultCurrency,
+        },
+        products: mappedProducts,
+        canManage,
+        domainChallenge,
+      }
+    })
+
+    return { success: true, data: result }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to load storefront editor data.'
+    return { success: false, error: message }
+  }
+}
+
 /**
  * Updates storefront settings, custom domain, or theme.
  */

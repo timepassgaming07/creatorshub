@@ -111,14 +111,14 @@ Slice 4:
 - [x] **4.5** Theme presets applied as token overrides (`theme.ts`, `StorefrontThemeProvider`, WCAG contrast calculation, font family stacks, and layout preset grids)
 - [x] **4.6** SEO: metadata, Open Graph, structured data, sitemap, robots (`seo.ts`, dynamic `generateMetadata`, JSON-LD `WebSite`/`Product`/`Offer`, `sitemap.xml`, `robots.txt`)
 - [x] **4.7** `storefront_events` capture for analytics (`storefront_events` schema & migration `0016`, `/api/events` beacon ingestion, `StorefrontTelemetry` component, UTM and referrer attribution)
-- [ ] **4.8** Storefront editor with live preview
+- [x] **4.8** Storefront editor with live preview (`/workspaces/[id]/storefront`, `LivePreviewFrame` device switcher, `ThemeCustomizer`, `DomainSettings` DNS records, `StorefrontEditor` orchestrator, `getStorefrontEditorDataAction`, unit tests)
 
 ---
 
 # Active Task
 
-**Slice 4 item 4.8: Storefront editor with live preview.**
-Implement interactive creator studio storefront customizer (`/workspaces/[id]/storefront`): title/tagline editor, theme customizer (accent colors, font presets, layout presets), custom domain configuration with real-time DNS status checker, and responsive split-screen live preview panel.
+**Slice 5: Checkout and payments.**
+Unblocked by ADR-0016. Next up: Cart state and checkout session lifecycle, order reservation, ledger hold, payment gateway adapters (Stripe / Razorpay), idempotency enforcement, and webhook reconciliation.
 
 ---
 
@@ -130,8 +130,8 @@ Implement interactive creator studio storefront customizer (`/workspaces/[id]/st
 | 1 | Identity, workspace, tenancy, audit log | **Complete** |
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
-| 4 | Storefront | **7 of 8 done.** Storefront editor with live preview next |
-| 5 | Checkout and payments | Planned. Unblocked by ADR-0016 |
+| 4 | Storefront | **Complete** |
+| 5 | Checkout and payments | Next. Unblocked by ADR-0016 |
 | 6 | Fulfilment | Planned |
 | 7 | Customers and orders | Planned |
 | 8 | Affiliate programme and attribution | Planned |

@@ -45,7 +45,7 @@ export async function enqueueJob(
         type: input.type,
         payload: input.payload,
         status: 'queued',
-        runAfter: input.runAfter ?? new Date(),
+        runAfter: input.runAfter ?? new Date(Date.now() - 1000),
         maxAttempts: input.maxAttempts ?? 5,
         attempts: 0,
         idempotencyKey: input.idempotencyKey ?? null,
