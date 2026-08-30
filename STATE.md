@@ -124,14 +124,14 @@ Slice 5:
 - [x] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing (`webhook_events` migration `0018`, Drizzle schema, RLS policies, repository with `(workspace_id, provider, provider_event_id)` deduplication, `/api/webhooks/[provider]` route with HMAC signature verification, and integration test suite)
 - [x] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016) (`RazorpayPaymentProvider` implementing `PaymentProvider` interface, supporting UPI, cards, netbanking, Razorpay Orders API, Route split settlement transfers, HMAC-SHA256 signature verification, and domain event mapping)
 - [x] **5.10** Schema and flows for `refunds` and `disputes` (migration `0019_refunds_and_disputes.sql`, Drizzle schemas, RLS tenant isolation, repositories, permissions `order.refund` and `dispute.manage`, atomic fulfillment `fulfillRefund` and `fulfillDispute`, compensating double-entry ledger postings `kind: refund` and `kind: dispute`, server action `refundOrderAction`, webhook `refund.processed` integration, unit and integration suites)
-- [ ] **5.11** Checkout UI, including the failure and retry paths
+- [x] **5.11** Checkout UI, including the failure and retry paths (`CheckoutForm.tsx`, `CheckoutPendingPoll.tsx`, `CheckoutFailureView.tsx`, `CheckoutSuccessView.tsx`, `/checkout`, `/checkout/[orderId]`, `/s/[subdomain]/checkout`, `/c/[domain]/checkout`, live GST tax calculator, coupon evaluation, resilient UPI polling, and 1-click retry flows)
 
 ---
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.11: Checkout UI, including the failure and retry paths).**
-Next up: Implement the dedicated, high-converting creator-first Checkout UI (`/s/[subdomain]/checkout/[orderId]`, `/checkout/[orderId]`, and embedded checkout modal components), supporting order summary, server-authoritative GST tax breakdown, Razorpay Standard/Custom payment options with UPI intent/QR, error recovery, retry paths, pending payment polling, and success fulfillment screens.
+**Slice 6: Digital fulfillment & asset delivery.**
+Next up: Implement secure post-purchase digital asset delivery with presigned expiring S3/R2 download URLs, tamper-proof license tokens, streaming content inspection, and fulfillment status notifications.
 
 ---
 
@@ -144,8 +144,8 @@ Next up: Implement the dedicated, high-converting creator-first Checkout UI (`/s
 | 2 | Ledger, outbox, idempotency | **Complete** |
 | 3 | Catalogue | **Complete** |
 | 4 | Storefront | **Complete** |
-| 5 | Checkout and payments | Next. Unblocked by ADR-0016 |
-| 6 | Fulfilment | Planned |
+| 5 | Checkout and payments | **Complete** |
+| 6 | Fulfilment | Next |
 | 7 | Customers and orders | Planned |
 | 8 | Affiliate programme and attribution | Planned |
 | 9 | Commission, holds, clawback | Planned |
@@ -161,7 +161,9 @@ Next up: Implement the dedicated, high-converting creator-first Checkout UI (`/s
 New ADRs: [0015](./docs/adr/0015-local-postgres.md),
 [0016](./docs/adr/0016-razorpay-first-adapter.md),
 [0017](./docs/adr/0017-authentication-database-role.md),
-[0018](./docs/adr/0018-email-verification-two-columns.md). ADR-0001 forbids editing an accepted
+[0018](./docs/adr/0018-email-verification-two-columns.md),
+[0019](./docs/adr/0019-two-person-rule-ledger.md),
+[0020](./docs/adr/0020-sub-merchant-onboarding.md). ADR-0001 forbids editing an accepted
 record, so 0016 amends 0007 and 0018 extends 0006 rather than changing either.
 
 ### One fact, two columns, and a trigger keeping them in step

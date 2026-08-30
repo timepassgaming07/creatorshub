@@ -15,6 +15,7 @@ import { randomUUID } from 'node:crypto'
 import {
   type CurrencyCode,
   type DiscountRecord,
+  type StorefrontTheme,
   currency,
   discountId,
   money,
@@ -26,7 +27,15 @@ import {
   workspaceContext,
   workspaceId,
 } from '@creatorhub/contracts'
-import { auditLog, catalogue, discounts, orders, payments } from '@creatorhub/db'
+import {
+  auditLog,
+  catalogue,
+  discounts,
+  orders,
+  payments,
+  storefronts,
+  workspaces,
+} from '@creatorhub/db'
 import {
   calculateOrderTax,
   calculateServerOrderPricing,
@@ -489,6 +498,551 @@ export async function verifyAndFulfillCheckoutSessionAction(
       error: {
         code: 'VERIFICATION_FAILED',
         message: errMessage,
+      },
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Additional Checkout Actions (Slice 5 §5.11)
+// ---------------------------------------------------------------------------
+
+export type GetPublicCheckoutProductDataInput = {
+  readonly productId: string
+  readonly storefrontId?: string | null | undefined
+  readonly workspaceId?: string | null | undefined
+  readonly subdomain?: string | null | undefined
+  readonly customDomain?: string | null | undefined
+}
+
+export type PublicCheckoutProductData = {
+  readonly product: {
+    readonly id: string
+    readonly title: string
+    readonly slug: string
+    readonly description: string | null
+    readonly basePrice: string
+    readonly compareAtPrice: string | null
+    readonly currency: string
+    readonly assetsCount: number
+    readonly deliverableAssets: readonly {
+      readonly id: string
+      readonly originalFilename: string
+      readonly byteSize: number
+    }[]
+  }
+  readonly storefront: {
+    readonly id: string
+    readonly title: string
+    readonly subdomain: string
+    readonly customDomain: string | null
+    readonly themeConfig: StorefrontTheme
+  }
+  readonly workspace: {
+    readonly id: string
+    readonly name: string
+    readonly defaultCurrency: string
+  }
+}
+
+/**
+ * Public Data Loader: Fetches product, storefront, and workspace for checkout rendering.
+ */
+export async function getPublicCheckoutProductData(
+  input: GetPublicCheckoutProductDataInput,
+): Promise<
+  | { readonly ok: true; readonly data: PublicCheckoutProductData }
+  | { readonly ok: false; readonly error: string }
+> {
+  if (!input.productId) {
+    return { ok: false, error: 'Product ID is required.' }
+  }
+
+  const db = getDatabase()
+  let resolvedWorkspaceId: string | null = null
+
+  if (input.subdomain) {
+    const resolved = await db.resolveStorefrontByHostname(input.subdomain)
+    if (resolved) {
+      resolvedWorkspaceId = resolved.workspaceId
+    }
+  } else if (input.customDomain) {
+    const resolved = await db.resolveStorefrontByHostname(input.customDomain)
+    if (resolved) {
+      resolvedWorkspaceId = resolved.workspaceId
+    }
+  } else if (input.workspaceId) {
+    resolvedWorkspaceId = input.workspaceId
+  }
+
+  // Fallback to default workspace if not determined via hostname
+  const targetWsId = workspaceId(resolvedWorkspaceId ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+  const reqId = requestId(`req-chk-dat-${randomUUID().slice(0, 8)}`)
+  const context = workspaceContext({
+    workspaceId: targetWsId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: reqId,
+  })
+
+  try {
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const prod = await catalogue.findProductById(scope, productId(input.productId))
+      if (prod?.status !== 'published') {
+        return { ok: false, error: 'Product not found or not currently available for purchase.' }
+      }
+
+      const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
+      const deliverableAssets = rawAssets
+        .filter((a) => a.productAsset.role === 'deliverable')
+        .map((a) => ({
+          id: a.asset.id,
+          originalFilename: a.asset.originalFilename,
+          byteSize: Number(a.asset.byteSize),
+        }))
+
+      const sf = await storefronts.findStorefrontByWorkspaceId(scope)
+      const ws = await workspaces.findCurrentWorkspace(scope)
+
+      return {
+        ok: true,
+        data: {
+          product: {
+            id: prod.id,
+            title: prod.title,
+            slug: prod.slug,
+            description: prod.description,
+            basePrice: prod.basePrice.toString(),
+            compareAtPrice: prod.compareAtPrice?.toString() ?? null,
+            currency: prod.currency,
+            assetsCount: rawAssets.length,
+            deliverableAssets,
+          },
+          storefront: {
+            id: sf?.id ?? 'sf-default',
+            title: sf?.title ?? ws?.name ?? 'Creator Store',
+            subdomain: sf?.subdomain ?? 'store',
+            customDomain: sf?.customDomain ?? null,
+            themeConfig: sf
+              ? sf.themeConfig
+              : {
+                  accentColor: '#4f46e5',
+                  fontPreset: 'sans',
+                  layoutPreset: 'showcase',
+                },
+          },
+          workspace: {
+            id: ws?.id ?? targetWsId,
+            name: ws?.name ?? 'Creator Workspace',
+            defaultCurrency: ws?.defaultCurrency ?? prod.currency,
+          },
+        },
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load checkout details.'
+    return { ok: false, error: message }
+  }
+}
+
+export type CalculateCheckoutEstimateInput = {
+  readonly workspaceId: string
+  readonly productId: string
+  readonly variantId?: string | null | undefined
+  readonly quantity: number
+  readonly discountCode?: string | null | undefined
+  readonly customerCountry?: string | undefined
+  readonly customerState?: string | null | undefined
+  readonly customerGstin?: string | null | undefined
+}
+
+export type CheckoutEstimateResult =
+  | {
+      readonly ok: true
+      readonly data: {
+        readonly subtotalAmount: string
+        readonly discountAmount: string
+        readonly taxAmount: string
+        readonly totalAmount: string
+        readonly currency: string
+        readonly discountCode: string | null
+        readonly discountSavingsText: string | null
+        readonly taxBreakdown: readonly {
+          readonly name: string
+          readonly rateBasisPoints: number
+          readonly amount: string
+        }[]
+        readonly isExport: boolean
+      }
+    }
+  | {
+      readonly ok: false
+      readonly error: {
+        readonly code: string
+        readonly message: string
+      }
+    }
+
+/**
+ * Calculates real-time checkout estimation with dynamic discount evaluation & GST calculation.
+ */
+export async function calculateCheckoutEstimateAction(
+  input: CalculateCheckoutEstimateInput,
+): Promise<CheckoutEstimateResult> {
+  const db = getDatabase()
+  const reqId = requestId(`req-est-${randomUUID().slice(0, 8)}`)
+  const targetWsId = workspaceId(input.workspaceId || '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+  const context = workspaceContext({
+    workspaceId: targetWsId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: reqId,
+  })
+
+  try {
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const prod = await catalogue.findProductById(scope, productId(input.productId))
+      if (!prod) {
+        return {
+          ok: false,
+          error: {
+            code: 'PRODUCT_NOT_FOUND',
+            message: 'Product could not be found.',
+          },
+        }
+      }
+
+      const prodCurrency = currency(prod.currency)
+      const qty = Math.max(1, Math.min(100, input.quantity || 1))
+      const subtotal = prod.basePrice * BigInt(qty)
+
+      // Evaluate discount if provided
+      let evaluatedDiscount: ReturnType<typeof evaluateDiscount> | null = null
+      let discountSavingsText: string | null = null
+      let discountAmount = 0n
+
+      if (input.discountCode && input.discountCode.trim().length > 0) {
+        const discountRec = await discounts.findDiscountByCode(scope, input.discountCode.trim())
+        if (discountRec) {
+          const mappedDiscount: DiscountRecord = {
+            id: discountId(discountRec.id),
+            workspaceId: workspaceId(discountRec.workspaceId),
+            code: discountRec.code,
+            discountType: discountRec.discountType,
+            discountValue: discountRec.discountValue,
+            currency: discountRec.currency ? currency(discountRec.currency) : null,
+            maxUses: discountRec.maxUses,
+            usesCount: discountRec.usesCount,
+            startsAt: discountRec.startsAt,
+            expiresAt: discountRec.expiresAt,
+            minOrderAmount: discountRec.minOrderAmount,
+            isActive: discountRec.isActive,
+            createdAt: discountRec.createdAt,
+            updatedAt: discountRec.updatedAt,
+          }
+
+          const res = evaluateDiscount(mappedDiscount, {
+            subtotal,
+            currency: prodCurrency,
+            productIds: [productId(prod.id)],
+          })
+
+          if (res.valid) {
+            evaluatedDiscount = res
+            discountAmount = res.discountAmount.amount
+            discountSavingsText =
+              mappedDiscount.discountType === 'percentage'
+                ? `${(mappedDiscount.discountValue / 100n).toString()}% off`
+                : 'Discount applied'
+          }
+        }
+      }
+
+      // Compute GST tax
+      const taxableAmount = subtotal > discountAmount ? subtotal - discountAmount : 0n
+      const taxResult = calculateOrderTax({
+        taxableAmount,
+        currency: prodCurrency,
+        sellerCountry: 'IN',
+        buyerCountry: input.customerCountry ?? 'IN',
+        buyerState: input.customerState ?? null,
+        buyerGstin: input.customerGstin ?? null,
+      })
+
+      const taxAmount = taxResult.ok ? taxResult.value.totalTax.amount : 0n
+      const totalAmount = taxableAmount + taxAmount
+
+      const taxBreakdown = taxResult.ok
+        ? taxResult.value.components.map((c) => ({
+            name: c.name,
+            rateBasisPoints: c.rateBasisPoints,
+            amount: c.amount.toString(),
+          }))
+        : []
+
+      return {
+        ok: true,
+        data: {
+          subtotalAmount: subtotal.toString(),
+          discountAmount: discountAmount.toString(),
+          taxAmount: taxAmount.toString(),
+          totalAmount: totalAmount.toString(),
+          currency: prod.currency,
+          discountCode: evaluatedDiscount?.valid ? (input.discountCode?.trim() ?? null) : null,
+          discountSavingsText,
+          taxBreakdown,
+          isExport: taxResult.ok ? taxResult.value.isExport : false,
+        },
+      }
+    })
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : 'Estimate failed.'
+    return {
+      ok: false,
+      error: {
+        code: 'ESTIMATE_FAILED',
+        message: errMessage,
+      },
+    }
+  }
+}
+
+export type PublicOrderSummary = {
+  readonly orderId: string
+  readonly status: string
+  readonly paymentStatus: string
+  readonly customerEmail: string
+  readonly customerName: string | null
+  readonly subtotalAmount: string
+  readonly discountAmount: string
+  readonly taxAmount: string
+  readonly totalAmount: string
+  readonly currency: string
+  readonly createdAt: string
+  readonly items: readonly {
+    readonly id: string
+    readonly productId: string
+    readonly productTitle: string
+    readonly quantity: number
+    readonly unitAmount: string
+    readonly totalAmount: string
+  }[]
+  readonly deliverables: readonly {
+    readonly id: string
+    readonly originalFilename: string
+    readonly byteSize: number
+  }[]
+  readonly checkoutSessionId: string | null
+  readonly failureReason?: string | null
+}
+
+/**
+ * Public Data Loader: Fetches order summary for confirmation, receipt, and failure review.
+ */
+export async function getPublicOrderSummaryAction(
+  orderIdString: string,
+  workspaceIdParam?: string,
+): Promise<
+  | { readonly ok: true; readonly data: PublicOrderSummary }
+  | { readonly ok: false; readonly error: string }
+> {
+  if (!orderIdString) {
+    return { ok: false, error: 'Order ID is required.' }
+  }
+
+  const db = getDatabase()
+  const reqId = requestId(`req-ord-sum-${randomUUID().slice(0, 8)}`)
+  const targetWsId = workspaceId(workspaceIdParam ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+  const context = workspaceContext({
+    workspaceId: targetWsId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: reqId,
+  })
+
+  try {
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const orderWithItems = await orders.findOrderWithItems(scope, orderId(orderIdString))
+      if (!orderWithItems) {
+        return { ok: false, error: 'Order not found.' }
+      }
+
+      const { order, items } = orderWithItems
+      const deliverables: {
+        readonly id: string
+        readonly originalFilename: string
+        readonly byteSize: number
+      }[] = []
+
+      // If order is paid, retrieve deliverables for digital fulfillment download
+      if (order.status === 'paid') {
+        for (const item of items) {
+          const rawAssets = await catalogue.listAssetsForProduct(scope, productId(item.productId))
+          for (const a of rawAssets) {
+            if (a.productAsset.role === 'deliverable') {
+              deliverables.push({
+                id: a.asset.id,
+                originalFilename: a.asset.originalFilename,
+                byteSize: Number(a.asset.byteSize),
+              })
+            }
+          }
+        }
+      }
+
+      // Check payment failure reason if any
+      let failureReason: string | null = null
+      if (order.status === 'requires_payment' || order.paymentStatus === 'failed') {
+        const paymentList = await payments.listPaymentsForOrder(scope, order.id)
+        const latestFailed = paymentList.find((p) => p.status === 'failed')
+        failureReason = latestFailed?.failureReason ?? null
+      }
+
+      return {
+        ok: true,
+        data: {
+          orderId: order.id,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          customerEmail: order.customerEmail,
+          customerName: order.customerName,
+          subtotalAmount: order.subtotalAmount.toString(),
+          discountAmount: order.discountAmount.toString(),
+          taxAmount: order.taxAmount.toString(),
+          totalAmount: order.totalAmount.toString(),
+          currency: order.currency,
+          createdAt: order.createdAt.toISOString(),
+          items: items.map((it) => ({
+            id: it.id,
+            productId: it.productId,
+            productTitle: it.productTitle,
+            quantity: it.quantity,
+            unitAmount: it.unitAmount.toString(),
+            totalAmount: it.totalAmount.toString(),
+          })),
+          deliverables,
+          checkoutSessionId: order.checkoutSessionId,
+          ...(failureReason !== null ? { failureReason } : {}),
+        },
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve order summary.'
+    return { ok: false, error: message }
+  }
+}
+
+/**
+ * Retries payment on an existing order that requires payment.
+ */
+export async function retryPaymentAction(
+  orderIdString: string,
+  workspaceIdParam?: string,
+): Promise<CheckoutSessionResult> {
+  const db = getDatabase()
+  const paymentProvider = getPaymentProvider()
+  const reqId = requestId(`req-rty-${randomUUID().slice(0, 8)}`)
+  const targetWsId = workspaceId(workspaceIdParam ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+  const context = workspaceContext({
+    workspaceId: targetWsId,
+    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+    requestId: reqId,
+  })
+
+  try {
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const ord = await orders.findOrderById(scope, orderId(orderIdString))
+      if (!ord) {
+        return {
+          ok: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: 'Order was not found.',
+          },
+        }
+      }
+
+      if (ord.status === 'paid') {
+        return {
+          ok: false,
+          error: {
+            code: 'ALREADY_PAID',
+            message: 'This order is already paid.',
+          },
+        }
+      }
+
+      const ordCurrency = currency(ord.currency)
+      const hostUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'
+      const successUrl = `${hostUrl}/checkout/${ord.id}`
+      const cancelUrl = `${hostUrl}/checkout/${ord.id}`
+
+      const providerSession = await paymentProvider.createCheckoutSession({
+        workspaceId: targetWsId,
+        orderId: orderId(ord.id),
+        totalAmount: money(ord.totalAmount, ordCurrency),
+        currency: ordCurrency,
+        customer: {
+          email: ord.customerEmail,
+          ...(ord.customerName ? { name: ord.customerName } : {}),
+        },
+        successUrl,
+        cancelUrl,
+        lineItems: [
+          {
+            name: 'Order Payment Retry',
+            unitAmount: money(ord.totalAmount, ordCurrency),
+            totalAmount: money(ord.totalAmount, ordCurrency),
+            quantity: 1,
+          },
+        ],
+      })
+
+      // Update payment record & order checkout session
+      await payments.createPayment(scope, {
+        orderId: orderId(ord.id),
+        provider: 'razorpay',
+        providerPaymentId: providerSession.id,
+        amount: ord.totalAmount,
+        currency: ord.currency,
+        status: 'pending',
+        metadata: {
+          checkoutUrl: providerSession.checkoutUrl,
+          isRetry: true,
+        },
+      })
+
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        action: 'order.payment_retried',
+        targetType: 'order',
+        targetId: ord.id,
+        actorType: 'user',
+        actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+        metadata: {
+          orderId: ord.id,
+          checkoutSessionId: providerSession.id,
+        },
+      })
+
+      return {
+        ok: true,
+        data: {
+          orderId: ord.id,
+          checkoutSessionId: providerSession.id,
+          checkoutUrl: providerSession.checkoutUrl,
+          totalAmount: ord.totalAmount.toString(),
+          currency: ord.currency,
+        },
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Retry payment initiation failed.'
+    return {
+      ok: false,
+      error: {
+        code: 'PAYMENT_RETRY_FAILED',
+        message,
       },
     }
   }

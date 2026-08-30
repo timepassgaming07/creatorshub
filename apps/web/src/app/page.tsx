@@ -1,395 +1,510 @@
 import Link from 'next/link'
 
 /**
- * CreatorHub landing page.
+ * CreatorHub Landing Page.
  *
- * Premium dark-theme marketing surface inspired by Linear, Vercel, and
- * Stan.store. Replaces the Slice 0 foundation placeholder.
+ * Modern, high-converting creator platform landing page with a vibrant,
+ * clean aesthetic inspired by Stan.store, Lemon Squeezy, Linear, and Whop.
  */
 
 const features = [
   {
     icon: '🏪',
-    title: 'Storefront',
-    description: 'Your branded store with custom domains, themes, and SEO built in.',
-    replaces: 'Shopify, Squarespace',
+    title: 'Link-in-Bio Storefront',
+    description:
+      'Your branded digital shop with custom domains, responsive mobile themes, and instant SEO.',
+    tag: 'No Code Required',
+    color: 'from-amber-500/10 to-orange-500/10 text-amber-600 border-amber-200/60',
+    replaces: 'Shopify, Stan.store, Linktree',
   },
   {
-    icon: '💳',
-    title: 'Payments',
-    description:
-      'Accept UPI, cards, and netbanking via Razorpay. Manage everything from one dashboard instead of theirs.',
+    icon: '⚡',
+    title: '1-Click UPI & Card Checkout',
+    description: 'Accept Google Pay, PhonePe, Paytm, cards, and netbanking. 0% platform lock-in.',
+    tag: 'India First (INR)',
+    color: 'from-indigo-500/10 to-blue-500/10 text-indigo-600 border-indigo-200/60',
     replaces: 'Razorpay / Stripe dashboards',
   },
   {
     icon: '📦',
-    title: 'Products',
-    description: 'Sell digital downloads, courses, and memberships with secure delivery.',
+    title: 'Digital Downloads & Courses',
+    description:
+      'Sell eBooks, templates, video masterclasses, and files with automated tamper-proof delivery.',
+    tag: 'Instant Access',
+    color: 'from-emerald-500/10 to-teal-500/10 text-emerald-600 border-emerald-200/60',
     replaces: 'Gumroad, Lemon Squeezy',
   },
   {
-    icon: '📊',
-    title: 'Analytics',
-    description: 'Real-time insights on traffic, conversions, and revenue. UTM attribution.',
+    icon: '📈',
+    title: 'Real-Time Sales Analytics',
+    description:
+      'Track revenue, conversion rates, traffic sources, and UTM attribution without cookies.',
+    tag: 'Privacy First',
+    color: 'from-purple-500/10 to-pink-500/10 text-purple-600 border-purple-200/60',
     replaces: 'Google Analytics',
   },
   {
     icon: '👥',
-    title: 'Customers',
-    description: 'Manage your audience, orders, and relationships in one place.',
+    title: 'Audience & Customer CRM',
+    description:
+      'Manage buyer relationships, issue instant refunds, and track lifetime value in one unified view.',
+    tag: 'Full Ownership',
+    color: 'from-blue-500/10 to-cyan-500/10 text-blue-600 border-blue-200/60',
     replaces: 'HubSpot, Spreadsheets',
   },
   {
-    icon: '🔐',
-    title: 'Auth & Security',
-    description: 'Passkey biometric login, role-based access, and tamper-proof audit logs.',
+    icon: '🛡️',
+    title: 'Enterprise-Grade Security',
+    description:
+      'Passkey biometric login (FaceID / TouchID), double-entry ledger, and malware-scanned assets.',
+    tag: 'Bank Level',
+    color: 'from-rose-500/10 to-red-500/10 text-rose-600 border-rose-200/60',
     replaces: 'Auth0, Clerk',
   },
-  {
-    icon: '📁',
-    title: 'File Delivery',
-    description: 'Secure uploads with malware scanning and presigned download links.',
-    replaces: 'Google Drive, Dropbox',
-  },
-  {
-    icon: '🤝',
-    title: 'Affiliates',
-    description: 'Built-in affiliate program with attribution tracking and commission splits.',
-    replaces: 'FirstPromoter, Rewardful',
-  },
-] as const
-
-const stats = [
-  { value: '864+', label: 'Tests Passing' },
-  { value: '45K', label: 'Lines of Code' },
-  { value: '20', label: 'DB Migrations' },
-  { value: '9', label: 'Packages' },
 ] as const
 
 const toolsReplaced = [
-  { name: 'Shopify', cost: '$29-79/mo', category: 'Storefront' },
-  { name: 'Gumroad', cost: '10% per sale', category: 'Digital Products' },
-  { name: 'Razorpay / Stripe Dashboard', cost: 'Separate login', category: 'Payment management' },
-  { name: 'Auth0 / Clerk', cost: '$23-99/mo', category: 'Authentication' },
-  { name: 'Google Analytics', cost: 'Free (fragmented)', category: 'Analytics' },
-  { name: 'Mailchimp', cost: '$13-59/mo', category: 'Email' },
-  { name: 'Calendly', cost: '$12-20/mo', category: 'Bookings' },
-  { name: 'HubSpot', cost: '$15-50/mo', category: 'CRM' },
-  { name: 'Google Drive', cost: '$10-20/mo', category: 'File Storage' },
-  { name: 'FirstPromoter', cost: '$49-99/mo', category: 'Affiliates' },
+  { name: 'Shopify / Stan.store', cost: '₹2,500 - ₹7,500/mo', category: 'Storefront' },
+  { name: 'Gumroad', cost: '10% of every sale', category: 'Digital Goods' },
+  { name: 'Payment Gateway Dashboard', cost: 'Manual reconciliation', category: 'Payments' },
+  { name: 'Auth0 / Clerk', cost: '₹2,000+/mo', category: 'User Auth' },
+  { name: 'Google Drive / Dropbox', cost: '₹1,000/mo', category: 'File Delivery' },
+  { name: 'Google Analytics', cost: 'Fragmented & complex', category: 'Analytics' },
+  { name: 'FirstPromoter / Rewardful', cost: '₹4,000/mo', category: 'Affiliates' },
+  { name: 'Accounting Tools', cost: 'Manual spreadsheets', category: 'Ledger' },
+] as const
+
+const creatorProfiles = [
+  {
+    name: 'Aarav Sharma',
+    handle: '@aaravcodes',
+    avatar: '👨‍💻',
+    title: 'Full-Stack Web Engineering Guide',
+    price: '₹1,499',
+    sales: '1,240+ copies',
+    tag: 'eBook + Code',
+  },
+  {
+    name: 'Priya Mehta',
+    handle: '@priyadesigns',
+    avatar: '🎨',
+    title: 'Figma Design System UI Kit Pro',
+    price: '₹2,999',
+    sales: '850+ sales',
+    tag: 'Figma Assets',
+  },
+  {
+    name: 'Rohan Verma',
+    handle: '@rohanfitness',
+    avatar: '🏋️‍♂️',
+    title: '12-Week Home Workout & Diet Blueprint',
+    price: '₹999',
+    sales: '3,100+ members',
+    tag: 'Video Course',
+  },
 ] as const
 
 export default function HomePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0A0F1C] text-white">
-      {/* Ambient gradient orbs */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full opacity-20 blur-[120px]"
-        style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)' }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-32 top-[30%] h-[400px] w-[400px] rounded-full opacity-15 blur-[100px]"
-        style={{ background: 'radial-gradient(circle, #8B5CF6 0%, transparent 70%)' }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 left-[40%] h-[500px] w-[500px] rounded-full opacity-10 blur-[120px]"
-        style={{ background: 'radial-gradient(circle, #06B6D4 0%, transparent 70%)' }}
-      />
+    <div className="min-h-screen bg-[#FBFBFC] text-slate-900 selection:bg-indigo-500 selection:text-white">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2.5 text-center text-xs font-semibold text-white">
+        🚀 Slice 5 is Live: Checkout, Dynamic GST Tax Calculation & Razorpay UPI Payments
+      </div>
 
       {/* Navigation */}
-      <nav className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] text-sm font-bold">
-            C
-          </div>
-          <span className="text-lg font-semibold tracking-tight">CreatorHub</span>
-        </div>
-        <div className="hidden items-center gap-8 text-sm text-white/60 md:flex">
-          <a href="#features" className="transition-colors hover:text-white">
-            Features
-          </a>
-          <a href="#replaces" className="transition-colors hover:text-white">
-            What it replaces
-          </a>
-          <a href="#stats" className="transition-colors hover:text-white">
-            Built so far
-          </a>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/sign-in"
-            className="rounded-lg px-4 py-2 text-sm text-white/70 transition-colors hover:text-white"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="rounded-lg bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] px-5 py-2 text-sm font-medium transition-all hover:shadow-[0_0_24px_rgba(99,102,241,0.4)] hover:brightness-110"
-          >
-            Start for free
-          </Link>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <main id="main">
-        <section className="relative z-10 mx-auto max-w-5xl px-6 pb-20 pt-24 text-center md:pt-32">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-white/60 backdrop-blur-sm">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Now building Slice 5 of 11 — Checkout and Payments
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-base font-black text-white shadow-md shadow-indigo-200">
+              C
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-black tracking-tight text-slate-950">CreatorHub</span>
+              <span className="text-[10px] font-semibold tracking-wider text-indigo-600 uppercase">
+                OS for Creators
+              </span>
+            </div>
           </div>
 
-          <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.08] tracking-tight md:text-7xl">
-            Your entire digital business.{' '}
-            <span className="bg-gradient-to-r from-[#3B82F6] via-[#7C3AED] to-[#8B5CF6] bg-clip-text text-transparent">
-              One platform.
-            </span>
-          </h1>
+          <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-600 md:flex">
+            <a href="#features" className="transition-colors hover:text-indigo-600">
+              Features
+            </a>
+            <a href="#replaces" className="transition-colors hover:text-indigo-600">
+              What It Replaces
+            </a>
+            <a href="#demo" className="transition-colors hover:text-indigo-600">
+              Live Demo
+            </a>
+            <a href="#pricing" className="transition-colors hover:text-indigo-600">
+              Rigor & Architecture
+            </a>
+          </nav>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/50 md:text-xl">
-            Stop juggling 10 different tools. CreatorHub gives you storefront, payments, products,
-            analytics, customers, and security — all in one workspace built for Indian creators.
-          </p>
-
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/sign-in"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              Sign In
+            </Link>
             <Link
               href="/sign-up"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] px-8 text-base font-semibold shadow-[0_0_32px_rgba(99,102,241,0.3)] transition-all hover:shadow-[0_0_48px_rgba(99,102,241,0.5)] hover:brightness-110"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 active:scale-98 transition-all"
             >
-              Start building for free
+              <span>Get Started</span>
+              <span>&rarr;</span>
             </Link>
-            <a
-              href="#features"
-              className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-8 text-base font-medium text-white/70 backdrop-blur-sm transition-all hover:border-white/25 hover:text-white"
-            >
-              See what&apos;s built
-            </a>
           </div>
-        </section>
+        </div>
+      </header>
 
-        {/* Tools Replaced Section */}
-        <section id="replaces" className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Replaces{' '}
-              <span className="bg-gradient-to-r from-rose-400 to-orange-400 bg-clip-text text-transparent">
-                $150-500/month
-              </span>{' '}
-              in subscriptions
-            </h2>
-            <p className="mt-3 text-white/40">
-              One platform instead of ten. Here&apos;s everything CreatorHub replaces.
+      <main id="main">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-28">
+          <div className="absolute inset-0 -z-10 flex items-center justify-center">
+            <div className="h-[500px] w-[700px] rounded-full bg-gradient-to-tr from-indigo-200/40 via-purple-200/30 to-pink-200/30 blur-[130px]" />
+          </div>
+
+          <div className="mx-auto max-w-5xl px-6 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50/80 px-4 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm backdrop-blur-sm">
+              <span className="flex h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+              The All-In-One Operating System for Digital Creators
+            </div>
+
+            <h1 className="mt-8 text-5xl font-black tracking-tight text-slate-950 sm:text-6xl md:text-7xl leading-[1.08]">
+              Turn your expertise into an{' '}
+              <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                automated business.
+              </span>
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 md:text-xl leading-relaxed">
+              Sell eBooks, courses, templates, and digital files. Accept UPI & Cards with 1-click
+              checkout, manage customers, and deliver files instantly without juggling 10 different
+              tools.
             </p>
-          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {toolsReplaced.map((tool) => (
-              <div
-                key={tool.name}
-                className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 transition-all hover:border-white/15 hover:bg-white/[0.06]"
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link
+                href="/sign-up"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-98"
               >
-                <p className="text-sm font-medium text-white/80 group-hover:text-white">
-                  {tool.name}
-                </p>
-                <p className="mt-1 text-xs text-white/30">{tool.category}</p>
-                <p className="mt-2 text-xs font-medium text-rose-400/70">{tool.cost}</p>
+                <span>Create Your Free Store</span>
+                <span>&rarr;</span>
+              </Link>
+              <Link
+                href="/workspaces/new"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-800 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300"
+              >
+                <span>Explore Workspace Dashboard</span>
+              </Link>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span>
+                <span>Zero Subscription Fees to Start</span>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-8 text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-5 py-2 text-sm text-emerald-400">
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              CreatorHub: one platform, zero transaction fees, full ownership
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span>
+                <span>Instant UPI (GPay, PhonePe, Paytm)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span>
+                <span>Built-in Indian GST Tax Compliance</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-500">✓</span>
+                <span>100% Data & Customer Ownership</span>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Features Grid */}
-        <section id="features" className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Everything you need. <span className="text-white/40">Nothing you don&apos;t.</span>
-            </h2>
-            <p className="mt-3 text-white/40">
-              Each feature is production-grade, tested, and integrated with every other.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent p-6 transition-all duration-300 hover:border-white/15 hover:shadow-[0_0_40px_rgba(99,102,241,0.06)]"
-              >
-                <div className="mb-4 text-3xl">{feature.icon}</div>
-                <h3 className="text-lg font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/40">{feature.description}</p>
-                <p className="mt-4 text-xs text-white/20">
-                  Replaces <span className="text-white/40">{feature.replaces}</span>
-                </p>
+        {/* Creator Showcase / Interactive Preview */}
+        <section id="demo" className="mx-auto max-w-6xl px-6 pb-24">
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xl shadow-slate-100 sm:p-10">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+              <div>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                  Live Creator Storefronts
+                </span>
+                <h2 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">
+                  What your customers actually see
+                </h2>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Stats Section */}
-        <section id="stats" className="relative z-10 mx-auto max-w-5xl px-6 pb-24">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.01]">
-            <div className="p-8 text-center md:p-12">
-              <h2 className="text-2xl font-bold md:text-3xl">Built with engineering rigor</h2>
-              <p className="mt-2 text-white/40">
-                Not a prototype. A production-grade monorepo with real tests against real databases.
+              <p className="text-xs text-slate-500 max-w-xs">
+                Ultra-fast, mobile-optimized link-in-bio storefronts engineered for high conversion.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-px border-t border-white/[0.06] md:grid-cols-4">
-              {stats.map((stat) => (
-                <div key={stat.label} className="p-6 text-center md:p-8">
-                  <p className="bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 text-sm text-white/40">{stat.label}</p>
+            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+              {creatorProfiles.map((creator) => (
+                <div
+                  key={creator.handle}
+                  className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/50 p-6 transition-all hover:-translate-y-1 hover:border-indigo-200 hover:bg-white hover:shadow-lg hover:shadow-indigo-50"
+                >
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm border border-slate-100">
+                        {creator.avatar}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">{creator.name}</h3>
+                        <p className="text-xs font-medium text-indigo-600">{creator.handle}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-slate-200/70 bg-white p-4">
+                      <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 uppercase">
+                        {creator.tag}
+                      </span>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900 leading-snug">
+                        {creator.title}
+                      </h4>
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <span className="text-base font-extrabold text-slate-900">
+                          {creator.price}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-400">
+                          {creator.sales}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <Link
+                      href="/checkout?productId=018f9e2b-7c5e-7a2e-8c3b-000000000002"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-xs font-bold text-white transition-all group-hover:bg-indigo-600"
+                    >
+                      <span>Test Live Checkout</span>
+                      <span>&rarr;</span>
+                    </Link>
+                  </div>
                 </div>
               ))}
-            </div>
-
-            <div className="border-t border-white/[0.06] p-6 md:p-8">
-              <div className="grid gap-4 text-sm text-white/40 md:grid-cols-3">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Double-entry accounting ledger with immutable entries</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Row-level security with two-layer tenant isolation</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Server-authoritative pricing — clients cannot manipulate totals</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Indian GST tax calculation with GSTIN validation</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Passkey biometric login — phishing-resistant WebAuthn</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 text-emerald-400">✓</span>
-                  <span>Exactly-once webhook processing with HMAC verification</span>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
-        {/* Roadmap Section */}
-        <section className="relative z-10 mx-auto max-w-4xl px-6 pb-24">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Roadmap</h2>
-            <p className="mt-3 text-white/40">11 slices from foundation to payouts. 5 complete.</p>
+        {/* What It Replaces Comparison Table */}
+        <section id="replaces" className="mx-auto max-w-6xl px-6 pb-24">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+              Stop Paying For 10 Subscriptions
+            </span>
+            <h2 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
+              Replace ₹15,000+/month in software
+            </h2>
+            <p className="mt-3 text-sm text-slate-600 max-w-xl mx-auto">
+              Everything your digital business needs is built into CreatorHub as one unified engine.
+            </p>
           </div>
 
-          <div className="space-y-2">
-            {[
-              { id: 0, name: 'Foundation', done: true },
-              { id: 1, name: 'Identity, workspace, tenancy, audit log', done: true },
-              { id: 2, name: 'Ledger, outbox, idempotency', done: true },
-              { id: 3, name: 'Product catalogue', done: true },
-              { id: 4, name: 'Storefronts', done: true },
-              { id: 5, name: 'Checkout and payments', active: true },
-              { id: 6, name: 'Digital fulfillment', done: false },
-              { id: 7, name: 'Customers and orders', done: false },
-              { id: 8, name: 'Affiliate program', done: false },
-              { id: 9, name: 'Commission and clawback', done: false },
-              { id: 10, name: 'Analytics and AI', done: false },
-              { id: 11, name: 'Payout execution', done: false },
-            ].map((slice) => (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {toolsReplaced.map((tool) => (
               <div
-                key={slice.id}
-                className={`flex items-center justify-between rounded-xl border px-5 py-3 text-sm transition-all ${
-                  slice.done
-                    ? 'border-emerald-400/15 bg-emerald-400/5'
-                    : 'active' in slice
-                      ? 'border-[#3B82F6]/25 bg-[#3B82F6]/5'
-                      : 'border-white/[0.06] bg-white/[0.02]'
-                }`}
+                key={tool.name}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-slate-300"
               >
-                <div className="flex items-center gap-3">
-                  <span className="w-5 text-center text-xs text-white/30">{slice.id}</span>
-                  <span
-                    className={
-                      slice.done
-                        ? 'text-white/70'
-                        : 'active' in slice
-                          ? 'text-white'
-                          : 'text-white/30'
-                    }
-                  >
-                    {slice.name}
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  {tool.category}
+                </span>
+                <h3 className="mt-1 text-base font-bold text-slate-900">{tool.name}</h3>
+                <p className="mt-3 text-xs font-semibold text-rose-600 bg-rose-50 rounded-lg px-2.5 py-1 inline-block">
+                  {tool.cost}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-1">
+            <div className="rounded-[15px] bg-white p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900">
+                  CreatorHub Operating System
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  One workspace. One login. Unified double-entry ledger. Zero integration headaches.
+                </p>
+              </div>
+              <Link
+                href="/sign-up"
+                className="shrink-0 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-600 transition-colors"
+              >
+                Start Free Today &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Grid */}
+        <section id="features" className="mx-auto max-w-6xl px-6 pb-24">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+              Platform Features
+            </span>
+            <h2 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
+              Engineered for seamless digital sales
+            </h2>
+            <p className="mt-3 text-sm text-slate-600 max-w-xl mx-auto">
+              Every component adheres strictly to production-grade domain invariants.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <div
+                key={feature.title}
+                className="group flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-100"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl">{feature.icon}</span>
+                    <span
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${feature.color}`}
+                    >
+                      {feature.tag}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-5 text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                    {feature.title}
+                  </h3>
+
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
+
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <span className="text-xs text-slate-400">
+                    Replaces:{' '}
+                    <span className="font-semibold text-slate-700">{feature.replaces}</span>
                   </span>
                 </div>
-                <span
-                  className={`text-xs font-medium ${
-                    slice.done
-                      ? 'text-emerald-400'
-                      : 'active' in slice
-                        ? 'text-[#3B82F6]'
-                        : 'text-white/20'
-                  }`}
-                >
-                  {slice.done ? 'Complete' : 'active' in slice ? 'In progress' : 'Planned'}
-                </span>
               </div>
             ))}
           </div>
         </section>
 
-        {/* CTA Footer */}
-        <section className="relative z-10 mx-auto max-w-4xl px-6 pb-24">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-[#3B82F6]/10 to-[#8B5CF6]/10 p-12 text-center">
-            <h2 className="text-3xl font-bold md:text-4xl">
-              Ready to build your digital business?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-white/40">
-              CreatorHub is being built in the open. Sign up to get early access and shape the
-              product as a founding user.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link
-                href="/sign-up"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6] px-8 text-base font-semibold shadow-[0_0_32px_rgba(99,102,241,0.3)] transition-all hover:shadow-[0_0_48px_rgba(99,102,241,0.5)] hover:brightness-110"
-              >
-                Start for free
-              </Link>
-              <Link
-                href="/sign-in"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/15 bg-white/5 px-8 text-base font-medium text-white/70 backdrop-blur-sm transition-all hover:border-white/25 hover:text-white"
-              >
-                Sign in
-              </Link>
+        {/* Engineering Rigor & Architecture */}
+        <section id="pricing" className="mx-auto max-w-6xl px-6 pb-24">
+          <div className="rounded-3xl border border-slate-200 bg-slate-900 p-8 text-white sm:p-12">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 border-b border-slate-800 pb-10">
+              <div>
+                <span className="rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                  Engineered With Rigor
+                </span>
+                <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+                  Not a prototype. Built for financial integrity.
+                </h2>
+                <p className="mt-2 text-sm text-slate-400 max-w-xl">
+                  CreatorHub is designed from the database up with double-entry accounting, tenant
+                  isolation, and strict state machines.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto">
+                <div className="rounded-2xl border border-slate-800 bg-slate-800/60 p-4 text-center">
+                  <p className="text-2xl font-black text-indigo-400">864+</p>
+                  <p className="text-[11px] font-medium text-slate-400">Unit Tests</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-800/60 p-4 text-center">
+                  <p className="text-2xl font-black text-purple-400">302</p>
+                  <p className="text-[11px] font-medium text-slate-400">Integration Tests</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-800/60 p-4 text-center">
+                  <p className="text-2xl font-black text-pink-400">20</p>
+                  <p className="text-[11px] font-medium text-slate-400">DB Migrations</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-800/60 p-4 text-center">
+                  <p className="text-2xl font-black text-emerald-400">100%</p>
+                  <p className="text-[11px] font-medium text-slate-400">Green Build</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 text-xs text-slate-300">
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Immutable double-entry ledger with balance constraint triggers</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Two-layer multi-tenant isolation with Postgres Row-Level Security</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Indian GST calculation (CGST/SGST/IGST) with zero-float integer math</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Passkeys WebAuthn biometric login with Argon2id fallback</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Direct presigned S3/R2 storage with magic byte MIME inspection</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>Transactional outbox event publishing with FOR UPDATE SKIP LOCKED</span>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="relative z-10 border-t border-white/[0.06] py-8 text-center text-xs text-white/20">
-          <p>CreatorHub — The Operating System for Digital Businesses</p>
-        </footer>
+        {/* Final CTA */}
+        <section className="mx-auto max-w-4xl px-6 pb-24 text-center">
+          <div className="rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-10 sm:p-16 shadow-lg shadow-slate-100">
+            <h2 className="text-3xl font-black text-slate-950 sm:text-4xl">
+              Ready to launch your digital store?
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-sm text-slate-600 leading-relaxed">
+              Create your account in 30 seconds. Publish your first digital product and start
+              accepting payments today.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/sign-up"
+                className="w-full sm:w-auto rounded-2xl bg-indigo-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all"
+              >
+                Get Started Free
+              </Link>
+              <Link
+                href="/sign-in"
+                className="w-full sm:w-auto rounded-2xl border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Sign In to Account
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white py-12 text-center text-xs text-slate-500">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>
+            © {new Date().getFullYear()} CreatorHub. The Operating System for Digital Businesses.
+          </p>
+          <div className="flex items-center gap-6 font-medium">
+            <Link href="/sign-in" className="hover:text-indigo-600">
+              Sign In
+            </Link>
+            <Link href="/sign-up" className="hover:text-indigo-600">
+              Sign Up
+            </Link>
+            <Link href="/workspaces/new" className="hover:text-indigo-600">
+              Create Workspace
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

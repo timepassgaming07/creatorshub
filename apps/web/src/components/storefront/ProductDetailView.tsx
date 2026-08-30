@@ -135,7 +135,7 @@ export function ProductDetailView({ data, basePath }: ProductDetailViewProps) {
 
           <div className="mt-8 border-t border-[var(--border-default)] pt-6">
             <Link
-              href={`/checkout?productId=${product.id}&storefrontId=${storefront.id}`}
+              href={`${basePath}/checkout?productId=${product.id}`}
               className="flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-base font-semibold text-white shadow-md transition-all hover:opacity-95 active:scale-98"
               style={{ backgroundColor: storefront.themeConfig.accentColor }}
             >
