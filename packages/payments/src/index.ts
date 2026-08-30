@@ -54,3 +54,4 @@ export type {
 } from './port.js'
 
 export { MemoryPaymentProvider } from './adapters/memory.js'
+export { RazorpayPaymentProvider, type RazorpayProviderOptions } from './adapters/razorpay.js'
