@@ -81,3 +81,24 @@ export {
   type DiscountEvaluationResult,
   type DiscountEvaluationSuccess,
 } from './catalogue/discounts.js'
+
+/**
+ * Order and payment state machine (Slice 5 §5.3).
+ */
+export {
+  INVALID_ORDER_TRANSITION,
+  INVALID_PAYMENT_TRANSITION,
+  ORDER_TRANSITION_GRAPH,
+  PAYMENT_STATUS_TRANSITION_GRAPH,
+  UNAUTHORIZED_ORDER_TRANSITION,
+  canTransitionOrderStatus,
+  canTransitionPaymentStatus,
+  isOrderPaid,
+  isOrderTerminal,
+  isPaymentTerminal,
+  transitionOrderStatus,
+  transitionPaymentStatus,
+  type InvalidOrderTransitionError,
+  type InvalidPaymentTransitionError,
+  type UnauthorizedOrderTransitionError,
+} from './orders/state-machine.js'

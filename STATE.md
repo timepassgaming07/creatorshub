@@ -117,7 +117,7 @@ Slice 5:
 
 - [x] **5.1** `packages/payments` — the `PaymentProvider` port and its domain-level contract (`@creatorhub/payments` with `PaymentProvider` port, domain error hierarchy, `MemoryPaymentProvider` adapter, HMAC webhook verification, domain event translation, and `paymentProviderConformanceTests` test harness)
 - [x] **5.2** Schema: `orders`, `order_items`, `order_transitions`, `payments`, `payment_accounts` (migration `0017`, Drizzle schemas, RLS tenant isolation, `orders` and `payments` repositories, exact integer minor units, and database integration suites)
-- [ ] **5.3** Order state machine with explicit, tested transitions
+- [x] **5.3** Order state machine with explicit, tested transitions (`packages/domain/src/orders/state-machine.ts`, deterministic order and payment lifecycle graphs, actor transition authorization, terminal predicates, and unit test suite)
 - [ ] **5.4** Server-authoritative pricing: totals computed from server state only
 - [ ] **5.5** Tax calculation and the `tax_payable` ledger posting
 - [ ] **5.6** Checkout session creation and the hosted redirect
@@ -131,8 +131,8 @@ Slice 5:
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.3: Order state machine with explicit, tested transitions).**
-Next up: Implement pure order state machine transitions in `packages/domain` (`canTransition`, `transitionOrder`, valid lifecycle states `pending` -> `processing` -> `paid` -> `fulfilled` / `failed` / `cancelled` / `refunded`), transition validation errors, and domain unit tests.
+**Slice 5: Checkout and payments (Item 5.4: Server-authoritative pricing: totals computed from server state only).**
+Next up: Build server-authoritative checkout computation in `packages/domain` (`calculateOrderTotals`, `computeLineItemTotal`, discount coupon evaluation integration, preventing any client-submitted pricing overrides, exact minor units arithmetic, and property/unit tests).
 
 ---
 
