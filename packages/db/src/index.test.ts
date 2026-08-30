@@ -25,6 +25,7 @@ describe('public surface', () => {
       'auditLog',
       'catalogue',
       'createDatabase',
+      'customers',
       'discounts',
       'disputes',
       'fulfillment',

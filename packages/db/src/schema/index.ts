@@ -145,3 +145,9 @@ export {
   entitlementStatus,
   entitlements,
 } from './fulfillment.js'
+
+export {
+  customers,
+  type CustomerRecord,
+  type NewCustomerRecord,
+} from './customers.js'

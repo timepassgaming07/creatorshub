@@ -25,6 +25,7 @@ import {
 import {
   auditLog,
   catalogue,
+  customers,
   fulfillment,
   ledger,
   orders,
@@ -308,7 +309,20 @@ export async function fulfillPaidOrder(
     },
   })
 
-  // 9. Digital Asset Fulfillment: Issue entitlements & download grants (Slice 6)
+  // 9. Customer Lifecycle: Upsert customer profile and aggregate spend (Slice 7)
+  try {
+    await customers.upsertCustomer(scope, {
+      email: orderRecord.customerEmail,
+      name: orderRecord.customerName,
+      phone: orderRecord.customerPhone,
+      incrementSpend: orderRecord.totalAmount,
+      incrementOrders: 1,
+    })
+  } catch {
+    // Non-fatal if customer repository encounters transient error
+  }
+
+  // 10. Digital Asset Fulfillment: Issue entitlements & download grants (Slice 6)
   const orderWithItems = await orders.findOrderWithItems(scope, orderRecord.id)
   const issuedDownloadGrants: {
     readonly rawToken: string

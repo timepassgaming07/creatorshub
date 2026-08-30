@@ -13,7 +13,7 @@ import type {
   OrderStatus,
   OrderTransitionActorType,
 } from '@creatorhub/contracts'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
@@ -187,32 +187,159 @@ export async function findOrderWithItems(
   return { order, items }
 }
 
+export type OrderFilter = {
+  readonly status?: OrderStatus | undefined
+  readonly paymentStatus?: OrderPaymentStatus | undefined
+  readonly customerId?: string | undefined
+  readonly query?: string | undefined
+  readonly fromDate?: Date | undefined
+  readonly toDate?: Date | undefined
+  readonly limit?: number | undefined
+  readonly offset?: number | undefined
+}
+
+export type OrderSummary = {
+  readonly totalOrders: number
+  readonly paidOrdersCount: number
+  readonly refundedOrdersCount: number
+  readonly totalGrossRevenue: bigint
+  readonly totalRefundedAmount: bigint
+}
+
 /**
- * Lists orders for the current workspace with optional status filter.
+ * Lists orders in the workspace with optional multi-criteria filtering, search, and pagination.
  */
 export async function listOrders(
   scope: RepositoryScope,
-  options: {
-    readonly status?: OrderStatus
-    readonly limit?: number
-    readonly offset?: number
-  } = {},
+  options: OrderFilter = {},
 ): Promise<readonly OrderRecord[]> {
-  const conditions = [scoped(scope, orders)]
+  const conditions = []
 
   if (options.status) {
     conditions.push(eq(orders.status, options.status))
   }
 
+  if (options.paymentStatus) {
+    conditions.push(eq(orders.paymentStatus, options.paymentStatus))
+  }
+
+  if (options.customerId) {
+    conditions.push(eq(orders.customerId, options.customerId))
+  }
+
+  if (options.query && options.query.trim().length > 0) {
+    const term = `%${options.query.trim()}%`
+    conditions.push(
+      or(
+        ilike(orders.customerEmail, term),
+        ilike(orders.customerName, term),
+        sql`${orders.id}::text ILIKE ${term}`,
+      ),
+    )
+  }
+
+  if (options.fromDate) {
+    conditions.push(gte(orders.createdAt, options.fromDate))
+  }
+
+  if (options.toDate) {
+    conditions.push(lte(orders.createdAt, options.toDate))
+  }
+
   const query = scope.tx
     .select()
     .from(orders)
-    .where(and(...conditions))
+    .where(scoped(scope, orders, ...conditions))
     .orderBy(desc(orders.createdAt))
     .limit(options.limit ?? 50)
     .offset(options.offset ?? 0)
 
   return query
+}
+
+/**
+ * Counts total orders matching the filter criteria.
+ */
+export async function countOrders(
+  scope: RepositoryScope,
+  options: OrderFilter = {},
+): Promise<number> {
+  const conditions = []
+
+  if (options.status) {
+    conditions.push(eq(orders.status, options.status))
+  }
+
+  if (options.paymentStatus) {
+    conditions.push(eq(orders.paymentStatus, options.paymentStatus))
+  }
+
+  if (options.customerId) {
+    conditions.push(eq(orders.customerId, options.customerId))
+  }
+
+  if (options.query && options.query.trim().length > 0) {
+    const term = `%${options.query.trim()}%`
+    conditions.push(
+      or(
+        ilike(orders.customerEmail, term),
+        ilike(orders.customerName, term),
+        sql`${orders.id}::text ILIKE ${term}`,
+      ),
+    )
+  }
+
+  if (options.fromDate) {
+    conditions.push(gte(orders.createdAt, options.fromDate))
+  }
+
+  if (options.toDate) {
+    conditions.push(lte(orders.createdAt, options.toDate))
+  }
+
+  const [row] = await scope.tx
+    .select({ count: sql<number>`count(*)::int` })
+    .from(orders)
+    .where(scoped(scope, orders, ...conditions))
+
+  return row?.count ?? 0
+}
+
+/**
+ * Finds all orders associated with a specific customer in the current workspace.
+ */
+export async function findOrdersByCustomerId(
+  scope: RepositoryScope,
+  customerId: string,
+): Promise<readonly OrderRecord[]> {
+  return scope.tx
+    .select()
+    .from(orders)
+    .where(scoped(scope, orders, eq(orders.customerId, customerId)))
+    .orderBy(desc(orders.createdAt))
+}
+
+/**
+ * Computes revenue and order count aggregations for creator dashboard.
+ */
+export async function getOrderSummary(scope: RepositoryScope): Promise<OrderSummary> {
+  const [row] = await scope.tx
+    .select({
+      totalOrders: sql<number>`count(*)::int`,
+      paidOrdersCount: sql<number>`count(case when ${orders.status} = 'paid' then 1 end)::int`,
+      refundedOrdersCount: sql<number>`count(case when ${orders.status} = 'refunded' then 1 end)::int`,
+      totalGrossRevenue: sql<string>`coalesce(sum(case when ${orders.status} = 'paid' then ${orders.totalAmount} else 0 end), 0)::text`,
+    })
+    .from(orders)
+    .where(scoped(scope, orders))
+
+  return {
+    totalOrders: row?.totalOrders ?? 0,
+    paidOrdersCount: row?.paidOrdersCount ?? 0,
+    refundedOrdersCount: row?.refundedOrdersCount ?? 0,
+    totalGrossRevenue: BigInt(row?.totalGrossRevenue ?? '0'),
+    totalRefundedAmount: 0n,
+  }
 }
 
 /**

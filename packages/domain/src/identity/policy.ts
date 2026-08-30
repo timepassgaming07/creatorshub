@@ -103,6 +103,10 @@ export type Permission =
   | 'order.refund'
   | 'dispute.manage'
 
+  // Customers (Slice 7)
+  | 'customer.view'
+  | 'customer.manage'
+
 /**
  * Which permissions each role holds.
  *
@@ -146,6 +150,8 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'order.view',
     'order.refund',
     'dispute.manage',
+    'customer.view',
+    'customer.manage',
   ],
 
   /**
@@ -176,6 +182,8 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'order.view',
     'order.refund',
     'dispute.manage',
+    'customer.view',
+    'customer.manage',
   ],
 
   /**
@@ -192,6 +200,7 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'product.update',
     'storefront.view',
     'order.view',
+    'customer.view',
   ],
 }
 

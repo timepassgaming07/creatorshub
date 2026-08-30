@@ -55,6 +55,8 @@ export {
   ledgerEntryIdSchema,
   ledgerTransactionId,
   ledgerTransactionIdSchema,
+  customerId,
+  customerIdSchema,
   downloadEventId,
   downloadEventIdSchema,
   downloadGrantId,
@@ -95,6 +97,7 @@ export {
 
 export type {
   AssetId,
+  CustomerId,
   DiscountId,
   DisputeId,
   DownloadEventId,
@@ -120,6 +123,15 @@ export type {
   WebhookEventId,
   WorkspaceId,
 } from './identifiers.js'
+
+export type {
+  CreateCustomerInput,
+  Customer,
+  CustomerFilter,
+  CustomerStatus,
+  CustomerSummary,
+  UpdateCustomerInput,
+} from './customers.js'
 
 export {
   LEDGER_ACCOUNT_KINDS,

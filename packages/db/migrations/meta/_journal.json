@@ -148,6 +148,13 @@
       "when": 1772330000000,
       "tag": "0020_entitlements_and_fulfillment",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1772331000000,
+      "tag": "0021_customers_and_orders_management",
+      "breakpoints": true
     }
   ]
 }

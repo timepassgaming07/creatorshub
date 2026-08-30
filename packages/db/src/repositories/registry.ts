@@ -23,6 +23,7 @@ import type { UserId } from '@creatorhub/contracts'
 import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
 import * as catalogueRepo from './catalogue.js'
+import * as customersRepo from './customers.js'
 import * as discountsRepo from './discounts.js'
 import * as disputesRepo from './disputes.js'
 import * as fulfillmentRepo from './fulfillment.js'
@@ -157,6 +158,7 @@ export const REPOSITORY_MODULES = {
   refunds: refundsRepo,
   disputes: disputesRepo,
   fulfillment: fulfillmentRepo,
+  customers: customersRepo,
 } as const
 
 /**
@@ -377,6 +379,36 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'orders.listOrderTransitions':
     'Lists order transitions scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.countOrders':
+    'Counts orders matching filter criteria scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.findOrdersByCustomerId':
+    'Reads customer orders scoped to current workspace. Tested in orders repository integration suite.',
+
+  'orders.getOrderSummary':
+    'Computes revenue and order aggregations scoped to current workspace. Tested in orders repository integration suite.',
+
+  'customers.upsertCustomer':
+    'Stamps workspace from scope and upserts customer lifecycle metrics. Tested in customers repository integration suite.',
+
+  'customers.findCustomerById':
+    'Reads customer by ID scoped to current workspace. Tested in customers repository integration suite.',
+
+  'customers.findCustomerByEmail':
+    'Reads customer by email scoped to current workspace. Tested in customers repository integration suite.',
+
+  'customers.listCustomers':
+    'Lists customers matching search & spend filters scoped to current workspace. Tested in customers repository integration suite.',
+
+  'customers.countCustomers':
+    'Counts customers matching filter criteria scoped to current workspace. Tested in customers repository integration suite.',
+
+  'customers.getCustomerSummary':
+    'Computes customer lifetime aggregations scoped to current workspace. Tested in customers repository integration suite.',
+
+  'customers.updateCustomer':
+    'Updates customer profile scoped to current workspace. Tested in customers repository integration suite.',
 
   'payments.createPaymentAccount':
     'Stamps workspace from scope. Tested in payments repository integration suite.',

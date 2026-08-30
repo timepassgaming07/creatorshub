@@ -136,6 +136,16 @@ Slice 6:
 - [x] **6.6** Outbox delivery of transactional fulfillment & receipt emails with direct buyer access links
 - [x] **6.7** Buyer-facing download portal (`/fulfillment/[token]`, `/s/[subdomain]/fulfillment/[token]`, `/c/[domain]/fulfillment/[token]`, `DownloadPortalView.tsx` with light creator aesthetic, live download usage meter, expiration notices, and no account required)
 
+Slice 7:
+
+- [x] **7.1** Schema: `customers` with PII confinement, lifetime spend, orders count, and order linkage (migration `0021_customers_and_orders_management.sql`, Drizzle schema, unique `(workspace_id, email)`, RLS multi-tenant policies)
+- [x] **7.2** Customer repository: `upsertCustomer`, `findCustomerById`, `listCustomers`, `countCustomers`, `getCustomerSummary`, database integration test suite
+- [x] **7.3** Orders management repository & server actions (`listOrdersAction`, `getOrderDetailsAction`, `resendFulfillmentEmailAction`, `exportOrdersCsvAction`, search, status filtering, date range)
+- [x] **7.4** Order inspection view (`OrderDetailView.tsx`, `/workspaces/[id]/orders/[orderId]`, itemized line items, GST breakdown, download grants tracker, chronological audit timeline, payment traces, refund modal)
+- [x] **7.5** Customer CRM & profile view (`CustomerListView.tsx`, `CustomerDetailView.tsx`, `/workspaces/[id]/customers`, `/workspaces/[id]/customers/[customerId]`, LTV aggregation, repeat buyer metrics, order history, active entitlements)
+- [x] **7.6** Data export surface: tenant-scoped, sanitized CSV generation for orders and customers
+- [x] **7.7** Authorization & audit integration: domain permissions `customer.view` & `customer.manage`, role enforcement (`owner`, `admin`, `member`), audit logs for export & resend operations
+
 ---
 
 # Active Task

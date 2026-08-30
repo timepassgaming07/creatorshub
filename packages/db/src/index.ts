@@ -157,3 +157,11 @@ export type {
   CreateDownloadGrantRepoInput,
   CreateEntitlementRepoInput,
 } from './repositories/fulfillment.js'
+
+export * as customers from './repositories/customers.js'
+export type {
+  CustomerRecord,
+  NewCustomerRecord,
+  UpdateCustomerRecordInput,
+  UpsertCustomerInput,
+} from './repositories/customers.js'

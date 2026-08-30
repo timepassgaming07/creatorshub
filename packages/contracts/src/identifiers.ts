@@ -58,6 +58,7 @@ export type PaymentId = string & { readonly __brand: 'PaymentId' }
 export type PaymentAccountId = string & { readonly __brand: 'PaymentAccountId' }
 export type RefundId = string & { readonly __brand: 'RefundId' }
 export type DisputeId = string & { readonly __brand: 'DisputeId' }
+export type CustomerId = string & { readonly __brand: 'CustomerId' }
 export type WebhookEventId = string & { readonly __brand: 'WebhookEventId' }
 export type EntitlementId = string & { readonly __brand: 'EntitlementId' }
 export type DownloadGrantId = string & { readonly __brand: 'DownloadGrantId' }
@@ -219,6 +220,11 @@ export function disputeId(value: string): DisputeId {
   return value as DisputeId
 }
 
+export function customerId(value: string): CustomerId {
+  assertUuidV7(value, 'customer id')
+  return value as CustomerId
+}
+
 export function webhookEventId(value: string): WebhookEventId {
   assertUuidV7(value, 'webhook event id')
   return value as WebhookEventId
@@ -358,6 +364,11 @@ export const disputeIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as DisputeId)
+
+export const customerIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as CustomerId)
 
 export const webhookEventIdSchema = z
   .string()
