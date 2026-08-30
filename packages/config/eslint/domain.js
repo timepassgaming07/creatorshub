@@ -47,9 +47,9 @@ const FORBIDDEN = [
     message: 'The domain must not import a database driver. Persistence lives behind a port.',
   },
   {
-    group: ['stripe', '@stripe/*'],
+    group: ['stripe', '@stripe/*', 'razorpay', '@razorpay/*'],
     message:
-      'The domain must never name a payment provider. Use the PaymentProvider port (ADR-0007).',
+      'The domain must never name a payment provider. Use the PaymentProvider port (ADR-0007, ADR-0016).',
   },
 ]
 

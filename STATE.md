@@ -113,12 +113,26 @@ Slice 4:
 - [x] **4.7** `storefront_events` capture for analytics (`storefront_events` schema & migration `0016`, `/api/events` beacon ingestion, `StorefrontTelemetry` component, UTM and referrer attribution)
 - [x] **4.8** Storefront editor with live preview (`/workspaces/[id]/storefront`, `LivePreviewFrame` device switcher, `ThemeCustomizer`, `DomainSettings` DNS records, `StorefrontEditor` orchestrator, `getStorefrontEditorDataAction`, unit tests)
 
+Slice 5:
+
+- [x] **5.1** `packages/payments` — the `PaymentProvider` port and its domain-level contract (`@creatorhub/payments` with `PaymentProvider` port, domain error hierarchy, `MemoryPaymentProvider` adapter, HMAC webhook verification, domain event translation, and `paymentProviderConformanceTests` test harness)
+- [ ] **5.2** Schema: `orders`, `order_items`, `order_transitions`, `payments`, `payment_accounts`
+- [ ] **5.3** Order state machine with explicit, tested transitions
+- [ ] **5.4** Server-authoritative pricing: totals computed from server state only
+- [ ] **5.5** Tax calculation and the `tax_payable` ledger posting
+- [ ] **5.6** Checkout session creation and the hosted redirect
+- [ ] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing
+- [ ] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016)
+- [ ] **5.9** Payment success writes the balanced ledger transaction in one commit
+- [ ] **5.10** Schema and flows for `refunds` and `disputes`
+- [ ] **5.11** Checkout UI, including the failure and retry paths
+
 ---
 
 # Active Task
 
-**Slice 5: Checkout and payments.**
-Unblocked by ADR-0016. Next up: Cart state and checkout session lifecycle, order reservation, ledger hold, payment gateway adapters (Stripe / Razorpay), idempotency enforcement, and webhook reconciliation.
+**Slice 5: Checkout and payments (Item 5.2: Schema for orders, order_items, order_transitions, payments, payment_accounts).**
+Unblocked by ADR-0016. Next up: Schema tables, foreign keys, status check constraints, RLS policies, migrations, and repository layer for order lifecycle and payments.
 
 ---
 

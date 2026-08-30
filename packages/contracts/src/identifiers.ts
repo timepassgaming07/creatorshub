@@ -51,6 +51,14 @@ export type ProductAssetId = string & { readonly __brand: 'ProductAssetId' }
 export type DiscountId = string & { readonly __brand: 'DiscountId' }
 export type StorefrontId = string & { readonly __brand: 'StorefrontId' }
 export type StorefrontEventId = string & { readonly __brand: 'StorefrontEventId' }
+export type OrderId = string & { readonly __brand: 'OrderId' }
+export type OrderItemId = string & { readonly __brand: 'OrderItemId' }
+export type OrderTransitionId = string & { readonly __brand: 'OrderTransitionId' }
+export type PaymentId = string & { readonly __brand: 'PaymentId' }
+export type PaymentAccountId = string & { readonly __brand: 'PaymentAccountId' }
+export type RefundId = string & { readonly __brand: 'RefundId' }
+export type DisputeId = string & { readonly __brand: 'DisputeId' }
+export type WebhookEventId = string & { readonly __brand: 'WebhookEventId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -173,10 +181,50 @@ export function storefrontEventId(value: string): StorefrontEventId {
   return value as StorefrontEventId
 }
 
+export function orderId(value: string): OrderId {
+  assertUuidV7(value, 'order id')
+  return value as OrderId
+}
+
+export function orderItemId(value: string): OrderItemId {
+  assertUuidV7(value, 'order item id')
+  return value as OrderItemId
+}
+
+export function orderTransitionId(value: string): OrderTransitionId {
+  assertUuidV7(value, 'order transition id')
+  return value as OrderTransitionId
+}
+
+export function paymentId(value: string): PaymentId {
+  assertUuidV7(value, 'payment id')
+  return value as PaymentId
+}
+
+export function paymentAccountId(value: string): PaymentAccountId {
+  assertUuidV7(value, 'payment account id')
+  return value as PaymentAccountId
+}
+
+export function refundId(value: string): RefundId {
+  assertUuidV7(value, 'refund id')
+  return value as RefundId
+}
+
+export function disputeId(value: string): DisputeId {
+  assertUuidV7(value, 'dispute id')
+  return value as DisputeId
+}
+
+export function webhookEventId(value: string): WebhookEventId {
+  assertUuidV7(value, 'webhook event id')
+  return value as WebhookEventId
+}
+
 export function requestId(value: string): RequestId {
-  if (value.length === 0 || value.length > REQUEST_ID_MAX_LENGTH) {
+  if (value.length < 1 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
-      `Invalid request id: expected 1 to ${String(REQUEST_ID_MAX_LENGTH)} characters.`,
+      `Invalid request id: expected between 1 and ${String(REQUEST_ID_MAX_LENGTH)} characters.`,
     )
   }
   if (!REQUEST_ID_PATTERN.test(value)) {
@@ -190,8 +238,7 @@ export function requestId(value: string): RequestId {
 // ---------------------------------------------------------------------------
 // Schemas
 //
-// For parsing at a boundary, where a bad value is an expected outcome and needs
-// a reportable error rather than a thrown one.
+// Used at system boundaries to validate external input and brand it in one step.
 // ---------------------------------------------------------------------------
 
 export const workspaceIdSchema = z
@@ -258,6 +305,46 @@ export const storefrontEventIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as StorefrontEventId)
+
+export const orderIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as OrderId)
+
+export const orderItemIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as OrderItemId)
+
+export const orderTransitionIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as OrderTransitionId)
+
+export const paymentIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as PaymentId)
+
+export const paymentAccountIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as PaymentAccountId)
+
+export const refundIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as RefundId)
+
+export const disputeIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as DisputeId)
+
+export const webhookEventIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as WebhookEventId)
 
 export const requestIdSchema = z
   .string()
