@@ -129,3 +129,19 @@ export type {
   RecordWebhookEventResult,
   UpdateWebhookEventStatusOptions,
 } from './repositories/webhooks.js'
+
+export * as refunds from './repositories/refunds.js'
+export type {
+  CreateRefundInput,
+  NewRefundRecord,
+  RefundRecord,
+  UpdateRefundStatusOptions,
+} from './repositories/refunds.js'
+
+export * as disputes from './repositories/disputes.js'
+export type {
+  CreateDisputeInput,
+  DisputeRecord,
+  NewDisputeRecord,
+  UpdateDisputeStatusOptions,
+} from './repositories/disputes.js'

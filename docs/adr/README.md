@@ -26,10 +26,11 @@ their second week: *"why is it like this?"*
 | [0013](./0013-monorepo.md) | pnpm workspaces with Turborepo | Accepted |
 | [0014](./0014-hosting.md) | Managed hosting with a portability constraint | Accepted |
 | [0015](./0015-local-postgres.md) | Postgres in Docker Compose locally, Testcontainers in tests | Accepted |
-| [0016](./0016-razorpay-first-adapter.md) | Razorpay is the first payment adapter, and the entity is Indian | Accepted |
+| [0016](./0016-razorpay-first-adapter.md) | Razorpay is the first payment adapter, and the entity is Indian | Accepted, onboarding model amended by [0020](./0020-sub-merchant-onboarding.md) |
 | [0017](./0017-authentication-database-role.md) | Authentication connects as a third Postgres role | Accepted |
 | [0018](./0018-email-verification-two-columns.md) | Email verification is stored twice, and one copy is derived | Accepted |
 | [0019](./0019-csp-deferred.md) | Content Security Policy deferred until the real routes exist | Accepted |
+| [0020](./0020-sub-merchant-onboarding.md) | Sub-merchant onboarding via Razorpay Route, not API keys | Accepted |
 
 
 ## Format

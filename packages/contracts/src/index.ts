@@ -276,22 +276,28 @@ export type {
 } from './orders.js'
 
 export {
+  DISPUTE_STATUSES,
   PAYMENT_ACCOUNT_STATUSES,
   PAYMENT_PROVIDERS,
   PAYMENT_STATUSES,
+  REFUND_STATUSES,
+  disputeStatusSchema,
   paymentAccountSchema,
   paymentAccountStatusSchema,
   paymentProviderSchema,
   paymentRecordSchema,
   paymentStatusSchema,
+  refundStatusSchema,
 } from './payments.js'
 
 export type {
+  DisputeStatus,
   PaymentAccount,
   PaymentAccountStatus,
   PaymentProviderType,
   PaymentRecord,
   PaymentStatusType,
+  RefundStatus,
 } from './payments.js'
 
 export {

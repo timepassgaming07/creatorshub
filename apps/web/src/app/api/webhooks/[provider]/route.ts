@@ -23,6 +23,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getDatabase } from '../../../../lib/db'
 import { fulfillPaidOrder, processPaymentFailure } from '../../../../lib/order-fulfillment'
 import { getPaymentProvider } from '../../../../lib/payments'
+import { fulfillRefund } from '../../../../lib/refund-fulfillment'
 
 export async function POST(
   request: NextRequest,
@@ -117,6 +118,16 @@ export async function POST(
               providerPaymentId: domainEvent.providerPaymentId,
               reason: domainEvent.reason,
               failedAt: domainEvent.occurredAt,
+            })
+            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
+          }
+        } else if (domainEvent.type === 'refund.processed') {
+          if (domainEvent.orderId) {
+            await fulfillRefund(scope, {
+              orderId: domainEvent.orderId,
+              providerRefundId: domainEvent.providerRefundId,
+              amount: domainEvent.amount.amount,
+              currency: domainEvent.amount.currency,
             })
             await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
           }

@@ -29,6 +29,14 @@ export const PAYMENT_STATUSES = [
 export type PaymentStatusType = (typeof PAYMENT_STATUSES)[number]
 export const paymentStatusSchema = z.enum(PAYMENT_STATUSES)
 
+export const REFUND_STATUSES = ['pending', 'succeeded', 'failed'] as const
+export type RefundStatus = (typeof REFUND_STATUSES)[number]
+export const refundStatusSchema = z.enum(REFUND_STATUSES)
+
+export const DISPUTE_STATUSES = ['needs_response', 'under_review', 'won', 'lost'] as const
+export type DisputeStatus = (typeof DISPUTE_STATUSES)[number]
+export const disputeStatusSchema = z.enum(DISPUTE_STATUSES)
+
 export const PAYMENT_ACCOUNT_STATUSES = [
   'created',
   'onboarding_pending',

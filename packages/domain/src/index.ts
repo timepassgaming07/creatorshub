@@ -51,9 +51,11 @@ export type { Membership, Permission, WorkspaceRole } from './identity/policy.js
 export { deriveAccountBalance, validateBalancedTransaction } from './ledger/invariants.js'
 
 export {
+  createDisputePosting,
   createOrderPaymentPosting,
   createPayoutPosting,
   createRefundPosting,
+  type DisputePostingParams,
   type OrderPaymentPostingParams,
   type PayoutPostingParams,
   type RefundPostingParams,

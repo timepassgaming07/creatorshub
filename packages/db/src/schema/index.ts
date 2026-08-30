@@ -134,3 +134,7 @@ export {
   type NewWebhookEventRecord,
   type WebhookEventRecord,
 } from './webhooks.js'
+
+export { refundStatus, refunds, type NewRefundRecord, type RefundRecord } from './refunds.js'
+
+export { disputeStatus, disputes, type DisputeRecord, type NewDisputeRecord } from './disputes.js'

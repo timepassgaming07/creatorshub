@@ -24,6 +24,7 @@ import type { RepositoryScope } from '../repository.js'
 import * as auditLogRepo from './audit-log.js'
 import * as catalogueRepo from './catalogue.js'
 import * as discountsRepo from './discounts.js'
+import * as disputesRepo from './disputes.js'
 import * as idempotencyRepo from './idempotency.js'
 import * as jobsRepo from './jobs.js'
 import * as ledgerRepo from './ledger.js'
@@ -31,6 +32,7 @@ import * as ordersRepo from './orders.js'
 import * as outboxRepo from './outbox.js'
 import * as paymentsRepo from './payments.js'
 import * as reconciliationRepo from './reconciliation.js'
+import * as refundsRepo from './refunds.js'
 import * as storefrontsRepo from './storefronts.js'
 import * as webhooksRepo from './webhooks.js'
 import * as workspaceMembersRepo from './workspace-members.js'
@@ -151,6 +153,8 @@ export const REPOSITORY_MODULES = {
   orders: ordersRepo,
   payments: paymentsRepo,
   webhooks: webhooksRepo,
+  refunds: refundsRepo,
+  disputes: disputesRepo,
 } as const
 
 /**
@@ -413,4 +417,43 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'webhooks.listWebhookEvents':
     'Lists webhook events scoped to current workspace. Tested in webhooks repository integration suite.',
+
+  'refunds.createRefund':
+    'Stamps workspace from scope. Tested in refunds repository integration suite.',
+
+  'refunds.updateRefundStatus':
+    'Updates refund status scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'refunds.findRefundById':
+    'Reads refund by ID scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'refunds.findRefundByProviderRefundId':
+    'Reads refund by provider refund ID scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'refunds.listRefundsForOrder':
+    'Lists refunds for an order scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'refunds.listRefundsForWorkspace':
+    'Lists refunds scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'refunds.calculateTotalRefundedForOrder':
+    'Calculates total refunded amount for an order scoped to current workspace. Tested in refunds repository integration suite.',
+
+  'disputes.createDispute':
+    'Stamps workspace from scope. Tested in disputes repository integration suite.',
+
+  'disputes.updateDisputeStatus':
+    'Updates dispute status scoped to current workspace. Tested in disputes repository integration suite.',
+
+  'disputes.findDisputeById':
+    'Reads dispute by ID scoped to current workspace. Tested in disputes repository integration suite.',
+
+  'disputes.findDisputeByProviderDisputeId':
+    'Reads dispute by provider dispute ID scoped to current workspace. Tested in disputes repository integration suite.',
+
+  'disputes.listDisputesForOrder':
+    'Lists disputes for an order scoped to current workspace. Tested in disputes repository integration suite.',
+
+  'disputes.listDisputesForWorkspace':
+    'Lists disputes scoped to current workspace. Tested in disputes repository integration suite.',
 }

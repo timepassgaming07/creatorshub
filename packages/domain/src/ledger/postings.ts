@@ -305,3 +305,78 @@ export function createPayoutPosting(params: PayoutPostingParams): Result<PostTra
     entries,
   })
 }
+
+export type DisputePostingParams = {
+  readonly workspaceId: WorkspaceId
+  readonly orderId: string
+  readonly disputeId: string
+  readonly idempotencyKey: string
+  readonly currency: CurrencyCode
+  readonly disputeAmount: Money
+  readonly feeAmount?: Money
+  readonly accounts: {
+    readonly processorClearingAccountId: LedgerAccountId
+    readonly creatorPayableAccountId: LedgerAccountId
+    readonly feesExpenseAccountId?: LedgerAccountId
+  }
+}
+
+export function createDisputePosting(params: DisputePostingParams): Result<PostTransactionInput> {
+  const { disputeAmount, currency: code } = params
+
+  if (!isPositive(disputeAmount)) {
+    return err(
+      domainError({
+        code: 'INVALID_AMOUNT',
+        title: 'Invalid dispute amount',
+        detail: 'Dispute amount must be strictly positive.',
+        action: 'Provide a positive dispute amount.',
+      }),
+    )
+  }
+
+  const fee = params.feeAmount ?? money(0n, code)
+  const totalClearingWithholding = add(disputeAmount, fee)
+
+  const entries: LedgerEntryProposal[] = [
+    // Credit processor clearing (cash withheld by payment processor)
+    {
+      accountId: params.accounts.processorClearingAccountId,
+      direction: 'credit',
+      amount: totalClearingWithholding.amount,
+      currency: code,
+    },
+    // Debit creator payable (disputed portion deducted from creator liability)
+    {
+      accountId: params.accounts.creatorPayableAccountId,
+      direction: 'debit',
+      amount: disputeAmount.amount,
+      currency: code,
+    },
+  ]
+
+  if (isPositive(fee) && params.accounts.feesExpenseAccountId) {
+    entries.push({
+      accountId: params.accounts.feesExpenseAccountId,
+      direction: 'debit',
+      amount: fee.amount,
+      currency: code,
+    })
+  }
+
+  const validEntries = entries.filter((e) => e.amount > 0n)
+  const validation = validateBalancedTransaction(validEntries)
+  if (!validation.ok) {
+    return validation
+  }
+
+  return ok({
+    workspaceId: params.workspaceId,
+    kind: 'dispute',
+    referenceType: 'dispute',
+    referenceId: params.disputeId,
+    idempotencyKey: params.idempotencyKey,
+    description: `Dispute ${params.disputeId} for order ${params.orderId}`,
+    entries: validEntries,
+  })
+}

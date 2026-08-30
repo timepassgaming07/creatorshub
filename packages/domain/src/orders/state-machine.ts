@@ -84,8 +84,9 @@ export const ORDER_TRANSITION_GRAPH: Readonly<Record<OrderStatus, OrderTransitio
     },
   },
   partially_refunded: {
-    targets: ['refunded'],
+    targets: ['partially_refunded', 'refunded'],
     actorPermissions: {
+      partially_refunded: ['member', 'webhook', 'system'],
       refunded: ['member', 'webhook', 'system'],
     },
   },
@@ -112,7 +113,7 @@ export const PAYMENT_STATUS_TRANSITION_GRAPH: Readonly<
   unpaid: ['authorized', 'paid', 'failed'],
   authorized: ['paid', 'failed'],
   paid: ['partially_refunded', 'refunded'],
-  partially_refunded: ['refunded'],
+  partially_refunded: ['partially_refunded', 'refunded'],
   failed: ['unpaid'],
   refunded: [],
 }

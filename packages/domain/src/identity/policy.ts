@@ -98,6 +98,11 @@ export type Permission =
   | 'storefront.manage'
   | 'storefront.publish'
 
+  // Orders, Payments, Refunds, and Disputes (Slice 5)
+  | 'order.view'
+  | 'order.refund'
+  | 'dispute.manage'
+
 /**
  * Which permissions each role holds.
  *
@@ -138,6 +143,9 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'storefront.view',
     'storefront.manage',
     'storefront.publish',
+    'order.view',
+    'order.refund',
+    'dispute.manage',
   ],
 
   /**
@@ -165,6 +173,9 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'storefront.view',
     'storefront.manage',
     'storefront.publish',
+    'order.view',
+    'order.refund',
+    'dispute.manage',
   ],
 
   /**
@@ -180,6 +191,7 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'product.create',
     'product.update',
     'storefront.view',
+    'order.view',
   ],
 }
 

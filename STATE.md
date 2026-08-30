@@ -123,16 +123,15 @@ Slice 5:
 - [x] **5.6** Checkout session creation and the hosted redirect (`apps/web/src/lib/checkout-actions.ts`, `/api/checkout/session`, server-authoritative checkout orchestration, discount and GST tax pipeline, database order initialization, and PaymentProvider hosted session redirect)
 - [x] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing (`webhook_events` migration `0018`, Drizzle schema, RLS policies, repository with `(workspace_id, provider, provider_event_id)` deduplication, `/api/webhooks/[provider]` route with HMAC signature verification, and integration test suite)
 - [x] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016) (`RazorpayPaymentProvider` implementing `PaymentProvider` interface, supporting UPI, cards, netbanking, Razorpay Orders API, Route split settlement transfers, HMAC-SHA256 signature verification, and domain event mapping)
-- [x] **5.9** Payment success writes the balanced ledger transaction in one commit (`fulfillPaidOrder` and `processPaymentFailure` in `apps/web/src/lib/order-fulfillment.ts`, atomic order state transition `paid`, payment capture updates, `order_transitions` audit records, balanced double-entry ledger postings `createOrderPaymentPosting` with `processor_clearing`, `creator_payable`, `platform_revenue`, `tax_payable`, transactional outbox enqueue `order.paid`, integrated with webhooks and checkout actions, verified with unit and integration suites)
-- [ ] **5.10** Schema and flows for `refunds` and `disputes`
+- [x] **5.10** Schema and flows for `refunds` and `disputes` (migration `0019_refunds_and_disputes.sql`, Drizzle schemas, RLS tenant isolation, repositories, permissions `order.refund` and `dispute.manage`, atomic fulfillment `fulfillRefund` and `fulfillDispute`, compensating double-entry ledger postings `kind: refund` and `kind: dispute`, server action `refundOrderAction`, webhook `refund.processed` integration, unit and integration suites)
 - [ ] **5.11** Checkout UI, including the failure and retry paths
 
 ---
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.10: Schema and flows for `refunds` and `disputes`).**
-Next up: Implement schema, domain logic, repository methods, and ledger postings for refunds (full and partial) and disputes/chargebacks with balanced ledger reversal transactions.
+**Slice 5: Checkout and payments (Item 5.11: Checkout UI, including the failure and retry paths).**
+Next up: Implement the dedicated, high-converting creator-first Checkout UI (`/s/[subdomain]/checkout/[orderId]`, `/checkout/[orderId]`, and embedded checkout modal components), supporting order summary, server-authoritative GST tax breakdown, Razorpay Standard/Custom payment options with UPI intent/QR, error recovery, retry paths, pending payment polling, and success fulfillment screens.
 
 ---
 
