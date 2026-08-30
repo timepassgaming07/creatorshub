@@ -119,3 +119,18 @@ export {
   type CheckoutItemInput,
   type ServerProductPriceInfo,
 } from './orders/pricing.js'
+
+/**
+ * Tax calculation and GST compliance (Slice 5 §5.5).
+ */
+export {
+  GSTIN_REGEX,
+  INVALID_GSTIN,
+  INVALID_TAXABLE_AMOUNT,
+  calculateOrderTax,
+  validateGstin,
+  type CalculateTaxParams,
+  type CalculatedTaxBreakdown,
+  type TaxComponent,
+  type TaxScheme,
+} from './orders/tax.js'

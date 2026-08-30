@@ -119,7 +119,7 @@ Slice 5:
 - [x] **5.2** Schema: `orders`, `order_items`, `order_transitions`, `payments`, `payment_accounts` (migration `0017`, Drizzle schemas, RLS tenant isolation, `orders` and `payments` repositories, exact integer minor units, and database integration suites)
 - [x] **5.3** Order state machine with explicit, tested transitions (`packages/domain/src/orders/state-machine.ts`, deterministic order and payment lifecycle graphs, actor transition authorization, terminal predicates, and unit test suite)
 - [x] **5.4** Server-authoritative pricing: totals computed from server state only (`packages/domain/src/orders/pricing.ts`, server catalog price resolution, zero-float proportional discount allocation, basis-point tax computation, line-item sum invariant, and unit test suite)
-- [ ] **5.5** Tax calculation and the `tax_payable` ledger posting
+- [x] **5.5** Tax calculation and the `tax_payable` ledger posting (`packages/domain/src/orders/tax.ts`, Indian GST intra/inter-state rules, export zero-rating, GSTIN validation, and balanced `tax_payable` double-entry ledger posting integration)
 - [ ] **5.6** Checkout session creation and the hosted redirect
 - [ ] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing
 - [ ] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016)
@@ -131,8 +131,8 @@ Slice 5:
 
 # Active Task
 
-**Slice 5: Checkout and payments (Item 5.5: Tax calculation and the tax_payable ledger posting).**
-Next up: Build tax calculation rules and double-entry ledger postings (`packages/domain/src/ledger/tax.ts` and `createOrderPaymentWithTaxPosting`, computing GST breakdowns, debiting settlement account and crediting `revenue` + `tax_payable` + platform fee, preserving zero-sum balance invariant, and domain unit tests).
+**Slice 5: Checkout and payments (Item 5.6: Checkout session creation and the hosted redirect).**
+Next up: Build server action / API endpoint for checkout session initiation (`createCheckoutSessionAction`), orchestrating server pricing validation, discount application, tax calculation, database order initialization (`pending`), provider checkout session dispatch via `PaymentProvider`, and redirect response generation.
 
 ---
 
