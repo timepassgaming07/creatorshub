@@ -262,6 +262,8 @@ export async function updatePaymentStatus(
     readonly failedAt?: Date | null
     readonly failureReason?: string | null
     readonly method?: string | null
+    /** The provider's payment id, once known. A session starts with only an order id. */
+    readonly providerPaymentId?: string
   } = {},
 ): Promise<PaymentRowRecord> {
   const updateData: Partial<NewPaymentRowRecord> = {
@@ -280,6 +282,9 @@ export async function updatePaymentStatus(
   }
   if (updates.method !== undefined) {
     updateData.method = updates.method
+  }
+  if (updates.providerPaymentId !== undefined) {
+    updateData.providerPaymentId = updates.providerPaymentId
   }
 
   const [updated] = await scope.tx

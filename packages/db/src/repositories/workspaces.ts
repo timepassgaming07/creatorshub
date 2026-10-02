@@ -7,7 +7,11 @@
  * The tenant root repository. Scoped by `workspaces.id = scope.context.workspaceId`,
  * matching the RLS policy in migration 0001.
  */
-import type { WorkspaceId } from '@creatorhub/contracts'
+import {
+  parseWorkspaceTaxSettings,
+  type WorkspaceId,
+  type WorkspaceTaxSettings,
+} from '@creatorhub/contracts'
 import { eq } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
@@ -22,6 +26,7 @@ export type WorkspaceRecord = {
   readonly timezone: string
   readonly defaultCurrency: string
   readonly platformFeeBps: number
+  readonly taxSettings: WorkspaceTaxSettings
   readonly status: WorkspaceStatus
   readonly createdAt: Date
   readonly updatedAt: Date
@@ -43,6 +48,7 @@ export async function findCurrentWorkspace(
       timezone: workspaces.timezone,
       defaultCurrency: workspaces.defaultCurrency,
       platformFeeBps: workspaces.platformFeeBps,
+      taxSettings: workspaces.taxSettings,
       status: workspaces.status,
       createdAt: workspaces.createdAt,
       updatedAt: workspaces.updatedAt,
@@ -63,6 +69,7 @@ export async function findCurrentWorkspace(
     timezone: row.timezone,
     defaultCurrency: row.defaultCurrency,
     platformFeeBps: row.platformFeeBps,
+    taxSettings: parseWorkspaceTaxSettings(row.taxSettings),
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -109,6 +116,7 @@ export async function updateCurrentWorkspace(
     readonly timezone?: string
     readonly defaultCurrency?: string
     readonly status?: WorkspaceStatus
+    readonly taxSettings?: WorkspaceTaxSettings
   },
 ): Promise<boolean> {
   const rows = await scope.tx
@@ -119,6 +127,7 @@ export async function updateCurrentWorkspace(
       ...(input.timezone === undefined ? {} : { timezone: input.timezone }),
       ...(input.defaultCurrency === undefined ? {} : { defaultCurrency: input.defaultCurrency }),
       ...(input.status === undefined ? {} : { status: input.status }),
+      ...(input.taxSettings === undefined ? {} : { taxSettings: input.taxSettings }),
     })
     .where(eq(workspaces.id, scope.context.workspaceId))
     .returning({ id: workspaces.id })

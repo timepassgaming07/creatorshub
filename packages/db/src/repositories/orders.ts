@@ -374,6 +374,30 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Store the payment provider's session id on an order.
+ *
+ * The provider session is created after the order commits (no external I/O
+ * inside a transaction), so the id arrives in a second, short transaction.
+ */
+export async function setCheckoutSession(
+  scope: RepositoryScope,
+  orderId: OrderId | string,
+  checkoutSessionId: string,
+): Promise<OrderRecord> {
+  const [updated] = await scope.tx
+    .update(orders)
+    .set({ checkoutSessionId, updatedAt: new Date() })
+    .where(and(scoped(scope, orders), eq(orders.id, orderId)))
+    .returning()
+
+  if (!updated) {
+    throw new Error(`Order '${orderId}' not found in workspace '${scope.context.workspaceId}'`)
+  }
+
+  return updated
+}
+
+/**
  * Records an order transition event.
  */
 export async function recordOrderTransition(

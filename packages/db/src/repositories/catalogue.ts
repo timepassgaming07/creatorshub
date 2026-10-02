@@ -23,7 +23,7 @@ import type {
   ProductStatus,
   UpdateProductInput,
 } from '@creatorhub/contracts'
-import { and, asc, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
@@ -367,4 +367,34 @@ export async function detachProductAsset(
     .returning()
 
   return deleted.length > 0
+}
+
+/** Roles whose files are shop-window images, shown to anyone on a published product. */
+const PUBLIC_IMAGE_ROLES = ['cover_image', 'thumbnail', 'gallery'] as const
+
+/**
+ * True when the asset is a cover, thumbnail, or gallery image of a published,
+ * non-private product. The media route serves only assets that pass this, so a
+ * buyer's purchased file can never be fetched through an image URL.
+ */
+export async function isPublicProductImage(scope: RepositoryScope, astId: AssetId): Promise<boolean> {
+  const rows = await scope.tx
+    .select({ id: productAssets.id })
+    .from(productAssets)
+    .innerJoin(products, eq(productAssets.productId, products.id))
+    .where(
+      scoped(
+        scope,
+        productAssets,
+        and(
+          eq(productAssets.assetId, astId),
+          inArray(productAssets.role, [...PUBLIC_IMAGE_ROLES]),
+          eq(products.status, 'published'),
+          ne(products.visibility, 'private'),
+        ),
+      ),
+    )
+    .limit(1)
+
+  return rows.length > 0
 }

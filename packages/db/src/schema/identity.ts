@@ -123,6 +123,13 @@ export const users = pgTable(
 
     name: text('name'),
     avatarUrl: text('avatar_url'),
+
+    /**
+     * The workspace the user last opened, used to route them after sign-in.
+     * A hint, never an authorisation: membership is checked under RLS before
+     * it is used. See migration 0027 and ADR-0021.
+     */
+    defaultWorkspaceId: uuid('default_workspace_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -163,6 +170,15 @@ export const workspaces = pgTable(
      * Configurable per workspace so high-volume creators can negotiate lower rates.
      */
     platformFeeBps: integer('platform_fee_bps').notNull().default(500),
+
+    /**
+     * GST registration and the seller's state. Shape: `WorkspaceTaxSettings`
+     * in @creatorhub/contracts. Defaults to unregistered, which charges no GST.
+     */
+    taxSettings: jsonb('tax_settings')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{"gstRegistered": false}'::jsonb`),
 
     status: workspaceStatus('status').notNull().default('active'),
     createdAt: createdAt(),
