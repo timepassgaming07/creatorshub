@@ -76,7 +76,15 @@ export async function POST(
     return ack({ error: 'Malformed webhook payload.' }, 400)
   }
 
-  const domainEvent = provider.toDomainEvent(verified)
+  // A signed event about something this app did not create (another product
+  // on the same provider account) can fail to map. That is not a retryable
+  // error, so it is acknowledged rather than left to throw a 500.
+  let domainEvent
+  try {
+    domainEvent = provider.toDomainEvent(verified)
+  } catch {
+    domainEvent = null
+  }
   if (
     !verified.workspaceId ||
     !UUID.test(verified.workspaceId) ||
@@ -98,7 +106,7 @@ export async function POST(
     const outcome = await getDatabase().withWorkspace(context, async (tx) => {
       const scope = { tx, context }
       const recorded = await webhooks.recordWebhookEvent(scope, {
-        provider: provider.name as 'razorpay' | 'memory',
+        provider: provider.name,
         providerEventId: verified.id,
         eventType: verified.eventType,
         signatureVerified: true,
@@ -119,7 +127,7 @@ export async function POST(
         if (domainEvent.type === 'payment.captured') {
           const result = await fulfillPaidOrder(scope, {
             orderId: order.id,
-            provider: domainEvent.provider as 'razorpay' | 'memory',
+            provider: domainEvent.provider,
             providerPaymentId: domainEvent.providerPaymentId,
             amount: domainEvent.amount.amount,
             currency: domainEvent.amount.currency,
@@ -131,7 +139,7 @@ export async function POST(
           if (order.status !== 'paid') {
             await processPaymentFailure(scope, {
               orderId: order.id,
-              provider: domainEvent.provider as 'razorpay' | 'memory',
+              provider: domainEvent.provider,
               providerPaymentId: domainEvent.providerPaymentId,
               reason: domainEvent.reason,
               failedAt: domainEvent.occurredAt,

@@ -9,5 +9,16 @@
  *
  * Reaching for jsdom here would mean adding a React plugin and a DOM
  * environment to test nothing that exists.
+ *
+ * The `@/` alias mirrors tsconfig `paths`, so route handlers that import
+ * through it can be loaded by their tests.
  */
-export { unitConfig as default } from '@creatorhub/config/vitest/base'
+import { fileURLToPath } from 'node:url'
+
+import { unitConfig } from '@creatorhub/config/vitest/base'
+import { defineConfig, mergeConfig } from 'vitest/config'
+
+export default mergeConfig(
+  unitConfig,
+  defineConfig({ resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } } }),
+)
