@@ -15,7 +15,7 @@ export type RecordedEmail = SendEmailInput & {
 }
 
 export class MemoryEmailProvider implements EmailProvider {
-  readonly name = 'memory'
+  readonly name: string = 'memory'
   private sent: RecordedEmail[] = []
 
   async send(input: SendEmailInput): Promise<SendEmailResult> {

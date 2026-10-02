@@ -7,6 +7,7 @@
  * 3. Dispatch through injected EmailProvider port (Memory, SES, Postmark, Resend).
  */
 import type { EmailProvider, SendEmailResult } from './port.js'
+import { renderActionEmail } from './templates/action.js'
 import {
   type DownloadLinkItem,
   type ReceiptItem,
@@ -143,7 +144,7 @@ export class TransactionalEmailService {
         email: payload.customerEmail,
         ...(payload.customerName ? { name: payload.customerName } : {}),
       },
-      from: this.config.defaultFrom ?? `${payload.workspaceName} <no-reply@creatorhub.online>`,
+      from: this.fromFor(payload.workspaceName),
       replyTo: payload.supportEmail ?? this.config.supportEmail,
       subject: rendered.subject,
       html: rendered.html,
@@ -152,6 +153,127 @@ export class TransactionalEmailService {
         type: 'order_receipt',
         orderId: payload.orderId,
       },
+    })
+  }
+
+  /**
+   * Buyers see the creator's brand, not ours, but the address must stay on a
+   * domain we have verified with the provider or the mail is rejected.
+   */
+  private fromFor(brand?: string): { email: string; name?: string } {
+    const configured = this.config.defaultFrom ?? 'CreatorHub <no-reply@creatorhub.online>'
+    const match = /<([^>]+)>/.exec(configured)
+    const email = (match?.[1] ?? configured).trim()
+    const defaultName = match ? configured.slice(0, configured.indexOf('<')).trim() : 'CreatorHub'
+    return { email, name: brand ? `${brand} via CreatorHub` : defaultName || 'CreatorHub' }
+  }
+
+  async sendPasswordReset(input: {
+    readonly to: string
+    readonly name?: string | null | undefined
+    readonly url: string
+  }): Promise<SendEmailResult> {
+    const rendered = renderActionEmail({
+      subject: 'Reset your CreatorHub password',
+      preheader: 'Use this link within the hour to choose a new password.',
+      heading: 'Reset your password',
+      paragraphs: [
+        `${input.name ? `Hi ${input.name}, s` : 'S'}omeone asked to reset the password for this account. If that was you, choose a new password below.`,
+        'If it was not you, ignore this email. Your password stays as it is.',
+      ],
+      action: { label: 'Choose a new password', url: input.url },
+      footnote: 'This link expires in one hour and works once. Every other signed-in device is signed out when you change your password.',
+    })
+    return this.provider.send({
+      to: input.to,
+      from: this.fromFor(),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'password_reset' },
+    })
+  }
+
+  async sendEmailVerification(input: {
+    readonly to: string
+    readonly name?: string | null | undefined
+    readonly url: string
+  }): Promise<SendEmailResult> {
+    const rendered = renderActionEmail({
+      subject: 'Confirm your email for CreatorHub',
+      preheader: 'One click to confirm this address.',
+      heading: 'Confirm your email',
+      paragraphs: [
+        `${input.name ? `Hi ${input.name}, t` : 'T'}hanks for signing up. Confirm this address so receipts, payout notices, and password resets reach you.`,
+      ],
+      action: { label: 'Confirm email', url: input.url },
+      footnote: 'If you did not create a CreatorHub account, ignore this email.',
+    })
+    return this.provider.send({
+      to: input.to,
+      from: this.fromFor(),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'email_verification' },
+    })
+  }
+
+  async sendMemberInvite(input: {
+    readonly to: string
+    readonly workspaceName: string
+    readonly inviterName: string
+    readonly role: string
+    readonly url: string
+  }): Promise<SendEmailResult> {
+    const rendered = renderActionEmail({
+      subject: `${input.inviterName} added you to ${input.workspaceName} on CreatorHub`,
+      preheader: `You now have ${input.role} access to ${input.workspaceName}.`,
+      heading: `You have been added to ${input.workspaceName}`,
+      paragraphs: [
+        `${input.inviterName} gave you ${input.role} access to the ${input.workspaceName} workspace on CreatorHub.`,
+        'Sign in with this email address to open it. If you do not have an account yet, create one with this address and the workspace will be waiting.',
+      ],
+      action: { label: `Open ${input.workspaceName}`, url: input.url },
+      brand: input.workspaceName,
+    })
+    return this.provider.send({
+      to: input.to,
+      from: this.fromFor(input.workspaceName),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'member_invite' },
+    })
+  }
+
+  async sendSaleNotification(input: {
+    readonly to: readonly string[]
+    readonly workspaceName: string
+    readonly productSummary: string
+    readonly amountFormatted: string
+    readonly customerEmail: string
+    readonly orderUrl: string
+  }): Promise<SendEmailResult | null> {
+    if (input.to.length === 0) return null
+    const rendered = renderActionEmail({
+      subject: `New sale: ${input.productSummary} (${input.amountFormatted})`,
+      preheader: `${input.customerEmail} just bought from ${input.workspaceName}.`,
+      heading: `You made a sale: ${input.amountFormatted}`,
+      paragraphs: [
+        `${input.customerEmail} bought ${input.productSummary} from ${input.workspaceName}.`,
+        'Their files were delivered automatically. The order, customer record, and ledger entries are already in your dashboard.',
+      ],
+      action: { label: 'View order', url: input.orderUrl },
+      brand: input.workspaceName,
+    })
+    return this.provider.send({
+      to: [...input.to],
+      from: this.fromFor(),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'sale_notification' },
     })
   }
 }

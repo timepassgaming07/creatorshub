@@ -8,6 +8,18 @@
  */
 
 export { MemoryEmailProvider, type RecordedEmail } from './adapters/memory.js'
+export { LogEmailProvider } from './adapters/log.js'
+export {
+  EmailDeliveryError,
+  ResendEmailProvider,
+  type ResendProviderOptions,
+} from './adapters/resend.js'
+export {
+  escapeHtml,
+  renderActionEmail,
+  type RenderActionEmailInput,
+  type RenderedActionEmail,
+} from './templates/action.js'
 export type {
   EmailAddress,
   EmailProvider,

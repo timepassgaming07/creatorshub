@@ -6,6 +6,7 @@
  */
 import { z } from 'zod'
 
+import { LocalStorageDriver } from './adapters/local.js'
 import { MemoryStorageDriver } from './adapters/memory.js'
 import { S3StorageDriver } from './adapters/s3.js'
 import type { StorageDriver } from './port.js'
@@ -24,8 +25,16 @@ export const s3StorageConfigSchema = z.object({
   publicBaseUrl: z.url().optional(),
 })
 
+export const localStorageConfigSchema = z.object({
+  provider: z.literal('local'),
+  rootDir: z.string().min(1),
+  baseUrl: z.url(),
+  signingSecret: z.string().min(32),
+})
+
 export const storageConfigSchema = z.discriminatedUnion('provider', [
   memoryStorageConfigSchema,
+  localStorageConfigSchema,
   s3StorageConfigSchema,
 ])
 
@@ -34,7 +43,16 @@ export type StorageConfig = z.infer<typeof storageConfigSchema>
 export function loadStorageConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): StorageConfig {
-  const provider = env['STORAGE_PROVIDER'] ?? 'memory'
+  const provider = env['STORAGE_PROVIDER'] ?? env['STORAGE_DRIVER'] ?? 'memory'
+
+  if (provider === 'local') {
+    return localStorageConfigSchema.parse({
+      provider,
+      rootDir: env['STORAGE_LOCAL_DIR'] ?? '.data/storage',
+      baseUrl: env['STORAGE_BASE_URL'] ?? env['NEXT_PUBLIC_APP_URL'] ?? env['AUTH_BASE_URL'],
+      signingSecret: env['STORAGE_SIGNING_SECRET'] ?? env['AUTH_SECRET'],
+    })
+  }
 
   if (provider === 's3' || provider === 'r2') {
     return s3StorageConfigSchema.parse({
@@ -54,6 +72,10 @@ export function loadStorageConfig(
 export function createStorageDriver(config: StorageConfig): StorageDriver {
   if (config.provider === 'memory') {
     return new MemoryStorageDriver()
+  }
+
+  if (config.provider === 'local') {
+    return new LocalStorageDriver(config)
   }
 
   return new S3StorageDriver(config)

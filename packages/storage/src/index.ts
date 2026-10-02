@@ -4,6 +4,12 @@
  * Responsibilities:
  * Presigned upload URLs, download delivery, object inspection, malware scanning, and storage abstraction.
  */
+export {
+  InvalidStorageKeyError,
+  LocalStorageDriver,
+  type LocalStorageOptions,
+  type SignedStorageRequest,
+} from './adapters/local.js'
 export { MemoryStorageDriver } from './adapters/memory.js'
 export { S3StorageDriver, type S3StorageOptions } from './adapters/s3.js'
 export {

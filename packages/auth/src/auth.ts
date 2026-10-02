@@ -194,7 +194,29 @@ export function createAuthDatabase(config: AuthConfig): pg.Pool {
  * connection, so an integration test can point this at a throwaway container
  * without mutating process state and can close what it opened.
  */
-export function createAuthOptions(config: AuthConfig, database: pg.Pool): BetterAuthOptions {
+/**
+ * Delivery for the two emails authentication sends. Injected rather than
+ * imported so this package stays free of any particular email provider, and so
+ * the integration suite can run with none.
+ */
+export type AuthMailer = {
+  readonly sendPasswordReset: (input: {
+    readonly to: string
+    readonly name: string | null
+    readonly url: string
+  }) => Promise<void>
+  readonly sendEmailVerification: (input: {
+    readonly to: string
+    readonly name: string | null
+    readonly url: string
+  }) => Promise<void>
+}
+
+export function createAuthOptions(
+  config: AuthConfig,
+  database: pg.Pool,
+  mailer?: AuthMailer,
+): BetterAuthOptions {
   return {
     appName: 'CreatorHub',
 
@@ -210,6 +232,20 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
     user: {
       modelName: TABLES.user,
       fields: USER_FIELDS,
+
+      /**
+       * The workspace the user last opened (migration 0027). `input: false`
+       * keeps it out of every client-facing endpoint: only server code sets
+       * it, and only after confirming membership. It routes, never authorises.
+       */
+      additionalFields: {
+        defaultWorkspaceId: {
+          type: 'string',
+          required: false,
+          input: false,
+          fieldName: 'default_workspace_id',
+        },
+      },
     },
 
     account: {
@@ -274,8 +310,8 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
        * until slice 6. The token is created and stored regardless, which is what
        * the reset endpoint needs and what the integration suite reads.
        */
-      sendResetPassword: async () => {
-        await Promise.resolve()
+      sendResetPassword: async ({ user, url }) => {
+        await mailer?.sendPasswordReset({ to: user.email, name: user.name, url })
       },
 
       /** Reset tokens live in the same short band as verification tokens. */
@@ -303,8 +339,8 @@ export function createAuthOptions(config: AuthConfig, database: pg.Pool): Better
        * but never delivered. The integration suite reads the token from the
        * database, which is what it would have to do anyway.
        */
-      sendVerificationEmail: async () => {
-        await Promise.resolve()
+      sendVerificationEmail: async ({ user, url }) => {
+        await mailer?.sendEmailVerification({ to: user.email, name: user.name, url })
       },
     },
 
