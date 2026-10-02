@@ -1,45 +1,47 @@
-/**
- * Workspace Orders List Page (Slice 7 §7.3).
- *
- * Route: /workspaces/[id]/orders
- */
-import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
-import { OrderListView } from '../../../../components/orders/OrderListView'
-import { listOrdersAction } from '../../../../lib/order-actions'
-import { getServerSession } from '../../../../lib/server-session'
+import { OrdersView } from '@/components/orders/OrdersView'
+import { ErrorState } from '@/components/ds'
+import { listOrdersAction } from '@/lib/order-actions'
 
-export const dynamic = 'force-dynamic'
+export const metadata: Metadata = { title: 'Orders' }
 
-export default async function WorkspaceOrdersPage(props: {
-  params: Promise<{ id: string }>
+const PAGE_SIZE = 25
+const STATUSES = ['paid', 'requires_payment', 'refunded', 'partially_refunded'] as const
+
+export default async function OrdersPage({
+  params,
+  searchParams,
+}: {
+  readonly params: Promise<{ id: string }>
+  readonly searchParams: Promise<{ status?: string; q?: string; page?: string }>
 }) {
-  const { id } = await props.params
-  const session = await getServerSession()
+  const { id } = await params
+  const query = await searchParams
+  const status = STATUSES.find((s) => s === query.status)
+  const page = Math.max(1, Number(query.page) || 1)
 
-  if (!session) {
-    redirect('/sign-in')
-  }
-
-  const result = await listOrdersAction(id)
-
+  const result = await listOrdersAction(id, {
+    status,
+    query: query.q?.slice(0, 100),
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+  })
   if (!result.ok) {
-    if (result.error.code === 'FORBIDDEN') {
-      return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-          You do not have permission to view orders in this workspace.
-        </div>
-      )
-    }
-    notFound()
+    if (result.error.code === 'FORBIDDEN') notFound()
+    return <ErrorState detail={result.error.message} />
   }
 
   return (
-    <OrderListView
-      workspaceId={id}
-      initialOrders={result.data.orders}
-      initialTotalCount={result.data.totalCount}
-      initialSummary={result.data.summary}
+    <OrdersView
+      orders={result.data.orders}
+      totalCount={result.data.totalCount}
+      summary={result.data.summary}
+      page={page}
+      pageSize={PAGE_SIZE}
+      status={status ?? 'all'}
+      query={query.q ?? ''}
     />
   )
 }

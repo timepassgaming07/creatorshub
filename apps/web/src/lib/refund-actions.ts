@@ -11,19 +11,26 @@
 
 import { randomUUID } from 'node:crypto'
 import {
+  currency,
+  money,
+  orderId,
   orderIdSchema,
+  paymentId,
+  refundId,
   requestId,
   userId,
   workspaceContext,
   workspaceIdSchema,
   type WorkspaceId,
 } from '@creatorhub/contracts'
-import { orders, payments, workspaceMembers } from '@creatorhub/db'
+import { orders, payments, refunds, workspaceMembers } from '@creatorhub/db'
 import { authorise, type Membership, type Permission } from '@creatorhub/domain'
 import { z } from 'zod'
 
 import { getDatabase } from './db'
+import { getPaymentProvider } from './payments'
 import { fulfillRefund } from './refund-fulfillment'
+import { generateUuidV7 } from './uuidv7'
 import { getServerSession } from './server-session'
 
 const refundOrderInputSchema = z.object({
@@ -212,34 +219,51 @@ export async function refundOrderAction(
   const db = getDatabase()
 
   try {
-    const result = await db.withWorkspace(context, async (tx) => {
+    // 1. Read what is refundable. Nothing is written yet.
+    const prepared = await db.withWorkspace(context, async (tx) => {
       const scope = { tx, context }
       const ord = await orders.findOrderById(scope, ordIdStr)
-      if (!ord) {
-        throw new Error(`Order '${ordIdStr}' not found.`)
+      if (!ord) throw new Error('This order no longer exists.')
+      if (ord.status !== 'paid' && ord.status !== 'partially_refunded') {
+        throw new Error('Only paid orders can be refunded.')
       }
-
-      // Find captured payment
+      const alreadyRefunded = await refunds.calculateTotalRefundedForOrder(scope, ord.id)
+      if (refundAmount > ord.totalAmount - alreadyRefunded) {
+        throw new Error('That is more than is left to refund on this order.')
+      }
       const existingPayments = await payments.listPaymentsForOrder(scope, ord.id)
       const capturedPayment = existingPayments.find((p) => p.status === 'captured')
-      if (!capturedPayment) {
-        throw new Error(`No captured payment found for order '${ordIdStr}'.`)
-      }
-
-      const providerRefundId = `rfnd_${capturedPayment.provider}_${randomUUID().slice(0, 12)}`
-
-      const fulfillRes = await fulfillRefund(scope, {
-        orderId: ord.id,
-        paymentId: capturedPayment.id,
-        providerRefundId,
-        amount: refundAmount,
-        currency: ord.currency,
-        reason: reason ?? 'Creator initiated refund',
-        initiatedByUserId: membership.userId,
-      })
-
-      return fulfillRes
+      if (!capturedPayment) throw new Error('This order has no captured payment to refund.')
+      return { ord, capturedPayment }
     })
+
+    // 2. Move the money, outside any transaction. The refund id doubles as the
+    //    provider's receipt, so a retried request cannot refund twice.
+    const refundRequestId = generateUuidV7()
+    const providerRefund = await getPaymentProvider().refundPayment({
+      paymentId: paymentId(prepared.capturedPayment.id),
+      providerPaymentId: prepared.capturedPayment.providerPaymentId,
+      orderId: orderId(prepared.ord.id),
+      refundId: refundId(refundRequestId),
+      amount: money(refundAmount, currency(prepared.ord.currency)),
+      reason: 'requested_by_customer',
+    })
+
+    // 3. Record it: refund row, ledger reversal, access revoked on a full refund.
+    const result = await db.withWorkspace(context, async (tx) =>
+      fulfillRefund(
+        { tx, context },
+        {
+          orderId: prepared.ord.id,
+          paymentId: prepared.capturedPayment.id,
+          providerRefundId: providerRefund.providerRefundId,
+          amount: refundAmount,
+          currency: prepared.ord.currency,
+          reason: reason ?? 'Refunded by the creator',
+          initiatedByUserId: membership.userId,
+        },
+      ),
+    )
 
     return {
       success: true,

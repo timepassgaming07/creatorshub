@@ -64,7 +64,10 @@ export function ProductsView({ products }: { readonly products: readonly Product
             />
             <label className="relative block sm:w-64">
               <span className="sr-only">Search products</span>
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-content-tertiary" aria-hidden="true" />
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-content-tertiary"
+                aria-hidden="true"
+              />
               <input
                 value={query}
                 onChange={(e) => {
@@ -94,17 +97,25 @@ export function ProductsView({ products }: { readonly products: readonly Product
                 {visible.map((p) => (
                   <tr key={p.id} className="group transition-colors hover:bg-surface-sunken/50">
                     <Td>
-                      <Link href={`${basePath}/products/${p.id}`} className="flex items-center gap-3">
+                      <Link
+                        href={`${basePath}/products/${p.id}`}
+                        className="flex items-center gap-3"
+                      >
                         <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle bg-surface-sunken">
                           {p.coverUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- media route
                             <img src={p.coverUrl} alt="" className="size-full object-cover" />
                           ) : (
-                            <ImageIcon className="size-4 text-content-tertiary" aria-hidden="true" />
+                            <ImageIcon
+                              className="size-4 text-content-tertiary"
+                              aria-hidden="true"
+                            />
                           )}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate font-medium group-hover:underline group-hover:underline-offset-2">{p.title}</span>
+                          <span className="block truncate font-medium group-hover:underline group-hover:underline-offset-2">
+                            {p.title}
+                          </span>
                           <span className="flex items-center gap-1.5 text-caption text-content-tertiary">
                             {p.fileCount === 0 ? (
                               <>
@@ -120,15 +131,34 @@ export function ProductsView({ products }: { readonly products: readonly Product
                       </Link>
                     </Td>
                     <Td>
-                      <Badge tone={p.status === 'published' ? 'positive' : p.status === 'draft' ? 'neutral' : 'caution'} dot>
-                        {p.status === 'published' ? 'Published' : p.status === 'draft' ? 'Draft' : 'Archived'}
+                      <Badge
+                        tone={
+                          p.status === 'published'
+                            ? 'positive'
+                            : p.status === 'draft'
+                              ? 'neutral'
+                              : 'caution'
+                        }
+                        dot
+                      >
+                        {p.status === 'published'
+                          ? 'Published'
+                          : p.status === 'draft'
+                            ? 'Draft'
+                            : 'Archived'}
                       </Badge>
                     </Td>
-                    <Td align="right">{BigInt(p.price) === 0n ? 'Free' : formatAmount(p.price, p.currency, { compact: true })}</Td>
+                    <Td align="right">
+                      {BigInt(p.price) === 0n
+                        ? 'Free'
+                        : formatAmount(p.price, p.currency, { compact: true })}
+                    </Td>
                     <Td align="right">{p.unitsSold.toLocaleString('en-IN')}</Td>
-                    <Td align="right">{formatAmount(p.revenueMinor, p.currency, { compact: true })}</Td>
+                    <Td align="right">
+                      {formatAmount(p.revenueMinor, p.currency, { compact: true })}
+                    </Td>
                     <Td align="right" className="text-content-tertiary">
-                      {formatRelative(p.updatedAt)}
+                      <span suppressHydrationWarning>{formatRelative(p.updatedAt)}</span>
                     </Td>
                   </tr>
                 ))}

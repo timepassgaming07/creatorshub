@@ -1,42 +1,23 @@
-/**
- * Workspace Customer Detail Page (Slice 7 §7.5).
- *
- * Route: /workspaces/[id]/customers/[customerId]
- */
-import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
-import { CustomerDetailView } from '../../../../../components/customers/CustomerDetailView'
-import { getCustomerDetailsAction } from '../../../../../lib/customer-actions'
-import { getServerSession } from '../../../../../lib/server-session'
+import { CustomerProfile } from '@/components/customers/CustomerProfile'
+import { ErrorState } from '@/components/ds'
+import { getCustomerDetailsAction } from '@/lib/customer-actions'
 
-export const dynamic = 'force-dynamic'
+export const metadata: Metadata = { title: 'Customer' }
 
-export default async function WorkspaceCustomerDetailPage(props: {
-  params: Promise<{ id: string; customerId: string }>
+export default async function CustomerPage({
+  params,
+}: {
+  readonly params: Promise<{ id: string; customerId: string }>
 }) {
-  const { id, customerId } = await props.params
-  const session = await getServerSession()
-
-  if (!session) {
-    redirect('/sign-in')
-  }
-
+  const { id, customerId } = await params
+  if (!/^[0-9a-f-]{36}$/i.test(customerId)) notFound()
   const result = await getCustomerDetailsAction(id, customerId)
-
   if (!result.ok) {
-    if (result.error.code === 'FORBIDDEN') {
-      return (
-        <div className="p-8 text-center text-slate-500">
-          You do not have permission to view this customer.
-        </div>
-      )
-    }
-    notFound()
+    if (result.error.code === 'NOT_FOUND' || result.error.code === 'FORBIDDEN') notFound()
+    return <ErrorState detail={result.error.message} />
   }
-
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <CustomerDetailView workspaceId={id} data={result.data} />
-    </div>
-  )
+  return <CustomerProfile data={result.data} />
 }

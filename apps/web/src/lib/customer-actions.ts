@@ -216,7 +216,7 @@ export async function getCustomerDetailsAction(
     }
 
     const [customerOrders, entitlementsList] = await Promise.all([
-      orders.findOrdersByCustomerId(scope, customerRecord.id),
+      orders.findOrdersByCustomerId(scope, customerRecord.id, customerRecord.email),
       fulfillment.findEntitlementsByCustomerEmail(scope, customerRecord.email),
     ])
 

@@ -27,6 +27,7 @@ import {
   orderItems,
   orders,
   orderTransitions,
+  refunds,
 } from '../schema/index.js'
 
 export type {
@@ -306,39 +307,57 @@ export async function countOrders(
 }
 
 /**
- * Finds all orders associated with a specific customer in the current workspace.
+ * Finds all orders placed by a customer in the current workspace.
+ *
+ * Orders are keyed by the buyer's email at checkout, before a customer record
+ * exists, so the email matches them as well as an explicit customer id.
  */
 export async function findOrdersByCustomerId(
   scope: RepositoryScope,
   customerId: string,
+  email?: string,
 ): Promise<readonly OrderRecord[]> {
+  const match = email
+    ? or(
+        eq(orders.customerId, customerId),
+        sql`lower(${orders.customerEmail}) = ${email.trim().toLowerCase()}`,
+      )
+    : eq(orders.customerId, customerId)
   return scope.tx
     .select()
     .from(orders)
-    .where(scoped(scope, orders, eq(orders.customerId, customerId)))
+    .where(scoped(scope, orders, match))
     .orderBy(desc(orders.createdAt))
 }
 
 /**
  * Computes revenue and order count aggregations for creator dashboard.
+ *
+ * Gross revenue counts every order that was paid, including ones later
+ * refunded; the refunded total is reported beside it so the view can show net.
  */
 export async function getOrderSummary(scope: RepositoryScope): Promise<OrderSummary> {
   const [row] = await scope.tx
     .select({
       totalOrders: sql<number>`count(*)::int`,
-      paidOrdersCount: sql<number>`count(case when ${orders.status} = 'paid' then 1 end)::int`,
+      paidOrdersCount: sql<number>`count(case when ${orders.status} in ('paid', 'partially_refunded') then 1 end)::int`,
       refundedOrdersCount: sql<number>`count(case when ${orders.status} = 'refunded' then 1 end)::int`,
-      totalGrossRevenue: sql<string>`coalesce(sum(case when ${orders.status} = 'paid' then ${orders.totalAmount} else 0 end), 0)::text`,
+      totalGrossRevenue: sql<string>`coalesce(sum(case when ${orders.status} in ('paid', 'partially_refunded', 'refunded') then ${orders.totalAmount} else 0 end), 0)::text`,
     })
     .from(orders)
     .where(scoped(scope, orders))
+
+  const [refunded] = await scope.tx
+    .select({ total: sql<string>`coalesce(sum(${refunds.amount}), 0)::text` })
+    .from(refunds)
+    .where(scoped(scope, refunds, eq(refunds.status, 'succeeded')))
 
   return {
     totalOrders: row?.totalOrders ?? 0,
     paidOrdersCount: row?.paidOrdersCount ?? 0,
     refundedOrdersCount: row?.refundedOrdersCount ?? 0,
     totalGrossRevenue: BigInt(row?.totalGrossRevenue ?? '0'),
-    totalRefundedAmount: 0n,
+    totalRefundedAmount: BigInt(refunded?.total ?? '0'),
   }
 }
 

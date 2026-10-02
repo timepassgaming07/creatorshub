@@ -8,7 +8,7 @@
  * 4. Successful refund execution for authorized members.
  */
 import { orderId, userId, workspaceId } from '@creatorhub/contracts'
-import { orders, payments, workspaceMembers } from '@creatorhub/db'
+import { orders, payments, refunds, workspaceMembers } from '@creatorhub/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSession } from './server-session'
 
@@ -29,6 +29,11 @@ vi.mock('./db', () => ({
 const mockFulfillRefund = vi.fn()
 vi.mock('./refund-fulfillment', () => ({
   fulfillRefund: (...args: unknown[]) => mockFulfillRefund(...args) as unknown,
+}))
+
+const mockRefundPayment = vi.fn()
+vi.mock('./payments', () => ({
+  getPaymentProvider: () => ({ refundPayment: mockRefundPayment }),
 }))
 
 import { refundOrderAction } from './refund-actions'
@@ -144,6 +149,9 @@ describe('Refund Server Actions (§5.10)', () => {
       },
     ])
 
+    vi.spyOn(refunds, 'calculateTotalRefundedForOrder').mockResolvedValue(0n)
+    mockRefundPayment.mockResolvedValue({ providerRefundId: 'rfnd_rzp_456', status: 'pending' })
+
     mockFulfillRefund.mockResolvedValue({
       success: true,
       order: { id: ordId, status: 'partially_refunded' },
@@ -168,5 +176,13 @@ describe('Refund Server Actions (§5.10)', () => {
       expect(result.data.amount).toBe('50000')
       expect(result.data.isFullRefund).toBe(false)
     }
+    // The provider moves the money first; the ledger records the provider's refund id.
+    expect(mockRefundPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ providerPaymentId: 'pay_rzp_123' }),
+    )
+    expect(mockFulfillRefund).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ providerRefundId: 'rfnd_rzp_456', amount: 50000n }),
+    )
   })
 })

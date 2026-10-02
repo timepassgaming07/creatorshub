@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatAmount, formatBytes, initials, minorToInput, parsePriceToMinor } from './format'
+import {
+  formatAmount,
+  formatAmountShort,
+  formatBytes,
+  initials,
+  minorToInput,
+  parsePriceToMinor,
+} from './format'
 
 describe('format', () => {
   it('formats minor units without floating point', () => {
@@ -8,6 +15,14 @@ describe('format', () => {
     expect(formatAmount('49900', 'INR', { compact: true })).toBe('₹499')
     expect(formatAmount('12345678', 'INR')).toBe('₹1,23,456.78')
     expect(formatAmount('1999', 'USD')).toBe('$19.99')
+  })
+
+  it('shortens large totals the same way on every runtime', () => {
+    expect(formatAmountShort('99900', 'INR')).toBe('₹999')
+    expect(formatAmountShort('100000', 'INR')).toBe('₹1K')
+    expect(formatAmountShort('12500000', 'INR')).toBe('₹1.3L')
+    expect(formatAmountShort('3400000000', 'INR')).toBe('₹3.4Cr')
+    expect(formatAmountShort('340000', 'USD')).toBe('$3.4K')
   })
 
   it('parses typed prices exactly', () => {

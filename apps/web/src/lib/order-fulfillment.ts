@@ -49,7 +49,6 @@ import {
 import { issueDownloadGrants, type IssuedDownload } from './delivery'
 import { auditOptions } from './env'
 
-
 export type FulfillPaidOrderInput = {
   readonly orderId: string
   readonly provider: PaymentProviderType
@@ -230,7 +229,12 @@ export async function fulfillPaidOrder(
     fromStatus: currentStatus,
     toStatus: 'paid',
     actorType: 'system',
-    reason: `Payment captured via ${input.provider} (${input.providerPaymentId})`,
+    reason:
+      input.method === 'free'
+        ? 'Claimed for free'
+        : input.provider === 'memory'
+          ? 'Test payment captured'
+          : `Payment captured by ${input.provider} (${input.providerPaymentId})`,
     metadata: {
       providerPaymentId: input.providerPaymentId,
       method: input.method ?? 'card',
@@ -450,7 +454,8 @@ async function resolveAttribution(
 
   const program = await affiliates.getAffiliateProgram(scope)
   const promoter = await affiliates.findAffiliateById(scope, link.affiliateId)
-  const clickedAt = typeof meta?.['referralClickedAt'] === 'string' ? new Date(meta['referralClickedAt']) : null
+  const clickedAt =
+    typeof meta?.['referralClickedAt'] === 'string' ? new Date(meta['referralClickedAt']) : null
 
   const decision = evaluateAttribution({
     programIsActive: program?.isActive ?? false,

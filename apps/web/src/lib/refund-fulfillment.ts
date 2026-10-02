@@ -25,6 +25,7 @@ import {
 import {
   auditLog,
   commissions,
+  customers,
   disputes,
   fulfillment,
   ledger,
@@ -50,7 +51,6 @@ import {
   type RefundPostingParams,
 } from '@creatorhub/domain'
 import { auditOptions } from './env'
-
 
 export type FulfillRefundInput = {
   readonly orderId: string
@@ -109,6 +109,20 @@ export async function fulfillRefund(
     throw new Error(
       `Order '${input.orderId}' not found in workspace '${scope.context.workspaceId}'.`,
     )
+  }
+
+  // A refund already applied (the creator's own action, then the provider's
+  // webhook for the same refund) replays cleanly before any state checks; a
+  // fully refunded order would otherwise fail them and be retried forever.
+  const alreadyApplied = await refunds.findRefundByProviderRefundId(scope, input.providerRefundId)
+  if (alreadyApplied?.status === 'succeeded') {
+    return {
+      success: true,
+      order: orderRecord,
+      refund: alreadyApplied,
+      transactionId: `tx_replay_${alreadyApplied.id}`,
+      isFullRefund: orderRecord.status === 'refunded',
+    }
   }
 
   if (orderRecord.status !== 'paid' && orderRecord.status !== 'partially_refunded') {
@@ -290,6 +304,12 @@ export async function fulfillRefund(
 
   const ledgerTx = await ledger.postTransaction(scope, postingResult.value)
 
+  // Lifetime spend is net of refunds.
+  await customers.upsertCustomer(scope, {
+    email: orderRecord.customerEmail,
+    incrementSpend: -input.amount,
+  })
+
   // Revoke digital entitlements (Slice 6)
   if (isFullRefund) {
     await fulfillment.revokeEntitlementsByOrderId(
@@ -448,11 +468,7 @@ export async function fulfillDispute(
   })
 
   // Revoke digital entitlements upon dispute creation (Slice 6)
-  await fulfillment.revokeEntitlementsByOrderId(
-    scope,
-    oId,
-    input.reason ?? 'payment_dispute',
-  )
+  await fulfillment.revokeEntitlementsByOrderId(scope, oId, input.reason ?? 'payment_dispute')
 
   // Write audit log
   await auditLog.writeAuditLog(scope, auditOptions, {

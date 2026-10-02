@@ -1,42 +1,23 @@
-/**
- * Workspace Order Detail Page (Slice 7 §7.3, §7.4).
- *
- * Route: /workspaces/[id]/orders/[orderId]
- */
-import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 
-import { OrderDetailView } from '../../../../../components/orders/OrderDetailView'
-import { getOrderDetailsAction } from '../../../../../lib/order-actions'
-import { getServerSession } from '../../../../../lib/server-session'
+import { ErrorState } from '@/components/ds'
+import { OrderDetail } from '@/components/orders/OrderDetail'
+import { getOrderDetailsAction } from '@/lib/order-actions'
 
-export const dynamic = 'force-dynamic'
+export const metadata: Metadata = { title: 'Order' }
 
-export default async function WorkspaceOrderDetailPage(props: {
-  params: Promise<{ id: string; orderId: string }>
+export default async function OrderPage({
+  params,
+}: {
+  readonly params: Promise<{ id: string; orderId: string }>
 }) {
-  const { id, orderId } = await props.params
-  const session = await getServerSession()
-
-  if (!session) {
-    redirect('/sign-in')
-  }
-
+  const { id, orderId } = await params
+  if (!/^[0-9a-f-]{36}$/i.test(orderId)) notFound()
   const result = await getOrderDetailsAction(id, orderId)
-
   if (!result.ok) {
-    if (result.error.code === 'FORBIDDEN') {
-      return (
-        <div className="p-8 text-center text-slate-500">
-          You do not have permission to view this order.
-        </div>
-      )
-    }
-    notFound()
+    if (result.error.code === 'NOT_FOUND' || result.error.code === 'FORBIDDEN') notFound()
+    return <ErrorState detail={result.error.message} />
   }
-
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <OrderDetailView workspaceId={id} data={result.data} />
-    </div>
-  )
+  return <OrderDetail data={result.data} />
 }

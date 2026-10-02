@@ -26,22 +26,49 @@ export function formatAmount(
   })
 }
 
-/** Large totals for KPI tiles: ₹1.2L, $3.4K. Never used for a price someone pays. */
+/**
+ * Large totals for KPI tiles and chart axes: ₹1.2L, ₹3.4Cr, $3.4K. Never used for a
+ * price someone pays. Built by hand because compact notation differs between ICU
+ * builds (Node prints ₹1K where Chrome prints ₹1T), which breaks hydration.
+ */
 export function formatAmountShort(amountMinor: string | bigint, currencyCode: string): string {
-  const major = Number(BigInt(amountMinor) / 100n)
   const code = currencyCode.toUpperCase()
-  return new Intl.NumberFormat(localeFor(code), {
-    style: 'currency',
-    currency: code,
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(major)
+  const major = Number(BigInt(amountMinor) / 100n)
+  const sign = major < 0 ? '-' : ''
+  const abs = Math.abs(major)
+  const symbol = code === 'INR' ? '₹' : code === 'USD' ? '$' : `${code} `
+  const steps: readonly (readonly [number, string])[] =
+    code === 'INR'
+      ? [
+          [1e7, 'Cr'],
+          [1e5, 'L'],
+          [1e3, 'K'],
+        ]
+      : [
+          [1e9, 'B'],
+          [1e6, 'M'],
+          [1e3, 'K'],
+        ]
+  for (const [size, suffix] of steps) {
+    if (abs >= size) {
+      const scaled = Math.round((abs / size) * 10) / 10
+      return `${sign}${symbol}${scaled.toString()}${suffix}`
+    }
+  }
+  return `${sign}${symbol}${abs.toString()}`
 }
 
+// Dates render on the server (UTC) and again in the browser. A fixed zone keeps
+// both passes identical, and every creator on the platform today sells from India.
+const DISPLAY_TIME_ZONE = 'Asia/Kolkata'
+
 export function formatDate(iso: string | Date): string {
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(
-    typeof iso === 'string' ? new Date(iso) : iso,
-  )
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: DISPLAY_TIME_ZONE,
+  }).format(typeof iso === 'string' ? new Date(iso) : iso)
 }
 
 export function formatDateTime(iso: string | Date): string {
@@ -51,6 +78,7 @@ export function formatDateTime(iso: string | Date): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: DISPLAY_TIME_ZONE,
   }).format(typeof iso === 'string' ? new Date(iso) : iso)
 }
 
@@ -93,11 +121,16 @@ export function minorToInput(amountMinor: string | bigint): string {
   const value = typeof amountMinor === 'bigint' ? amountMinor : BigInt(amountMinor)
   const whole = value / 100n
   const fraction = value % 100n
-  return fraction === 0n ? whole.toString() : `${whole.toString()}.${fraction.toString().padStart(2, '0')}`
+  return fraction === 0n
+    ? whole.toString()
+    : `${whole.toString()}.${fraction.toString().padStart(2, '0')}`
 }
 
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
-  const letters = parts.length > 1 ? `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}` : (parts[0]?.slice(0, 2) ?? '')
+  const letters =
+    parts.length > 1
+      ? `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`
+      : (parts[0]?.slice(0, 2) ?? '')
   return letters.toUpperCase() || '?'
 }

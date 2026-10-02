@@ -186,10 +186,9 @@ export class MemoryPaymentProvider implements PaymentProvider {
 
   async refundPayment(input: RefundPaymentInput): Promise<RefundResult> {
     await Promise.resolve()
+    // Test provider state lives in one process; after a restart a real
+    // captured payment from the database is still refundable in test mode.
     const payment = this.payments.get(input.providerPaymentId)
-    if (!payment) {
-      throw new PaymentNotFoundError(input.providerPaymentId)
-    }
 
     const providerRefundId = `rf_mem_${randomUUID().slice(0, 12)}`
     const refund: RefundResult = {
@@ -202,12 +201,9 @@ export class MemoryPaymentProvider implements PaymentProvider {
 
     this.refunds.set(providerRefundId, refund)
 
-    // Update payment state
-    const updatedPayment: PaymentSnapshot = {
-      ...payment,
-      status: 'refunded',
+    if (payment) {
+      this.payments.set(input.providerPaymentId, { ...payment, status: 'refunded' })
     }
-    this.payments.set(input.providerPaymentId, updatedPayment)
 
     return refund
   }

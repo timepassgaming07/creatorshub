@@ -33,7 +33,7 @@ import {
 import { authorise, type Membership } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
-import { getEmailService } from './email'
+import { issueDownloadGrants, sendPurchaseEmails, type IssuedDownload } from './delivery'
 import { getServerSession } from './server-session'
 import { auditOptions } from './env'
 
@@ -58,6 +58,7 @@ export type OrderSummaryDTO = {
   readonly paidOrdersCount: number
   readonly refundedOrdersCount: number
   readonly totalGrossRevenue: string
+  readonly totalRefundedAmount: string
 }
 
 export type OrderListResult =
@@ -233,6 +234,7 @@ export async function listOrdersAction(
           paidOrdersCount: summaryData.paidOrdersCount,
           refundedOrdersCount: summaryData.refundedOrdersCount,
           totalGrossRevenue: summaryData.totalGrossRevenue.toString(),
+          totalRefundedAmount: summaryData.totalRefundedAmount.toString(),
         },
       },
     }
@@ -399,8 +401,9 @@ export async function resendFulfillmentEmailAction(
   const reqId = toRequestId(`req-resend-${Date.now()}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
+  let resend: { downloads: IssuedDownload[]; orderId: string } | null = null
 
-  return db.withWorkspace(context, async (tx) => {
+  const result = await db.withWorkspace(context, async (tx) => {
     const scope = { tx, context }
     const member = await workspaceMembers.findMemberByUserId(scope, actorId)
     if (!member) {
@@ -412,27 +415,13 @@ export async function resendFulfillmentEmailAction(
       return { ok: false, message: 'Order not found.' }
     }
 
-    const { order, items } = orderWithItems
-    const emailService = getEmailService()
-
-    await emailService.sendOrderReceipt({
-      customerEmail: order.customerEmail,
-      customerName: order.customerName ?? undefined,
-      orderId: order.id,
-      workspaceName: session.user.name ?? 'CreatorHub Store',
-      currency: order.currency,
-      subtotalAmountMinor: order.subtotalAmount,
-      discountAmountMinor: order.discountAmount,
-      taxAmountMinor: order.taxAmount,
-      totalAmountMinor: order.totalAmount,
-      items: items.map((i) => ({
-        title: i.productTitle,
-        quantity: i.quantity,
-        unitAmountMinor: i.unitAmount,
-        totalAmountMinor: i.totalAmount,
-      })),
-      downloadLinks: [],
-    })
+    const { order } = orderWithItems
+    if (order.status !== 'paid' && order.status !== 'partially_refunded') {
+      return { ok: false, message: 'Only paid orders have downloads to resend.' }
+    }
+    // Fresh links: the old ones may have expired or been used up.
+    const downloads = await issueDownloadGrants(scope, order.id)
+    resend = { downloads, orderId: order.id }
 
     await auditLog.writeAuditLog(scope, auditOptions, {
       action: 'order.fulfillment_resent',
@@ -443,8 +432,21 @@ export async function resendFulfillmentEmailAction(
       metadata: { customerEmail: order.customerEmail },
     })
 
-    return { ok: true, message: `Receipt successfully resent to ${order.customerEmail}.` }
+    return { ok: true, message: `New download links sent to ${order.customerEmail}.` }
   })
+
+  // Email after the grants have committed.
+  // TypeScript cannot see the assignment inside the transaction callback.
+  const pending = resend as { downloads: IssuedDownload[]; orderId: string } | null
+  if (result.ok && pending) {
+    await sendPurchaseEmails({
+      workspaceId: rawWorkspaceId,
+      orderId: pending.orderId,
+      downloads: pending.downloads,
+      notifyCreator: false,
+    })
+  }
+  return result
 }
 
 /**
