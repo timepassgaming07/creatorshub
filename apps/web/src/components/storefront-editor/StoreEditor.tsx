@@ -46,6 +46,7 @@ import {
   Tabs,
   Textarea,
 } from '@/components/ds'
+import { StoreCopyAssist } from '@/components/ai/Copilot'
 import { StoreHome } from '@/components/store/StoreHome'
 import { StoreShell } from '@/components/store/StoreShell'
 import { PLATFORM_LABELS, SocialIcon } from '@/components/storefront/SocialIcons'
@@ -518,6 +519,14 @@ export function StoreEditor({
                   }}
                   {...(draft.title.trim() ? {} : { error: 'Give your store a name.' })}
                 />
+                <div className="flex justify-end">
+                  <StoreCopyAssist
+                    creatorName={draft.title}
+                    onApply={({ headline, bio }) => {
+                      setDraft((d) => ({ ...d, tagline: headline, theme: { ...d.theme, bio } }))
+                    }}
+                  />
+                </div>
                 <Input
                   label="Headline"
                   hint="One line under your name. What you make, for whom."

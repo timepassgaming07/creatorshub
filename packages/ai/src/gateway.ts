@@ -14,6 +14,7 @@ import {
   AiModelUnavailableError,
   AiSchemaValidationError,
 } from './errors.js'
+import { AnthropicAiProvider } from './providers/anthropic.js'
 import { MemoryAiProvider } from './providers/memory.js'
 import type {
   AiGatewayConfig,
@@ -28,11 +29,12 @@ export class AiGateway {
   private readonly provider: AiProvider
 
   constructor(config: AiGatewayConfig = {}) {
-    if (config.provider === 'memory') {
+    // Claude when a key is configured; the deterministic memory provider for
+    // development and tests. The caller decides whether memory is acceptable.
+    if (config.provider === 'memory' || !config.anthropicApiKey) {
       this.provider = new MemoryAiProvider()
     } else {
-      // Default to Memory provider if no external key or environment variable is set
-      this.provider = new MemoryAiProvider()
+      this.provider = new AnthropicAiProvider({ apiKey: config.anthropicApiKey, model: config.defaultModel })
     }
   }
 

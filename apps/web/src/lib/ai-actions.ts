@@ -1,52 +1,45 @@
 /**
- * AI Generation & Copilot Server Actions (Slice 10 §10.4, §10.6, §10.7, §10.8, §10.9).
+ * AI copilot server actions: product copy, storefront copy, SEO metadata, and
+ * a plain-language read of the store's analytics.
  *
- * Responsibilities:
- * 1. Enforce RBAC permissions (`ai.generate`).
- * 2. Enforce monthly token quotas per workspace.
- * 3. Invoke versioned prompt templates via AiGateway.
- * 4. Record token usage and micro-cent cost accounting in `ai_usage`.
- * 5. Write audit logs for administrative tracking.
+ * Each runs in three steps so the model call never holds a database
+ * transaction open: authorise and check the monthly quota, call the model,
+ * then record usage and the audit entry.
  */
 'use server'
 
 import {
   analyticsInsightsPrompt,
-  createAiGateway,
-  emailCampaignPrompt,
   productCopyPrompt,
   seoMetadataPrompt,
   storefrontCopyPrompt,
   type AnalyticsInsightsInput,
-  type EmailCampaignInput,
   type ProductCopyInput,
+  type PromptTemplate,
   type SeoMetadataInput,
   type StorefrontCopyInput,
 } from '@creatorhub/ai'
 import {
-  requestId as toRequestId,
-  userId as toUserId,
-  workspaceContext,
-  workspaceId as toWorkspaceId,
+  ANALYTICS_TIMEFRAMES,
   type AiUsageSummaryDTO,
   type AnalyticsInsightsOutput,
-  type EmailCampaignOutput,
+  type AnalyticsTimeframe,
   type ProductCopyOutput,
   type SeoMetadataOutput,
   type StorefrontCopyOutput,
 } from '@creatorhub/contracts'
-import {
-  aiUsageRepo,
-  analytics,
-  auditLog,
-  workspaceMembers,
-} from '@creatorhub/db'
-import { authorise, type Membership } from '@creatorhub/domain'
+import { aiUsageRepo, analytics, auditLog, type RepositoryScope } from '@creatorhub/db'
 
-import { getDatabase } from './db'
-import { getServerSession } from './server-session'
+import { getAiGateway } from './ai'
 import { auditOptions } from './env'
-
+import { formatAmount } from './format'
+import {
+  ActionFailure,
+  authoriseMember,
+  inWorkspace,
+  memberAction,
+  runAction,
+} from './member-action'
 
 export type AiActionResult<T> =
   | { readonly ok: true; readonly data: T }
@@ -58,488 +51,147 @@ export type AiActionResult<T> =
       }
     }
 
-/**
- * Generates product title, description, and key benefits.
- */
+/** Inputs come from a form; anything this large is not product copy. */
+const MAX_INPUT_CHARS = 6000
+
+async function generate<I, O>(
+  label: string,
+  rawWorkspaceId: string,
+  prompt: PromptTemplate<I, O>,
+  buildInput: (scope: RepositoryScope) => Promise<I>,
+): Promise<AiActionResult<O>> {
+  const result = await runAction(label, async () => {
+    const gateway = getAiGateway()
+    if (!gateway) throw new ActionFailure('The AI copilot is not switched on for this store.')
+    const member = await authoriseMember(rawWorkspaceId, 'ai.generate')
+
+    // 1. Quota and inputs, in one short transaction.
+    const prepared = await inWorkspace(member, async (scope) => {
+      const usage = await aiUsageRepo.getMonthlyUsageSummary(scope)
+      if (usage.isQuotaExceeded) return { quota: true as const }
+      return { quota: false as const, input: await buildInput(scope) }
+    })
+    if (prepared.quota) return { quota: true as const }
+    if (JSON.stringify(prepared.input).length > MAX_INPUT_CHARS) {
+      throw new ActionFailure(
+        'That is more text than the copilot works with. Shorten the details and try again.',
+      )
+    }
+
+    // 2. The model call, outside any transaction.
+    const response = await gateway.generateStructured({
+      promptId: prompt.id,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.buildUserPrompt(prepared.input),
+      schema: prompt.schema,
+      maxTokens: prompt.maxTokens,
+    })
+    if (!response.ok) throw new ActionFailure(response.error.message)
+
+    // 3. Usage and audit.
+    await inWorkspace(member, async (scope) => {
+      await aiUsageRepo.recordUsage(scope, {
+        userId: member.actorId as never,
+        promptId: prompt.id,
+        promptVersion: prompt.version,
+        provider: response.value.provider,
+        model: response.value.model,
+        promptTokens: response.value.promptTokens,
+        completionTokens: response.value.completionTokens,
+        totalTokens: response.value.totalTokens,
+        costMicroCents: response.value.costMicroCents,
+        status: 'success',
+      })
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        actorType: 'user',
+        actorId: member.actorId as never,
+        action: 'ai.generated',
+        targetType: 'workspace',
+        targetId: scope.context.workspaceId,
+        metadata: {
+          promptId: prompt.id,
+          tokens: response.value.totalTokens,
+          model: response.value.model,
+        },
+      })
+    })
+    return { quota: false as const, data: response.value.data }
+  })
+
+  if (!result.ok) return { ok: false, error: { code: 'ERROR', message: result.error } }
+  if (result.data.quota) {
+    return {
+      ok: false,
+      error: {
+        code: 'QUOTA_EXCEEDED',
+        message: 'This workspace has used its AI allowance for the month. It resets on the 1st.',
+      },
+    }
+  }
+  return { ok: true, data: result.data.data }
+}
+
 export async function generateProductCopyAction(
   workspaceIdRaw: string,
   input: ProductCopyInput,
 ): Promise<AiActionResult<ProductCopyOutput>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return {
-        ok: false,
-        error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to use AI generation.' },
-      }
-    }
-
-    const wsId = toWorkspaceId(workspaceIdRaw)
-    const usrId = toUserId(session.user.id)
-
-    const db = await getDatabase()
-    const ctx = workspaceContext({
-      workspaceId: wsId,
-      actorId: usrId,
-      requestId: toRequestId(`req-ai-prod-${Date.now()}`),
-    })
-
-    return await db.withWorkspace(ctx, async (tx) => {
-      const scope = { tx, context: ctx }
-      const member = await workspaceMembers.findMemberByUserId(scope, usrId)
-      if (!member) {
-        return {
-          ok: false,
-          error: { code: 'NOT_FOUND', message: 'Workspace membership not found.' },
-        }
-      }
-
-      const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
-        wsId,
-        'ai.generate',
-      )
-      if (!authRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'FORBIDDEN', message: 'You lack permission to perform AI generation.' },
-        }
-      }
-
-      // Check workspace monthly quota
-      const usageSummary = await aiUsageRepo.getMonthlyUsageSummary(scope)
-      if (usageSummary.isQuotaExceeded) {
-        return {
-          ok: false,
-          error: {
-            code: 'QUOTA_EXCEEDED',
-            message: 'Your workspace has reached its monthly AI token generation limit (250,000 tokens).',
-          },
-        }
-      }
-
-      // Run AI generation via Gateway
-      const gateway = createAiGateway()
-      const userPrompt = productCopyPrompt.buildUserPrompt(input)
-      const aiRes = await gateway.generateStructured({
-        promptId: productCopyPrompt.id,
-        systemPrompt: productCopyPrompt.systemPrompt,
-        userPrompt,
-        schema: productCopyPrompt.schema,
-      })
-
-      if (!aiRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'ERROR', message: aiRes.error.message },
-        }
-      }
-
-      // Record token usage & cost
-      await aiUsageRepo.recordUsage(scope, {
-        userId: usrId,
-        promptId: productCopyPrompt.id,
-        promptVersion: productCopyPrompt.version,
-        provider: aiRes.value.provider,
-        model: aiRes.value.model,
-        promptTokens: aiRes.value.promptTokens,
-        completionTokens: aiRes.value.completionTokens,
-        totalTokens: aiRes.value.totalTokens,
-        costMicroCents: aiRes.value.costMicroCents,
-        status: 'success',
-      })
-
-      await auditLog.writeAuditLog(scope, auditOptions, {
-        actorType: 'user',
-        actorId: usrId,
-        action: 'ai.generated',
-        targetType: 'workspace',
-        targetId: wsId,
-        metadata: {
-          promptId: productCopyPrompt.id,
-          tokens: aiRes.value.totalTokens,
-        },
-      })
-
-      return { ok: true, data: aiRes.value.data }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'ERROR',
-        message: err instanceof Error ? err.message : 'Failed to generate product copy.',
-      },
-    }
-  }
+  return generate('ai.product_copy', workspaceIdRaw, productCopyPrompt, () =>
+    Promise.resolve(input),
+  )
 }
 
-/**
- * Generates storefront headline, subhead, and value propositions.
- */
 export async function generateStorefrontCopyAction(
   workspaceIdRaw: string,
   input: StorefrontCopyInput,
 ): Promise<AiActionResult<StorefrontCopyOutput>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return {
-        ok: false,
-        error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to use AI generation.' },
-      }
-    }
-
-    const wsId = toWorkspaceId(workspaceIdRaw)
-    const usrId = toUserId(session.user.id)
-
-    const db = await getDatabase()
-    const ctx = workspaceContext({
-      workspaceId: wsId,
-      actorId: usrId,
-      requestId: toRequestId(`req-ai-store-${Date.now()}`),
-    })
-
-    return await db.withWorkspace(ctx, async (tx) => {
-      const scope = { tx, context: ctx }
-      const member = await workspaceMembers.findMemberByUserId(scope, usrId)
-      if (!member) {
-        return {
-          ok: false,
-          error: { code: 'NOT_FOUND', message: 'Workspace membership not found.' },
-        }
-      }
-
-      const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
-        wsId,
-        'ai.generate',
-      )
-      if (!authRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'FORBIDDEN', message: 'You lack permission to perform AI generation.' },
-        }
-      }
-
-      const usageSummary = await aiUsageRepo.getMonthlyUsageSummary(scope)
-      if (usageSummary.isQuotaExceeded) {
-        return {
-          ok: false,
-          error: { code: 'QUOTA_EXCEEDED', message: 'Monthly AI token quota exceeded.' },
-        }
-      }
-
-      const gateway = createAiGateway()
-      const userPrompt = storefrontCopyPrompt.buildUserPrompt(input)
-      const aiRes = await gateway.generateStructured({
-        promptId: storefrontCopyPrompt.id,
-        systemPrompt: storefrontCopyPrompt.systemPrompt,
-        userPrompt,
-        schema: storefrontCopyPrompt.schema,
-      })
-
-      if (!aiRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'ERROR', message: aiRes.error.message },
-        }
-      }
-
-      await aiUsageRepo.recordUsage(scope, {
-        userId: usrId,
-        promptId: storefrontCopyPrompt.id,
-        promptVersion: storefrontCopyPrompt.version,
-        provider: aiRes.value.provider,
-        model: aiRes.value.model,
-        promptTokens: aiRes.value.promptTokens,
-        completionTokens: aiRes.value.completionTokens,
-        totalTokens: aiRes.value.totalTokens,
-        costMicroCents: aiRes.value.costMicroCents,
-        status: 'success',
-      })
-
-      return { ok: true, data: aiRes.value.data }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'ERROR',
-        message: err instanceof Error ? err.message : 'Failed to generate storefront copy.',
-      },
-    }
-  }
+  return generate('ai.storefront_copy', workspaceIdRaw, storefrontCopyPrompt, () =>
+    Promise.resolve(input),
+  )
 }
 
-/**
- * Generates SEO title, description, keywords, and OpenGraph tags.
- */
 export async function generateSeoMetadataAction(
   workspaceIdRaw: string,
   input: SeoMetadataInput,
 ): Promise<AiActionResult<SeoMetadataOutput>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return {
-        ok: false,
-        error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to use AI generation.' },
-      }
-    }
-
-    const wsId = toWorkspaceId(workspaceIdRaw)
-    const usrId = toUserId(session.user.id)
-
-    const db = await getDatabase()
-    const ctx = workspaceContext({
-      workspaceId: wsId,
-      actorId: usrId,
-      requestId: toRequestId(`req-ai-seo-${Date.now()}`),
-    })
-
-    return await db.withWorkspace(ctx, async (tx) => {
-      const scope = { tx, context: ctx }
-      const member = await workspaceMembers.findMemberByUserId(scope, usrId)
-      if (!member) {
-        return {
-          ok: false,
-          error: { code: 'NOT_FOUND', message: 'Workspace membership not found.' },
-        }
-      }
-
-      const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
-        wsId,
-        'ai.generate',
-      )
-      if (!authRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'FORBIDDEN', message: 'You lack permission to perform AI generation.' },
-        }
-      }
-
-      const usageSummary = await aiUsageRepo.getMonthlyUsageSummary(scope)
-      if (usageSummary.isQuotaExceeded) {
-        return {
-          ok: false,
-          error: { code: 'QUOTA_EXCEEDED', message: 'Monthly AI token quota exceeded.' },
-        }
-      }
-
-      const gateway = createAiGateway()
-      const userPrompt = seoMetadataPrompt.buildUserPrompt(input)
-      const aiRes = await gateway.generateStructured({
-        promptId: seoMetadataPrompt.id,
-        systemPrompt: seoMetadataPrompt.systemPrompt,
-        userPrompt,
-        schema: seoMetadataPrompt.schema,
-      })
-
-      if (!aiRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'ERROR', message: aiRes.error.message },
-        }
-      }
-
-      await aiUsageRepo.recordUsage(scope, {
-        userId: usrId,
-        promptId: seoMetadataPrompt.id,
-        promptVersion: seoMetadataPrompt.version,
-        provider: aiRes.value.provider,
-        model: aiRes.value.model,
-        promptTokens: aiRes.value.promptTokens,
-        completionTokens: aiRes.value.completionTokens,
-        totalTokens: aiRes.value.totalTokens,
-        costMicroCents: aiRes.value.costMicroCents,
-        status: 'success',
-      })
-
-      return { ok: true, data: aiRes.value.data }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'ERROR',
-        message: err instanceof Error ? err.message : 'Failed to generate SEO metadata.',
-      },
-    }
-  }
+  return generate('ai.seo', workspaceIdRaw, seoMetadataPrompt, () => Promise.resolve(input))
 }
 
-/**
- * Generates an executive plain-language growth briefing from raw ledger analytics.
- */
 export async function generateAnalyticsInsightsAction(
   workspaceIdRaw: string,
   timeframeRaw: string = '30d',
 ): Promise<AiActionResult<AnalyticsInsightsOutput>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return {
-        ok: false,
-        error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to use AI generation.' },
-      }
+  const timeframe: AnalyticsTimeframe =
+    ANALYTICS_TIMEFRAMES.find((t) => t === timeframeRaw) ?? '30d'
+  return generate('ai.insights', workspaceIdRaw, analyticsInsightsPrompt, async (scope) => {
+    const [summary, products, affiliatePerf] = await Promise.all([
+      analytics.getWorkspaceAnalyticsSummary(scope, { timeframe }),
+      analytics.listProductPerformance(scope, { timeframe }),
+      analytics.listAffiliatePerformance(scope, { timeframe }),
+    ])
+    const topProduct = products.find((p) => p.unitsSold > 0)?.productTitle
+    const topAffiliate = affiliatePerf.find((a) => a.conversionsCount > 0)
+    const input: AnalyticsInsightsInput = {
+      timeframe,
+      grossRevenue: formatAmount(summary.grossRevenueMinor, summary.currency),
+      netRevenue: formatAmount(summary.netRevenueMinor, summary.currency),
+      totalOrders: summary.ordersCount,
+      conversionRateBps: summary.conversionRateBps,
+      refundRateBps: summary.refundRateBps,
+      uniqueVisitors: summary.uniqueVisitorsCount,
+      ...(topProduct ? { topProduct } : {}),
+      ...(topAffiliate ? { topAffiliate: topAffiliate.name ?? topAffiliate.email } : {}),
     }
-
-    const wsId = toWorkspaceId(workspaceIdRaw)
-    const usrId = toUserId(session.user.id)
-
-    const db = await getDatabase()
-    const ctx = workspaceContext({
-      workspaceId: wsId,
-      actorId: usrId,
-      requestId: toRequestId(`req-ai-insights-${Date.now()}`),
-    })
-
-    return await db.withWorkspace(ctx, async (tx) => {
-      const scope = { tx, context: ctx }
-      const member = await workspaceMembers.findMemberByUserId(scope, usrId)
-      if (!member) {
-        return {
-          ok: false,
-          error: { code: 'NOT_FOUND', message: 'Workspace membership not found.' },
-        }
-      }
-
-      const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
-        wsId,
-        'ai.generate',
-      )
-      if (!authRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'FORBIDDEN', message: 'You lack permission to perform AI generation.' },
-        }
-      }
-
-      const usageSummary = await aiUsageRepo.getMonthlyUsageSummary(scope)
-      if (usageSummary.isQuotaExceeded) {
-        return {
-          ok: false,
-          error: { code: 'QUOTA_EXCEEDED', message: 'Monthly AI token quota exceeded.' },
-        }
-      }
-
-      // Fetch analytics summary from the ledger
-      const analyticsSummary = await analytics.getWorkspaceAnalyticsSummary(scope, {
-        timeframe: timeframeRaw as any,
-      })
-
-      const topProducts = await analytics.listProductPerformance(scope, {
-        timeframe: timeframeRaw as any,
-      })
-      const topAffiliates = await analytics.listAffiliatePerformance(scope, {
-        timeframe: timeframeRaw as any,
-      })
-
-      const topProd = topProducts[0]?.productTitle
-      const topAff = topAffiliates[0]?.name ?? topAffiliates[0]?.email
-
-      const input: AnalyticsInsightsInput = {
-        timeframe: timeframeRaw,
-        grossRevenue: `₹${(Number(analyticsSummary.grossRevenueMinor) / 100).toFixed(2)}`,
-        netRevenue: `₹${(Number(analyticsSummary.netRevenueMinor) / 100).toFixed(2)}`,
-        totalOrders: analyticsSummary.ordersCount,
-        conversionRateBps: analyticsSummary.conversionRateBps,
-        refundRateBps: analyticsSummary.refundRateBps,
-        uniqueVisitors: analyticsSummary.uniqueVisitorsCount,
-        ...(topProd ? { topProduct: topProd } : {}),
-        ...(topAff ? { topAffiliate: topAff } : {}),
-      }
-
-      const gateway = createAiGateway()
-      const userPrompt = analyticsInsightsPrompt.buildUserPrompt(input)
-      const aiRes = await gateway.generateStructured({
-        promptId: analyticsInsightsPrompt.id,
-        systemPrompt: analyticsInsightsPrompt.systemPrompt,
-        userPrompt,
-        schema: analyticsInsightsPrompt.schema,
-      })
-
-      if (!aiRes.ok) {
-        return {
-          ok: false,
-          error: { code: 'ERROR', message: aiRes.error.message },
-        }
-      }
-
-      await aiUsageRepo.recordUsage(scope, {
-        userId: usrId,
-        promptId: analyticsInsightsPrompt.id,
-        promptVersion: analyticsInsightsPrompt.version,
-        provider: aiRes.value.provider,
-        model: aiRes.value.model,
-        promptTokens: aiRes.value.promptTokens,
-        completionTokens: aiRes.value.completionTokens,
-        totalTokens: aiRes.value.totalTokens,
-        costMicroCents: aiRes.value.costMicroCents,
-        status: 'success',
-      })
-
-      return { ok: true, data: aiRes.value.data }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'ERROR',
-        message: err instanceof Error ? err.message : 'Failed to generate analytics insights.',
-      },
-    }
-  }
+    return input
+  })
 }
 
-/**
- * Returns current monthly token usage and quota metrics for a workspace.
- */
 export async function getAiUsageSummaryAction(
   workspaceIdRaw: string,
 ): Promise<AiActionResult<AiUsageSummaryDTO>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.user) {
-      return {
-        ok: false,
-        error: { code: 'UNAUTHENTICATED', message: 'You must be signed in to view AI quota.' },
-      }
-    }
-
-    const wsId = toWorkspaceId(workspaceIdRaw)
-    const usrId = toUserId(session.user.id)
-
-    const db = await getDatabase()
-    const ctx = workspaceContext({
-      workspaceId: wsId,
-      actorId: usrId,
-      requestId: toRequestId(`req-ai-usage-${Date.now()}`),
-    })
-
-    return await db.withWorkspace(ctx, async (tx) => {
-      const scope = { tx, context: ctx }
-      const member = await workspaceMembers.findMemberByUserId(scope, usrId)
-      if (!member) {
-        return {
-          ok: false,
-          error: { code: 'NOT_FOUND', message: 'Workspace membership not found.' },
-        }
-      }
-
-      const usage = await aiUsageRepo.getMonthlyUsageSummary(scope)
-      return { ok: true, data: usage }
-    })
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code: 'ERROR',
-        message: err instanceof Error ? err.message : 'Failed to retrieve AI usage summary.',
-      },
-    }
-  }
+  const result = await memberAction('ai.usage', workspaceIdRaw, 'analytics.view', (scope) =>
+    aiUsageRepo.getMonthlyUsageSummary(scope),
+  )
+  return result.ok
+    ? { ok: true, data: result.data }
+    : { ok: false, error: { code: 'ERROR', message: result.error } }
 }

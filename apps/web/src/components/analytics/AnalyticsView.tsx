@@ -6,6 +6,7 @@ import { BarChart3, Download } from 'lucide-react'
 import type { AnalyticsTimeframe } from '@creatorhub/contracts'
 import { Button, useToast } from '@creatorhub/ui'
 
+import { InsightsCard } from '@/components/ai/Copilot'
 import { AreaChart } from '@/components/charts/AreaChart'
 import { BarList } from '@/components/charts/BarList'
 import {
@@ -161,6 +162,8 @@ export function AnalyticsView({ data }: { readonly data: AnalyticsData }) {
                 />
               </Card>
             </div>
+
+            <InsightsCard key={data.timeframe} timeframe={data.timeframe} />
 
             <div className="grid gap-6 xl:grid-cols-3">
               <Card>

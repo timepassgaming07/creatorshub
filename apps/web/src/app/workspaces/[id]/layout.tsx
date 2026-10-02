@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 import { notFound, redirect } from 'next/navigation'
 
 import { DashboardShell } from '@/components/layout/DashboardShell'
+import { isAiAvailable } from '@/lib/ai'
 import { getWorkspaceAccess } from '@/lib/workspace-access'
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default async function WorkspaceLayout({
       workspace={access.workspace}
       role={access.role}
       storefront={access.storefront}
+      aiEnabled={isAiAvailable()}
       user={{
         name: session.user.name ?? session.user.email,
         email: session.user.email,

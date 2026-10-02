@@ -18,6 +18,8 @@ export {
   MemoryAiProvider,
 } from './providers/memory.js'
 
+export { AnthropicAiProvider, DEFAULT_ANTHROPIC_MODEL } from './providers/anthropic.js'
+
 export {
   analyticsInsightsPrompt,
   emailCampaignPrompt,

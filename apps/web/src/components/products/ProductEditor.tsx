@@ -17,6 +17,7 @@ import {
 import { Button, Input, Select, useToast } from '@creatorhub/ui'
 
 import { Badge, Card, CardHeader, CopyButton, Notice, PageHeader, Switch, Textarea } from '@/components/ds'
+import { ProductCopyAssist } from '@/components/ai/Copilot'
 import { useWorkspace } from '@/components/layout/DashboardShell'
 import { detachProductAssetAction } from '@/lib/asset-actions'
 import { createVariantAction, publishProductAction, updateProductAction } from '@/lib/catalogue-actions'
@@ -207,7 +208,19 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Details" />
+            <CardHeader
+              title="Details"
+              action={
+                <ProductCopyAssist
+                  title={title}
+                  description={description}
+                  onApply={(next) => {
+                    if (next.title) setTitle(next.title)
+                    setDescription(next.description)
+                  }}
+                />
+              }
+            />
             <div className="space-y-5">
               <Input
                 label="Name"

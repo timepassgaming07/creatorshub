@@ -66,6 +66,8 @@ type WorkspaceContextValue = {
   readonly storefront: StorefrontInfo
   readonly role: string
   readonly basePath: string
+  /** Whether the AI copilot is configured; its buttons are hidden otherwise. */
+  readonly aiEnabled: boolean
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
@@ -241,11 +243,13 @@ export function DashboardShell({
   storefront,
   role,
   user,
+  aiEnabled,
   children,
 }: {
   readonly workspace: WorkspaceInfo
   readonly storefront: StorefrontInfo
   readonly role: string
+  readonly aiEnabled: boolean
   readonly user: { readonly name: string; readonly email: string; readonly emailVerified: boolean }
   readonly children: ReactNode
 }) {
@@ -430,7 +434,7 @@ export function DashboardShell({
   )
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, storefront, role, basePath: base }}>
+    <WorkspaceContext.Provider value={{ workspace, storefront, role, basePath: base, aiEnabled }}>
       <div className="min-h-dvh bg-surface-base">
         {/* Desktop sidebar */}
         <aside className="fixed inset-y-0 left-0 hidden w-[256px] border-r border-border-subtle bg-surface-sunken/50 lg:block">

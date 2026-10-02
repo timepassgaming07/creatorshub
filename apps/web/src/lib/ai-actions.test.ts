@@ -1,246 +1,138 @@
 /**
- * Unit tests for AI Generation Server Actions (Slice 10 §10.4, §10.6, §10.7).
+ * AI copilot actions: quota, usage accounting, and no model call inside a
+ * database transaction.
  */
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  generateAnalyticsInsightsAction,
-  generateProductCopyAction,
-  generateSeoMetadataAction,
-  generateStorefrontCopyAction,
-  getAiUsageSummaryAction,
-} from './ai-actions'
+const WS = '018f9e2b-7c5e-7a2e-8c3b-123456789abc'
+const USER = '018f9e2b-7c5e-7a2e-8c3b-987654321def'
 
-vi.mock('./server-session', () => ({
-  getServerSession: vi.fn(),
+const mockAccess = vi.fn()
+vi.mock('./workspace-access', () => ({
+  getWorkspaceAccess: (...args: unknown[]) => mockAccess(...args) as unknown,
 }))
 
-vi.mock('./db', () => ({
-  getDatabase: vi.fn(),
+let openTransactions = 0
+const mockWithWorkspace = vi.fn(async (_ctx: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+  openTransactions += 1
+  try {
+    return await fn({})
+  } finally {
+    openTransactions -= 1
+  }
+})
+vi.mock('./db', () => ({ getDatabase: () => ({ withWorkspace: mockWithWorkspace }) }))
+
+const generateStructured = vi.fn()
+vi.mock('./ai', () => ({
+  getAiGateway: () => (process.env['AI_OFF'] === '1' ? null : { generateStructured }),
 }))
 
+const usage = { getMonthlyUsageSummary: vi.fn(), recordUsage: vi.fn() }
 vi.mock('@creatorhub/db', () => ({
-  workspaceMembers: {
-    findMemberByUserId: vi.fn(),
-  },
   aiUsageRepo: {
-    recordUsage: vi.fn(),
-    getMonthlyUsageSummary: vi.fn(),
+    getMonthlyUsageSummary: (...a: unknown[]) => usage.getMonthlyUsageSummary(...a) as unknown,
+    recordUsage: (...a: unknown[]) => usage.recordUsage(...a) as unknown,
   },
-  analytics: {
-    getWorkspaceAnalyticsSummary: vi.fn(),
-    listProductPerformance: vi.fn(),
-    listAffiliatePerformance: vi.fn(),
-  },
-  auditLog: {
-    writeAuditLog: vi.fn(),
-  },
+  analytics: {},
+  auditLog: { writeAuditLog: vi.fn().mockResolvedValue(undefined) },
 }))
 
-import { aiUsageRepo, analytics, workspaceMembers } from '@creatorhub/db'
-import { getDatabase } from './db'
-import { getServerSession } from './server-session'
+import { generateProductCopyAction } from './ai-actions'
 
-const WS_ID = '019fbd70-4d9a-72e4-b6ed-722fe672c2ba'
-const USER_ID = '019fbd70-4d9a-72e4-b6ed-722fe672c2bb'
+const input = {
+  title: 'Golden Hour Presets',
+  productType: 'presets',
+  audience: 'wedding photographers',
+} as never
 
-describe('AI Generation Server Actions (Slice 10)', () => {
-  it('returns UNAUTHENTICATED when session is missing', async () => {
-    vi.mocked(getServerSession).mockResolvedValue(null)
-
-    const res = await generateProductCopyAction(WS_ID, {
-      title: 'Course',
-    })
-    expect(res.ok).toBe(false)
-    if (!res.ok) {
-      expect(res.error.code).toBe('UNAUTHENTICATED')
-    }
-  })
-
-  it('generates structured product copy and records usage', async () => {
-    vi.mocked(getServerSession).mockResolvedValue({
-      user: { id: USER_ID, email: 'creator@example.com' },
-      session: { id: 's-1' },
-    } as any)
-
-    vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
-      userId: USER_ID,
-      workspaceId: WS_ID,
+function signedIn() {
+  mockAccess.mockResolvedValue({
+    session: { userId: USER },
+    access: {
+      session: { userId: USER },
       role: 'owner',
-    } as any)
+      workspace: { id: WS, name: 'S', slug: 's', currency: 'INR' },
+      storefront: null,
+    },
+  })
+}
 
-    vi.mocked(aiUsageRepo.getMonthlyUsageSummary).mockResolvedValue({
-      workspaceId: WS_ID,
-      billingMonth: '2026-08',
-      totalGenerations: 5,
-      totalTokens: 2500,
-      monthlyQuotaTokens: 250000,
-      quotaRemainingTokens: 247500,
-      isQuotaExceeded: false,
-    })
-
-    vi.mocked(aiUsageRepo.recordUsage).mockResolvedValue({} as any)
-
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
-
-    const res = await generateProductCopyAction(WS_ID, {
-      title: 'Fullstack Next.js Masterclass',
-      category: 'Course',
-      tone: 'persuasive',
-    })
-
-    expect(res.ok).toBe(true)
-    if (res.ok) {
-      expect(res.data.title).toBeDefined()
-      expect(res.data.keyBenefits.length).toBeGreaterThanOrEqual(2)
-    }
-    expect(aiUsageRepo.recordUsage).toHaveBeenCalled()
+describe('AI actions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    openTransactions = 0
+    usage.getMonthlyUsageSummary.mockResolvedValue({ isQuotaExceeded: false })
+    usage.recordUsage.mockResolvedValue(undefined)
+  })
+  afterEach(() => {
+    delete process.env['AI_OFF']
   })
 
-  it('blocks generation when monthly token quota is exceeded', async () => {
-    vi.mocked(getServerSession).mockResolvedValue({
-      user: { id: USER_ID, email: 'creator@example.com' },
-      session: { id: 's-1' },
-    } as any)
-
-    vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
-      userId: USER_ID,
-      workspaceId: WS_ID,
-      role: 'owner',
-    } as any)
-
-    vi.mocked(aiUsageRepo.getMonthlyUsageSummary).mockResolvedValue({
-      workspaceId: WS_ID,
-      billingMonth: '2026-08',
-      totalGenerations: 500,
-      totalTokens: 250000,
-      monthlyQuotaTokens: 250000,
-      quotaRemainingTokens: 0,
-      isQuotaExceeded: true,
-    })
-
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
-
-    const res = await generateStorefrontCopyAction(WS_ID, {
-      creatorName: 'Alex',
-      brandNiche: 'Tech',
-    })
-
-    expect(res.ok).toBe(false)
-    if (!res.ok) {
-      expect(res.error.code).toBe('QUOTA_EXCEEDED')
-    }
+  it('refuses a signed-out caller', async () => {
+    mockAccess.mockResolvedValue({ session: null, access: null })
+    const result = await generateProductCopyAction(WS, input)
+    expect(result.ok).toBe(false)
+    expect(generateStructured).not.toHaveBeenCalled()
   })
 
-  it('generates executive business insights from ledger data', async () => {
-    vi.mocked(getServerSession).mockResolvedValue({
-      user: { id: USER_ID, email: 'creator@example.com' },
-      session: { id: 's-1' },
-    } as any)
-
-    vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
-      userId: USER_ID,
-      workspaceId: WS_ID,
-      role: 'admin',
-    } as any)
-
-    vi.mocked(aiUsageRepo.getMonthlyUsageSummary).mockResolvedValue({
-      workspaceId: WS_ID,
-      billingMonth: '2026-08',
-      totalGenerations: 1,
-      totalTokens: 500,
-      monthlyQuotaTokens: 250000,
-      quotaRemainingTokens: 249500,
-      isQuotaExceeded: false,
+  it('calls the model outside any transaction and records usage after', async () => {
+    signedIn()
+    generateStructured.mockImplementation(() => {
+      expect(openTransactions).toBe(0)
+      return Promise.resolve({
+        ok: true,
+        value: {
+          data: { headline: 'Warm light, every time' },
+          provider: 'anthropic',
+          model: 'claude-opus-5-5',
+          promptTokens: 900,
+          completionTokens: 300,
+          totalTokens: 1200,
+          costMicroCents: 960_000n,
+        },
+      })
     })
-
-    vi.mocked(analytics.getWorkspaceAnalyticsSummary).mockResolvedValue({
-      timeframe: '30d',
-      currency: 'INR',
-      grossRevenueMinor: '500000',
-      netRevenueMinor: '480000',
-      refundsMinor: '20000',
-      refundRateBps: 400,
-      taxCollectedMinor: '90000',
-      affiliateExpenseMinor: '50000',
-      platformFeesMinor: '10000',
-      ordersCount: 20,
-      averageOrderValueMinor: '25000',
-      uniqueVisitorsCount: 450,
-      storefrontPageviewsCount: 900,
-      conversionRateBps: 444,
-      timeSeries: [],
-      funnel: [],
-    })
-
-    vi.mocked(analytics.listProductPerformance).mockResolvedValue([
-      {
-        productId: 'p-1',
-        productTitle: 'Top Course',
-        productSlug: 'top-course',
-        unitsSold: 20,
-        grossRevenueMinor: '500000',
-        netRevenueMinor: '480000',
-        refundsCount: 1,
-        refundRateBps: 400,
-        conversionRateBps: 444,
-      },
-    ])
-
-    vi.mocked(analytics.listAffiliatePerformance).mockResolvedValue([])
-
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
-
-    const res = await generateAnalyticsInsightsAction(WS_ID, '30d')
-    expect(res.ok).toBe(true)
-    if (res.ok) {
-      expect(res.data.executiveSummary).toBeDefined()
-      expect(res.data.growthActions.length).toBeGreaterThanOrEqual(2)
-    }
+    const result = await generateProductCopyAction(WS, input)
+    expect(result).toEqual({ ok: true, data: { headline: 'Warm light, every time' } })
+    expect(usage.recordUsage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        model: 'claude-opus-5-5',
+        totalTokens: 1200,
+        costMicroCents: 960_000n,
+      }),
+    )
   })
 
-  it('generates SEO metadata and OpenGraph tags', async () => {
-    vi.mocked(getServerSession).mockResolvedValue({
-      user: { id: USER_ID, email: 'creator@example.com' },
-      session: { id: 's-1' },
-    } as any)
+  it('stops at the monthly quota without calling the model', async () => {
+    signedIn()
+    usage.getMonthlyUsageSummary.mockResolvedValue({ isQuotaExceeded: true })
+    const result = await generateProductCopyAction(WS, input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('QUOTA_EXCEEDED')
+    expect(generateStructured).not.toHaveBeenCalled()
+  })
 
-    vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
-      userId: USER_ID,
-      workspaceId: WS_ID,
-      role: 'owner',
-    } as any)
-
-    vi.mocked(aiUsageRepo.getMonthlyUsageSummary).mockResolvedValue({
-      workspaceId: WS_ID,
-      billingMonth: '2026-08',
-      totalGenerations: 2,
-      totalTokens: 1000,
-      monthlyQuotaTokens: 250000,
-      quotaRemainingTokens: 249000,
-      isQuotaExceeded: false,
+  it('reports a model failure without recording usage', async () => {
+    signedIn()
+    generateStructured.mockResolvedValue({
+      ok: false,
+      error: { message: 'The AI service is busy right now.' },
     })
-
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
-
-    const res = await generateSeoMetadataAction(WS_ID, {
-      pageType: 'storefront_home',
-      pageTitle: 'Design Kit Store',
-      descriptionSummary: 'High quality Figma templates and icon libraries',
+    const result = await generateProductCopyAction(WS, input)
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'ERROR', message: 'The AI service is busy right now.' },
     })
+    expect(usage.recordUsage).not.toHaveBeenCalled()
+  })
 
-    expect(res.ok).toBe(true)
-    if (res.ok) {
-      expect(res.data.seoTitle).toBeDefined()
-      expect(res.data.keywords.length).toBeGreaterThanOrEqual(2)
-    }
+  it('says so when the copilot is not configured', async () => {
+    signedIn()
+    process.env['AI_OFF'] = '1'
+    const result = await generateProductCopyAction(WS, input)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.message).toContain('not switched on')
   })
 })

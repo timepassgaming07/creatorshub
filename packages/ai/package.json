@@ -22,6 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
     "@creatorhub/contracts": "workspace:*",
     "@creatorhub/domain": "workspace:*",
     "zod": "4.4.3"
