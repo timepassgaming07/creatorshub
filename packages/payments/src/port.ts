@@ -186,15 +186,21 @@ export type CheckoutSession = {
   readonly orderId: OrderId
   readonly checkoutUrl: string
   readonly clientSecret?: string
+  /**
+   * The publishable key the browser needs to open the provider's checkout.
+   * Never a secret; Razorpay calls it the key id.
+   */
+  readonly publicKey?: string
   readonly amount: Money
   readonly currency: CurrencyCode
   readonly expiresAt: Date
 }
 
 export type PaymentSnapshot = {
-  readonly id: PaymentId
   readonly provider: PaymentProviderName
   readonly providerPaymentId: string
+  /** The provider's order or session the payment was made against, when it has one. */
+  readonly providerOrderId?: string | null | undefined
   readonly orderId: OrderId
   readonly amount: Money
   readonly status: PaymentStatus
@@ -249,6 +255,8 @@ export type WebhookVerificationInput = {
   readonly rawPayload: string | Buffer
   readonly signature: string
   readonly secret: string
+  /** The provider's delivery id when it sends one in a header, for deduplication. */
+  readonly eventId?: string | undefined
 }
 
 export type VerifiedWebhookEvent = {
@@ -257,6 +265,23 @@ export type VerifiedWebhookEvent = {
   readonly eventType: string
   readonly payload: Record<string, unknown>
   readonly createdAt: Date
+  /**
+   * The workspace the event belongs to, read from metadata this application
+   * attached when it created the session. Trustworthy only because the event
+   * signature covers it. Absent when the event carries no such metadata.
+   */
+  readonly workspaceId?: string | undefined
+}
+
+/**
+ * Proof of payment the browser hands back after the provider's checkout
+ * closes. The server verifies it; the browser's word alone settles nothing.
+ */
+export type ConfirmCheckoutPaymentInput = {
+  /** The session id stored on the order when the session was created. */
+  readonly sessionId: string
+  readonly providerPaymentId: string
+  readonly signature: string
 }
 
 // ---------------------------------------------------------------------------
@@ -350,6 +375,12 @@ export type PaymentProvider = {
   getAccountStatus(providerAccountId: string): Promise<AccountStatus>
 
   createCheckoutSession(input: CreateCheckoutSessionInput): Promise<CheckoutSession>
+  /**
+   * Verify the browser's proof of payment against the session, capture the
+   * payment if it is only authorised, and return its settled state. Throws
+   * WebhookSignatureVerificationError when the proof does not verify.
+   */
+  confirmCheckoutPayment(input: ConfirmCheckoutPaymentInput): Promise<PaymentSnapshot>
   getPayment(providerPaymentId: string): Promise<PaymentSnapshot>
   refundPayment(input: RefundPaymentInput): Promise<RefundResult>
 

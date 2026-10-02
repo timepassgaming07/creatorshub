@@ -509,3 +509,12 @@ export type {
   RejectPayoutInput,
   RequestPayoutInput,
 } from './payouts.js'
+export {
+  GSTIN_PATTERN,
+  INDIAN_STATES,
+  UNREGISTERED_TAX_SETTINGS,
+  gstStateCode,
+  parseWorkspaceTaxSettings,
+  workspaceTaxSettingsSchema,
+  type WorkspaceTaxSettings,
+} from './tax-settings.js'

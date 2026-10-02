@@ -26,6 +26,7 @@ export type {
   AccountUpdatedDomainEvent,
   CheckoutLineItem,
   CheckoutSession,
+  ConfirmCheckoutPaymentInput,
   ConnectedAccount,
   CreateCheckoutSessionInput,
   CreateConnectedAccountInput,

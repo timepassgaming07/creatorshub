@@ -2,22 +2,31 @@
  * Razorpay PaymentProvider Adapter (ADR-0007, ADR-0016).
  *
  * Responsibilities:
- * - Implements provider-agnostic `PaymentProvider` interface for Razorpay.
- * - Supports Indian payment rails: UPI (intent and collect), cards, netbanking, wallets.
- * - Supports Razorpay Route for split settlements (marketplace commissions, platform fees).
- * - Exact minor units (paise) integer math with zero-float guarantee.
- * - Cryptographic webhook signature verification via HMAC-SHA256.
- * - Normalization of Razorpay webhooks and payment objects into domain payment events.
+ * - Implement the provider-agnostic `PaymentProvider` port against the Razorpay REST API.
+ * - Indian payment rails through Razorpay Checkout: UPI, cards, netbanking, wallets.
+ * - Verify the browser's checkout signature and webhook signatures with HMAC-SHA256.
+ * - Normalise Razorpay payloads into domain payment events.
+ *
+ * Every method talks to Razorpay. There is no in-memory fallback: an adapter
+ * that quietly pretends to take payments when it cannot reach the provider is
+ * how an order gets marked paid with no money behind it. Tests inject a
+ * `fetcher`; local development without keys uses `MemoryPaymentProvider`.
+ *
+ * Amounts stay bigint minor units (paise) everywhere except the JSON body,
+ * which Razorpay requires as an integer number. `Number()` on a paise amount is
+ * exact up to 2^53 paise, far beyond any single payment.
  */
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
-import { currency, money, orderId, paymentId, type CurrencyCode } from '@creatorhub/contracts'
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { currency, money, orderId } from '@creatorhub/contracts'
 
 import {
   PaymentNotFoundError,
   PaymentProviderError,
+  UnsupportedOperationError,
   WebhookSignatureVerificationError,
   type AccountStatus,
   type CheckoutSession,
+  type ConfirmCheckoutPaymentInput,
   type ConnectedAccount,
   type CreateCheckoutSessionInput,
   type CreateConnectedAccountInput,
@@ -25,547 +34,430 @@ import {
   type CreatePayoutInput,
   type DomainPaymentEvent,
   type OnboardingLink,
-  type PaymentCapturedDomainEvent,
-  type PaymentFailedDomainEvent,
   type PaymentProvider,
   type PaymentSnapshot,
   type PayoutResult,
   type ProviderBalance,
   type RefundPaymentInput,
-  type RefundProcessedDomainEvent,
   type RefundResult,
   type VerifiedWebhookEvent,
   type WebhookVerificationInput,
 } from '../port.js'
 
 export type RazorpayProviderOptions = {
-  readonly keyId?: string | undefined
-  readonly keySecret?: string | undefined
+  readonly keyId: string
+  readonly keySecret: string
   readonly apiBaseUrl?: string | undefined
   readonly fetcher?: typeof fetch | undefined
 }
 
-function extractString(val: unknown, fallback = ''): string {
+type RazorpayPayment = {
+  readonly id: string
+  readonly order_id?: string | null
+  readonly amount: number
+  readonly currency: string
+  readonly status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed'
+  readonly method?: string
+  readonly created_at: number
+  readonly error_description?: string | null
+  readonly notes?: Record<string, unknown> | unknown[]
+}
+
+function asRecord(val: unknown): Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
+    ? (val as Record<string, unknown>)
+    : {}
+}
+
+function asString(val: unknown): string {
   if (typeof val === 'string') return val
   if (typeof val === 'number' || typeof val === 'bigint') return val.toString()
-  return fallback
+  return ''
 }
 
-function extractBigInt(val: unknown, fallback = 0n): bigint {
+function asBigInt(val: unknown): bigint {
   if (typeof val === 'bigint') return val
-  if (typeof val === 'number') return BigInt(Math.round(val))
+  if (typeof val === 'number' && Number.isInteger(val)) return BigInt(val)
   if (typeof val === 'string' && /^\d+$/.test(val)) return BigInt(val)
-  return fallback
+  return 0n
 }
 
-function toRecord(val: unknown): Record<string, unknown> {
-  if (typeof val === 'object' && val !== null) {
-    return val as Record<string, unknown>
-  }
-  return {}
+/** Constant-time comparison of two hex digests. Unequal lengths never match. */
+function digestsMatch(expected: string, received: string): boolean {
+  const a = Buffer.from(expected)
+  const b = Buffer.from(received)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+/** Webhook payloads nest the entity: `{ payment: { entity: {...} } }`. */
+function entityOf(payload: Record<string, unknown>, key: string): Record<string, unknown> {
+  return asRecord(asRecord(payload[key])['entity'])
 }
 
 export class RazorpayPaymentProvider implements PaymentProvider {
   readonly name = 'razorpay'
 
-  private readonly keyId?: string | undefined
-  private readonly keySecret?: string | undefined
+  private readonly keyId: string
+  private readonly keySecret: string
   private readonly apiBaseUrl: string
   private readonly fetcher: typeof fetch
 
-  // In-memory simulation stores for offline development / testing when live network calls are not active
-  private readonly mockAccounts = new Map<string, ConnectedAccount>()
-  private readonly mockOrders = new Map<string, CheckoutSession>()
-  private readonly mockPayments = new Map<string, PaymentSnapshot>()
-  private readonly mockRefunds = new Map<string, RefundResult>()
-
-  constructor(options: RazorpayProviderOptions = {}) {
-    this.keyId = options.keyId ?? process.env['RAZORPAY_KEY_ID']
-    this.keySecret = options.keySecret ?? process.env['RAZORPAY_KEY_SECRET']
-    this.apiBaseUrl = options.apiBaseUrl ?? 'https://api.razorpay.com/v1'
-    this.fetcher = options.fetcher ?? globalThis.fetch
-  }
-
-  private hasLiveCredentials(): boolean {
-    return Boolean(this.keyId && this.keySecret)
-  }
-
-  private getAuthHeader(): string {
-    if (!this.keyId || !this.keySecret) {
+  constructor(options: RazorpayProviderOptions) {
+    if (!options.keyId || !options.keySecret) {
       throw new PaymentProviderError(
-        'Razorpay credentials (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET) are missing.',
+        'Razorpay needs RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET. Set both, or use PAYMENT_PROVIDER=memory for local development.',
+        'CONFIGURATION_MISSING',
+        false,
       )
     }
-    const token = Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64')
-    return `Basic ${token}`
+    this.keyId = options.keyId
+    this.keySecret = options.keySecret
+    this.apiBaseUrl = options.apiBaseUrl ?? 'https://api.razorpay.com'
+    this.fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis)
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.apiBaseUrl}${path}`
-    const customHeaders = (options.headers as Record<string, string> | undefined) ?? {}
-    const headers: Record<string, string> = {
-      Authorization: this.getAuthHeader(),
-      'Content-Type': 'application/json',
-      ...customHeaders,
-    }
+  /** True when the key id is a test-mode key. Shown in the UI so nobody mistakes test for live. */
+  get isTestMode(): boolean {
+    return this.keyId.startsWith('rzp_test_')
+  }
 
-    const response = await this.fetcher(url, {
-      ...options,
-      headers,
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const auth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64')
+    const response = await this.fetcher(`${this.apiBaseUrl}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/json',
+        ...(init.headers as Record<string, string> | undefined),
+      },
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
+      const body = await response.text()
       if (response.status === 404) {
-        throw new PaymentNotFoundError(`Razorpay entity not found at ${path}: ${errorText}`)
+        throw new PaymentNotFoundError(`Razorpay returned 404 for ${path}.`)
       }
+      // 5xx and 429 are worth retrying; 4xx means the request itself is wrong.
+      const retryable = response.status >= 500 || response.status === 429
       throw new PaymentProviderError(
-        `Razorpay API error (${String(response.status)}): ${errorText}`,
+        `Razorpay API error ${String(response.status)} on ${path}: ${body.slice(0, 500)}`,
+        'PROVIDER_ERROR',
+        retryable,
       )
     }
 
     return (await response.json()) as T
   }
 
+  // -------------------------------------------------------------------------
+  // Connected accounts (Razorpay Route linked accounts)
+  // -------------------------------------------------------------------------
+
   async createConnectedAccount(input: CreateConnectedAccountInput): Promise<ConnectedAccount> {
-    if (this.hasLiveCredentials() && this.fetcher !== globalThis.fetch) {
-      const body = {
+    const res = await this.request<{ id: string; status: string }>('/v2/accounts', {
+      method: 'POST',
+      body: JSON.stringify({
         email: input.email,
+        type: 'route',
         legal_business_name: input.businessName,
         customer_facing_business_name: input.businessName,
-        type: 'route',
-        profile: {
-          category: 'ecommerce',
-          sub_category: 'digital_goods',
-          addresses: {
-            registered: {
-              country: input.country,
-            },
-          },
-        },
-      }
+        business_type: 'individual',
+        contact_name: input.businessName,
+        profile: { category: 'ecommerce', subcategory: 'digital_goods' },
+        notes: { workspace_id: input.workspaceId },
+      }),
+    })
 
-      const res = await this.request<{ id: string }>('/accounts', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      })
-
-      const account: ConnectedAccount = {
-        provider: 'razorpay',
-        providerAccountId: res.id,
-        workspaceId: input.workspaceId,
-        country: input.country,
-        email: input.email,
-        businessName: input.businessName,
-        status: 'created',
-        chargesEnabled: false,
-        payoutsEnabled: false,
-      }
-
-      return account
-    }
-
-    // Offline / Mock fallback
-    const providerAccountId = `acc_rzp_${randomUUID().slice(0, 12)}`
-    const account: ConnectedAccount = {
+    return {
+      providerAccountId: res.id,
       provider: 'razorpay',
-      providerAccountId,
       workspaceId: input.workspaceId,
       country: input.country,
       email: input.email,
       businessName: input.businessName,
-      status: 'created',
-      chargesEnabled: true,
-      payoutsEnabled: true,
+      status: res.status === 'activated' ? 'active' : 'onboarding_pending',
+      payoutsEnabled: res.status === 'activated',
+      chargesEnabled: res.status === 'activated',
     }
-    this.mockAccounts.set(providerAccountId, account)
-    return account
   }
 
   async createOnboardingLink(input: CreateOnboardingLinkInput): Promise<OnboardingLink> {
     await Promise.resolve()
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
     return {
-      url: `https://dashboard.razorpay.com/app/subaccounts/${input.providerAccountId}/activation`,
-      expiresAt,
+      url: `https://dashboard.razorpay.com/app/route/accounts/${encodeURIComponent(input.providerAccountId)}`,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     }
   }
 
   async getAccountStatus(providerAccountId: string): Promise<AccountStatus> {
-    if (this.hasLiveCredentials() && this.fetcher !== globalThis.fetch) {
-      const res = await this.request<{
-        id: string
-        status: string
-        activation_status?: string
-        live?: boolean
-      }>(`/accounts/${providerAccountId}`)
-
-      const isActive = res.status === 'activated' || res.activation_status === 'activated'
-      return isActive ? 'active' : 'onboarding_pending'
-    }
-
-    const mock = this.mockAccounts.get(providerAccountId)
-    return mock?.status === 'active' ? 'active' : 'active'
+    const res = await this.request<{ status: string }>(
+      `/v2/accounts/${encodeURIComponent(providerAccountId)}`,
+    )
+    if (res.status === 'activated') return 'active'
+    if (res.status === 'suspended') return 'restricted'
+    return 'onboarding_pending'
   }
 
+  // -------------------------------------------------------------------------
+  // Checkout
+  // -------------------------------------------------------------------------
+
   async createCheckoutSession(input: CreateCheckoutSessionInput): Promise<CheckoutSession> {
-    const amountPaise = Number(input.totalAmount.amount)
-    const receipt = `rcpt_${input.orderId.replace(/-/g, '').slice(0, 20)}`
+    const body: Record<string, unknown> = {
+      amount: Number(input.totalAmount.amount),
+      currency: input.currency,
+      // Razorpay caps receipt at 40 characters. A UUID without dashes is 32.
+      receipt: input.orderId.replaceAll('-', ''),
+      // Signed into every webhook for this order, which is how the webhook
+      // learns its tenant without a cross-tenant lookup (ADR-0021).
+      notes: {
+        workspace_id: input.workspaceId,
+        order_id: input.orderId,
+      },
+    }
 
-    // Razorpay Route transfers payload if split settlement instructions are provided
-    const transfers: Record<string, unknown>[] = []
     if (input.splitTransfers && input.splitTransfers.length > 0) {
-      for (const t of input.splitTransfers) {
-        transfers.push({
-          account: t.destinationAccountId,
-          amount: Number(t.amount.amount),
-          currency: t.amount.currency,
-          on_hold: 0,
-        })
-      }
+      body['transfers'] = input.splitTransfers.map((t) => ({
+        account: t.destinationAccountId,
+        amount: Number(t.amount.amount),
+        currency: t.amount.currency,
+        on_hold: 0,
+      }))
     }
 
-    if (this.hasLiveCredentials() && this.fetcher !== globalThis.fetch) {
-      const orderPayload: Record<string, unknown> = {
-        amount: amountPaise,
-        currency: input.currency,
-        receipt,
-        notes: {
-          workspace_id: input.workspaceId,
-          order_id: input.orderId,
-          customer_email: input.customer.email,
-          customer_name: input.customer.name ?? '',
-        },
-      }
+    const res = await this.request<{ id: string }>('/v1/orders', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
 
-      if (transfers.length > 0) {
-        orderPayload['transfers'] = transfers
-      }
-
-      const res = await this.request<{ id: string; amount: number; currency: string }>('/orders', {
-        method: 'POST',
-        body: JSON.stringify(orderPayload),
-      })
-
-      const session: CheckoutSession = {
-        id: res.id,
-        provider: 'razorpay',
-        orderId: input.orderId,
-        amount: input.totalAmount,
-        currency: input.currency,
-        checkoutUrl: `https://checkout.razorpay.com/v1/checkout.html?order_id=${res.id}`,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-      }
-
-      return session
-    }
-
-    // Mock session
-    const sessionId = `order_rzp_${randomUUID().slice(0, 14)}`
-    const session: CheckoutSession = {
-      id: sessionId,
+    return {
+      id: res.id,
       provider: 'razorpay',
       orderId: input.orderId,
       amount: input.totalAmount,
       currency: input.currency,
-      checkoutUrl: `https://checkout.razorpay.com/v1/checkout.html?order_id=${sessionId}`,
+      // Razorpay Checkout is opened in the page with checkout.js, not by
+      // redirect, so there is no hosted URL. The success URL is where the page
+      // goes once the payment is confirmed server-side.
+      checkoutUrl: input.successUrl,
+      publicKey: this.keyId,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000),
     }
+  }
 
-    this.mockOrders.set(sessionId, session)
-    return session
+  async confirmCheckoutPayment(input: ConfirmCheckoutPaymentInput): Promise<PaymentSnapshot> {
+    // Razorpay signs `order_id|payment_id` with the key secret. This is what
+    // stops a buyer from posting someone else's payment id against their order.
+    const expected = createHmac('sha256', this.keySecret)
+      .update(`${input.sessionId}|${input.providerPaymentId}`)
+      .digest('hex')
+
+    if (!digestsMatch(expected, input.signature)) {
+      throw new WebhookSignatureVerificationError(
+        'Razorpay checkout signature does not match this order and payment.',
+      )
+    }
+
+    let payment = await this.fetchPayment(input.providerPaymentId)
+
+    if (payment.order_id && payment.order_id !== input.sessionId) {
+      throw new WebhookSignatureVerificationError(
+        'Razorpay payment belongs to a different order.',
+      )
+    }
+
+    if (payment.status === 'authorized') {
+      payment = await this.request<RazorpayPayment>(
+        `/v1/payments/${encodeURIComponent(payment.id)}/capture`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ amount: payment.amount, currency: payment.currency }),
+        },
+      )
+    }
+
+    return this.toSnapshot(payment)
   }
 
   async getPayment(providerPaymentId: string): Promise<PaymentSnapshot> {
-    if (this.hasLiveCredentials() && this.fetcher !== globalThis.fetch) {
-      const res = await this.request<{
-        id: string
-        amount: number
-        currency: string
-        status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed'
-        method?: string
-        captured?: boolean
-        created_at: number
-        error_description?: string
-        notes?: { order_id?: string }
-      }>(`/payments/${providerPaymentId}`)
+    return this.toSnapshot(await this.fetchPayment(providerPaymentId))
+  }
 
-      const curr = currency(res.currency)
-      const mappedStatus: PaymentSnapshot['status'] =
-        res.status === 'captured'
-          ? 'captured'
-          : res.status === 'authorized'
-            ? 'authorized'
-            : res.status === 'failed'
-              ? 'failed'
+  private fetchPayment(providerPaymentId: string): Promise<RazorpayPayment> {
+    return this.request<RazorpayPayment>(`/v1/payments/${encodeURIComponent(providerPaymentId)}`)
+  }
+
+  private toSnapshot(payment: RazorpayPayment): PaymentSnapshot {
+    const notes = asRecord(payment.notes)
+    const status: PaymentSnapshot['status'] =
+      payment.status === 'captured'
+        ? 'captured'
+        : payment.status === 'authorized'
+          ? 'authorized'
+          : payment.status === 'failed'
+            ? 'failed'
+            : payment.status === 'refunded'
+              ? 'refunded'
               : 'pending'
 
-      return {
-        id: paymentId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-        provider: 'razorpay',
-        providerPaymentId: res.id,
-        orderId: orderId(res.notes?.order_id ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-        amount: money(BigInt(res.amount), curr),
-        status: mappedStatus,
-        method: res.method ?? 'card',
-        capturedAt: res.status === 'captured' ? new Date(res.created_at * 1000) : null,
-        failureReason: res.error_description ?? null,
-      }
+    return {
+      provider: 'razorpay',
+      providerPaymentId: payment.id,
+      providerOrderId: payment.order_id ?? null,
+      orderId: orderId(asString(notes['order_id'])),
+      amount: money(BigInt(payment.amount), currency(payment.currency)),
+      status,
+      method: payment.method,
+      capturedAt: payment.status === 'captured' ? new Date(payment.created_at * 1000) : null,
+      failureReason: payment.error_description ?? null,
     }
-
-    const mock = this.mockPayments.get(providerPaymentId)
-    if (!mock) {
-      throw new PaymentNotFoundError(`Razorpay payment ${providerPaymentId} not found.`)
-    }
-    return mock
   }
 
   async refundPayment(input: RefundPaymentInput): Promise<RefundResult> {
-    const amountPaise = Number(input.amount.amount)
-
-    if (this.hasLiveCredentials() && this.fetcher !== globalThis.fetch) {
-      const res = await this.request<{
-        id: string
-        amount: number
-        currency: string
-        status: string
-        created_at: number
-      }>(`/payments/${input.providerPaymentId}/refund`, {
+    const res = await this.request<{ id: string; status: string; created_at: number }>(
+      `/v1/payments/${encodeURIComponent(input.providerPaymentId)}/refund`,
+      {
         method: 'POST',
         body: JSON.stringify({
-          amount: amountPaise,
+          amount: Number(input.amount.amount),
+          // Razorpay deduplicates on receipt, which makes a retried refund safe.
+          receipt: input.refundId.replaceAll('-', ''),
           notes: {
             refund_id: input.refundId,
             order_id: input.orderId,
             reason: input.reason ?? 'requested_by_customer',
           },
         }),
-      })
+      },
+    )
 
-      return {
-        refundId: input.refundId,
-        providerRefundId: res.id,
-        amount: input.amount,
-        status: 'processed',
-        processedAt: new Date(res.created_at * 1000),
-      }
-    }
-
-    // Mock refund
-    const existingPayment = this.mockPayments.get(input.providerPaymentId)
-    if (!existingPayment) {
-      throw new PaymentNotFoundError(`Razorpay payment ${input.providerPaymentId} not found.`)
-    }
-
-    const refundRes: RefundResult = {
+    return {
       refundId: input.refundId,
-      providerRefundId: `rfnd_rzp_${randomUUID().slice(0, 14)}`,
+      providerRefundId: res.id,
       amount: input.amount,
-      status: 'processed',
-      processedAt: new Date(),
+      status: res.status === 'processed' ? 'processed' : 'pending',
+      processedAt: new Date(res.created_at * 1000),
     }
-
-    this.mockPayments.set(input.providerPaymentId, {
-      ...existingPayment,
-      status: 'refunded',
-    })
-
-    this.mockRefunds.set(input.refundId, refundRes)
-    return refundRes
   }
 
-  async createPayout(input: CreatePayoutInput): Promise<PayoutResult> {
+  // -------------------------------------------------------------------------
+  // Payouts. Creator settlement runs through the ledger and is disbursed by
+  // operations (ADR-0021); a RazorpayX adapter is a separate integration.
+  // -------------------------------------------------------------------------
+
+  async createPayout(_input: CreatePayoutInput): Promise<PayoutResult> {
     await Promise.resolve()
-    const providerPayoutId = `pout_rzp_${randomUUID().slice(0, 14)}`
-    const payout: PayoutResult = {
-      providerPayoutId,
-      amount: input.amount,
-      status: 'paid',
-      fee: money(0n, input.currency),
-      estimatedArrival: new Date(),
-    }
-    return payout
+    throw new UnsupportedOperationError('createPayout', 'razorpay')
   }
 
   async getBalance(_providerAccountId: string): Promise<ProviderBalance> {
     await Promise.resolve()
-    const inr: CurrencyCode = currency('INR')
-    return {
-      currency: inr,
-      available: money(10000000n, inr),
-      pending: money(0n, inr),
-    }
+    throw new UnsupportedOperationError('getBalance', 'razorpay')
   }
+
+  // -------------------------------------------------------------------------
+  // Webhooks
+  // -------------------------------------------------------------------------
 
   async verifyWebhook(input: WebhookVerificationInput): Promise<VerifiedWebhookEvent> {
     await Promise.resolve()
-    const rawString =
+    if (!input.secret) {
+      throw new WebhookSignatureVerificationError('No Razorpay webhook secret is configured.')
+    }
+
+    const raw =
       typeof input.rawPayload === 'string' ? input.rawPayload : input.rawPayload.toString('utf8')
-    const expectedSig = createHmac('sha256', input.secret).update(rawString).digest('hex')
+    const expected = createHmac('sha256', input.secret).update(raw).digest('hex')
 
-    const sigBuf = Buffer.from(input.signature)
-    const expBuf = Buffer.from(expectedSig)
-
-    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+    if (!digestsMatch(expected, input.signature)) {
       throw new WebhookSignatureVerificationError(
         'Razorpay webhook signature does not match computed HMAC.',
       )
     }
 
-    const parsed = JSON.parse(rawString) as {
+    const parsed = JSON.parse(raw) as {
       id?: string
       event?: string
       created_at?: number
       payload?: Record<string, unknown>
     }
+    const payload = parsed.payload ?? {}
+
+    // Razorpay's event id arrives in the x-razorpay-event-id header, not the
+    // body, so the caller passes it when it has it. The body-derived fallback
+    // is stable for a given delivery, which is what deduplication needs.
+    const eventId =
+      input.eventId ??
+      parsed.id ??
+      createHmac('sha256', input.secret).update(raw).digest('hex').slice(0, 32)
+
+    const notes = {
+      ...asRecord(entityOf(payload, 'order')['notes']),
+      ...asRecord(entityOf(payload, 'payment')['notes']),
+      ...asRecord(entityOf(payload, 'refund')['notes']),
+    }
+    const workspaceId = asString(notes['workspace_id'])
 
     return {
-      id: parsed.id ?? `evt_rzp_${randomUUID().slice(0, 8)}`,
+      id: eventId,
       provider: 'razorpay',
       eventType: parsed.event ?? 'unknown',
-      payload: parsed.payload ?? parsed,
+      payload,
       createdAt: parsed.created_at ? new Date(parsed.created_at * 1000) : new Date(),
+      ...(workspaceId ? { workspaceId } : {}),
     }
   }
 
   toDomainEvent(event: VerifiedWebhookEvent): DomainPaymentEvent | null {
-    const payload = event.payload
+    const payment = entityOf(event.payload, 'payment')
+    const order = entityOf(event.payload, 'order')
+    const notes = { ...asRecord(order['notes']), ...asRecord(payment['notes']) }
+    const internalOrderId = asString(notes['order_id'])
 
     if (event.eventType === 'payment.captured' || event.eventType === 'order.paid') {
-      const paymentWrapper = toRecord(payload['payment'])
-      const pObj =
-        Object.keys(toRecord(paymentWrapper['entity'])).length > 0
-          ? toRecord(paymentWrapper['entity'])
-          : Object.keys(paymentWrapper).length > 0
-            ? paymentWrapper
-            : payload
-      const notes = toRecord(pObj['notes'])
-
-      const oId = extractString(
-        notes['order_id'] ?? pObj['order_id'] ?? pObj['orderId'] ?? payload['orderId'],
-      )
-      const amt = extractBigInt(pObj['amount'] ?? payload['amount'])
-      const curr = currency(extractString(pObj['currency'] ?? payload['currency'], 'INR'))
-
-      const capturedEvent: PaymentCapturedDomainEvent = {
+      if (!internalOrderId || !asString(payment['id'])) return null
+      return {
         type: 'payment.captured',
         provider: 'razorpay',
         providerEventId: event.id,
-        providerPaymentId: extractString(pObj['id'], `pay_${randomUUID().slice(0, 8)}`),
-        orderId: orderId(oId),
-        amount: money(amt, curr),
-        method: extractString(pObj['method'], 'upi'),
+        providerPaymentId: asString(payment['id']),
+        orderId: orderId(internalOrderId),
+        amount: money(asBigInt(payment['amount']), currency(asString(payment['currency']) || 'INR')),
+        method: asString(payment['method']) || 'unknown',
         occurredAt: event.createdAt,
       }
-      return capturedEvent
     }
 
     if (event.eventType === 'payment.failed') {
-      const paymentWrapper = toRecord(payload['payment'])
-      const pObj =
-        Object.keys(toRecord(paymentWrapper['entity'])).length > 0
-          ? toRecord(paymentWrapper['entity'])
-          : Object.keys(paymentWrapper).length > 0
-            ? paymentWrapper
-            : payload
-      const notes = toRecord(pObj['notes'])
-
-      const oId = extractString(
-        notes['order_id'] ?? pObj['order_id'] ?? pObj['orderId'] ?? payload['orderId'],
-      )
-      const amt = extractBigInt(pObj['amount'] ?? payload['amount'])
-      const curr = currency(extractString(pObj['currency'] ?? payload['currency'], 'INR'))
-
-      const failedEvent: PaymentFailedDomainEvent = {
+      if (!internalOrderId || !asString(payment['id'])) return null
+      return {
         type: 'payment.failed',
         provider: 'razorpay',
         providerEventId: event.id,
-        providerPaymentId: extractString(pObj['id'], `pay_${randomUUID().slice(0, 8)}`),
-        orderId: orderId(oId),
-        amount: money(amt, curr),
-        reason: extractString(pObj['error_description'] ?? pObj['reason'], 'Payment failed'),
+        providerPaymentId: asString(payment['id']),
+        orderId: orderId(internalOrderId),
+        amount: money(asBigInt(payment['amount']), currency(asString(payment['currency']) || 'INR')),
+        reason: asString(payment['error_description']) || 'Payment failed',
         occurredAt: event.createdAt,
       }
-      return failedEvent
     }
 
     if (event.eventType === 'refund.processed') {
-      const refundWrapper = toRecord(payload['refund'])
-      const rObj =
-        Object.keys(toRecord(refundWrapper['entity'])).length > 0
-          ? toRecord(refundWrapper['entity'])
-          : Object.keys(refundWrapper).length > 0
-            ? refundWrapper
-            : payload
-      const notes = toRecord(rObj['notes'])
-
-      const oId = extractString(notes['order_id'] ?? rObj['order_id'] ?? payload['orderId'])
-      const amt = extractBigInt(rObj['amount'] ?? payload['amount'])
-      const curr = currency(extractString(rObj['currency'] ?? payload['currency'], 'INR'))
-
-      const refundEvent: RefundProcessedDomainEvent = {
+      const refund = entityOf(event.payload, 'refund')
+      const refundOrderId = asString(asRecord(refund['notes'])['order_id']) || internalOrderId
+      if (!refundOrderId || !asString(refund['id'])) return null
+      return {
         type: 'refund.processed',
         provider: 'razorpay',
         providerEventId: event.id,
-        providerRefundId: extractString(rObj['id'], `rfnd_${randomUUID().slice(0, 8)}`),
-        providerPaymentId: extractString(
-          rObj['payment_id'] ?? payload['payment_id'],
-          `pay_${randomUUID().slice(0, 8)}`,
-        ),
-        orderId: orderId(oId),
-        amount: money(amt, curr),
+        providerRefundId: asString(refund['id']),
+        providerPaymentId: asString(refund['payment_id']),
+        orderId: orderId(refundOrderId),
+        amount: money(asBigInt(refund['amount']), currency(asString(refund['currency']) || 'INR')),
         occurredAt: event.createdAt,
       }
-      return refundEvent
     }
 
     return null
-  }
-
-  /**
-   * Helper to simulate a payment capture in testing / mock mode.
-   */
-  async simulatePaymentCapture(sessionId: string): Promise<string> {
-    await Promise.resolve()
-    const session = this.mockOrders.get(sessionId)
-    if (!session) {
-      throw new PaymentNotFoundError(`Session ${sessionId} not found.`)
-    }
-    const provPayId = `pay_rzp_${randomUUID().slice(0, 14)}`
-    const amt = session.amount
-
-    this.mockPayments.set(provPayId, {
-      id: paymentId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-      provider: 'razorpay',
-      providerPaymentId: provPayId,
-      orderId: session.orderId,
-      amount: amt,
-      status: 'captured',
-      method: 'upi',
-      capturedAt: new Date(),
-    })
-
-    return provPayId
-  }
-
-  /**
-   * Helper to generate signed webhooks for testing and conformance checks.
-   */
-  generateSignedWebhook(
-    eventType: string,
-    payload: Record<string, unknown>,
-    secret: string,
-  ): { rawPayload: string; signature: string } {
-    const rawPayload = JSON.stringify({
-      id: `evt_rzp_${randomUUID().slice(0, 10)}`,
-      entity: 'event',
-      event: eventType,
-      contains: ['payment'],
-      payload,
-      created_at: Math.floor(Date.now() / 1000),
-    })
-
-    const signature = createHmac('sha256', secret).update(rawPayload).digest('hex')
-    return { rawPayload, signature }
   }
 }

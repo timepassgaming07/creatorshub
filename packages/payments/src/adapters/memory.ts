@@ -6,8 +6,8 @@
  * - Used for unit testing, integration suites, and conformance verification without network I/O.
  * - Supports simulated webhook emission, signature verification via HMAC-SHA256, and state transitions.
  */
-import { createHmac, randomUUID } from 'node:crypto'
-import { currency, money, orderId, paymentId, type CurrencyCode } from '@creatorhub/contracts'
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { currency, money, orderId, type CurrencyCode } from '@creatorhub/contracts'
 
 import {
   AccountNotReadyError,
@@ -15,6 +15,7 @@ import {
   WebhookSignatureVerificationError,
   type AccountStatus,
   type CheckoutSession,
+  type ConfirmCheckoutPaymentInput,
   type ConnectedAccount,
   type CreateCheckoutSessionInput,
   type CreateConnectedAccountInput,
@@ -59,6 +60,13 @@ export class MemoryPaymentProvider implements PaymentProvider {
   private readonly payments = new Map<string, PaymentSnapshot>()
   private readonly refunds = new Map<string, RefundResult>()
   private readonly payouts = new Map<string, PayoutResult>()
+
+  /**
+   * Signs test-mode payments the way a real provider signs checkout results,
+   * so the confirm path is exercised identically. Random per process: a
+   * signature from one server cannot be replayed against another.
+   */
+  private readonly testSigningKey = randomBytes(32)
 
   /** Clear all in-memory state. */
   reset(): void {
@@ -113,7 +121,7 @@ export class MemoryPaymentProvider implements PaymentProvider {
       id: sessionId,
       provider: 'memory',
       orderId: input.orderId,
-      checkoutUrl: `https://checkout.test/pay/${sessionId}`,
+      checkoutUrl: input.successUrl,
       clientSecret: `secret_${sessionId}`,
       amount: input.totalAmount,
       currency: input.currency,
@@ -122,6 +130,49 @@ export class MemoryPaymentProvider implements PaymentProvider {
 
     this.sessions.set(sessionId, { ...session, input })
     return session
+  }
+
+  /**
+   * Produce the proof a provider's checkout would hand the browser. Test mode
+   * only: the web app refuses the memory provider in production.
+   */
+  signTestPayment(sessionId: string): { providerPaymentId: string; signature: string } {
+    const providerPaymentId = `pay_mem_${randomUUID().replaceAll('-', '').slice(0, 14)}`
+    const signature = createHmac('sha256', this.testSigningKey)
+      .update(`${sessionId}|${providerPaymentId}`)
+      .digest('hex')
+    return { providerPaymentId, signature }
+  }
+
+  async confirmCheckoutPayment(input: ConfirmCheckoutPaymentInput): Promise<PaymentSnapshot> {
+    await Promise.resolve()
+    const expected = Buffer.from(
+      createHmac('sha256', this.testSigningKey)
+        .update(`${input.sessionId}|${input.providerPaymentId}`)
+        .digest('hex'),
+    )
+    const received = Buffer.from(input.signature)
+    if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+      throw new WebhookSignatureVerificationError('Test payment signature does not verify.')
+    }
+
+    const sessionRecord = this.sessions.get(input.sessionId)
+    if (!sessionRecord) {
+      throw new PaymentNotFoundError(input.sessionId)
+    }
+
+    const payment: PaymentSnapshot = {
+      provider: 'memory',
+      providerPaymentId: input.providerPaymentId,
+      providerOrderId: input.sessionId,
+      orderId: sessionRecord.orderId,
+      amount: sessionRecord.amount,
+      status: 'captured',
+      method: 'test',
+      capturedAt: new Date(),
+    }
+    this.payments.set(input.providerPaymentId, payment)
+    return payment
   }
 
   async getPayment(providerPaymentId: string): Promise<PaymentSnapshot> {
@@ -191,7 +242,9 @@ export class MemoryPaymentProvider implements PaymentProvider {
       typeof input.rawPayload === 'string' ? input.rawPayload : input.rawPayload.toString('utf8')
     const expectedSig = createHmac('sha256', input.secret).update(rawString).digest('hex')
 
-    if (input.signature !== expectedSig) {
+    const sigBuf = Buffer.from(input.signature)
+    const expBuf = Buffer.from(expectedSig)
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
       throw new WebhookSignatureVerificationError('Webhook signature does not match computed HMAC.')
     }
 
@@ -203,12 +256,32 @@ export class MemoryPaymentProvider implements PaymentProvider {
       payload?: Record<string, unknown>
     }
 
+    const payload: Record<string, unknown> = parsed.payload ?? (parsed as Record<string, unknown>)
+    const entity = (key: string): Record<string, unknown> => {
+      const wrapper = payload[key]
+      if (typeof wrapper !== 'object' || wrapper === null) return {}
+      const inner = (wrapper as Record<string, unknown>)['entity']
+      return typeof inner === 'object' && inner !== null
+        ? (inner as Record<string, unknown>)
+        : (wrapper as Record<string, unknown>)
+    }
+    const notesOf = (record: Record<string, unknown>): Record<string, unknown> =>
+      typeof record['notes'] === 'object' && record['notes'] !== null
+        ? (record['notes'] as Record<string, unknown>)
+        : {}
+    const workspaceId = extractString(
+      notesOf(entity('payment'))['workspace_id'] ??
+        notesOf(entity('order'))['workspace_id'] ??
+        notesOf(entity('refund'))['workspace_id'],
+    )
+
     return {
-      id: parsed.id ?? `evt_mem_${randomUUID().slice(0, 8)}`,
+      id: input.eventId ?? parsed.id ?? `evt_mem_${randomUUID().slice(0, 8)}`,
       provider: 'memory',
       eventType: parsed.event ?? parsed.type ?? 'unknown',
-      payload: parsed.payload ?? parsed,
+      payload,
       createdAt: parsed.created_at ? new Date(parsed.created_at * 1000) : new Date(),
+      ...(workspaceId ? { workspaceId } : {}),
     }
   }
 
@@ -349,10 +422,8 @@ export class MemoryPaymentProvider implements PaymentProvider {
     }
 
     const provPayId = opts.providerPaymentId ?? `pay_mem_${randomUUID().slice(0, 12)}`
-    const pId = paymentId('018f9e2b-7c5e-7a2e-8c3b-000000000001')
 
     const payment: PaymentSnapshot = {
-      id: pId,
       provider: 'memory',
       providerPaymentId: provPayId,
       orderId: sessionRecord.orderId,
@@ -376,10 +447,8 @@ export class MemoryPaymentProvider implements PaymentProvider {
     }
 
     const provPayId = `pay_mem_${randomUUID().slice(0, 12)}`
-    const pId = paymentId('018f9e2b-7c5e-7a2e-8c3b-000000000002')
 
     const payment: PaymentSnapshot = {
-      id: pId,
       provider: 'memory',
       providerPaymentId: provPayId,
       orderId: sessionRecord.orderId,
