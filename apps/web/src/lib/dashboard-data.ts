@@ -7,11 +7,13 @@
  */
 import { notFound, redirect } from 'next/navigation'
 import {
+  buildDomainChallenge,
   requestId,
   workspaceContext,
   workspaceId as toWorkspaceId,
   type AnalyticsSummaryDTO,
   type AnalyticsTimeframe,
+  type CustomDomainChallenge,
   type WorkspaceContext,
 } from '@creatorhub/contracts'
 import {
@@ -26,6 +28,8 @@ import {
 import { authorise, type Permission, type WorkspaceRole } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
+import { customDomainTarget } from './env'
+import { cardFor, storeRecord, type PublicProductCard, type PublicStore } from './storefront-public'
 import { getWorkspaceAccess, type WorkspaceAccess } from './workspace-access'
 
 export type MemberScope = RepositoryScope & { readonly access: WorkspaceAccess }
@@ -88,7 +92,10 @@ export type HomeData = {
   }
 }
 
-export async function loadHome(rawWorkspaceId: string, timeframe: AnalyticsTimeframe = '30d'): Promise<HomeData> {
+export async function loadHome(
+  rawWorkspaceId: string,
+  timeframe: AnalyticsTimeframe = '30d',
+): Promise<HomeData> {
   return asMember(rawWorkspaceId, 'workspace.view', async (scope) => {
     const summary = await analytics.getWorkspaceAnalyticsSummary(scope, { timeframe })
 
@@ -273,6 +280,53 @@ export async function loadProductEditor(
       })),
       storeUrl: store?.url ?? null,
       storeStatus: store?.status ?? null,
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Storefront editor
+// ---------------------------------------------------------------------------
+
+export type StorefrontEditorData = {
+  readonly store: PublicStore
+  readonly products: readonly PublicProductCard[]
+  readonly status: 'draft' | 'published' | 'suspended'
+  readonly domain: {
+    readonly domain: string | null
+    readonly status: 'pending' | 'verified' | 'failed'
+    readonly challenge: CustomDomainChallenge | null
+  }
+}
+
+export async function loadStorefrontEditor(
+  rawWorkspaceId: string,
+): Promise<StorefrontEditorData | null> {
+  return asMember(rawWorkspaceId, 'storefront.manage', async (scope) => {
+    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
+    const store = await storeRecord(scope, false)
+    if (!sf || !store) return null
+    const listed = (await catalogue.listProducts(scope, { status: 'published' })).filter(
+      (p) => p.visibility === 'public',
+    )
+    const products: PublicProductCard[] = []
+    for (const product of listed) products.push(await cardFor(scope, product))
+    return {
+      store,
+      products,
+      status: sf.status,
+      domain: {
+        domain: sf.customDomain,
+        status: sf.customDomainStatus,
+        challenge:
+          sf.customDomain && sf.customDomainVerificationToken
+            ? buildDomainChallenge(
+                sf.customDomain,
+                sf.customDomainVerificationToken,
+                customDomainTarget(),
+              )
+            : null,
+      },
     }
   })
 }

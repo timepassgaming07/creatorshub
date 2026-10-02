@@ -140,3 +140,26 @@ describe('buildDomainChallenge', () => {
     expect(challenge.cnameRecord.target).toBe('custom.creatorhub.local')
   })
 })
+
+describe('Storefront link URLs', () => {
+  it('rejects links that would run script', () => {
+    for (const url of [
+      'javascript:alert(1)',
+      'data:text/html,<script>1</script>',
+      'JAVASCRIPT:alert(1)',
+    ]) {
+      expect(() => storefrontThemeSchema.parse({ customLinks: [{ label: 'x', url }] })).toThrow()
+      expect(() =>
+        storefrontThemeSchema.parse({ socialLinks: [{ platform: 'website', url }] }),
+      ).toThrow()
+    }
+  })
+
+  it('accepts web and mail links', () => {
+    const theme = storefrontThemeSchema.parse({
+      socialLinks: [{ platform: 'instagram', url: 'https://instagram.com/asha' }],
+      customLinks: [{ label: 'Email me', url: 'mailto:asha@example.com' }],
+    })
+    expect(theme.customLinks[0]?.url).toBe('mailto:asha@example.com')
+  })
+})

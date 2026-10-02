@@ -1,458 +1,206 @@
 /**
- * Storefront server actions unit tests (Item 4.2 & 4.3).
+ * Storefront editor actions: who may change what, and the custom domain flow.
  */
-import { userId } from '@creatorhub/contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ServerSession } from './server-session'
+const WS = '018f9e2b-7c5e-7a2e-8c3b-123456789abc'
+const USER = '018f9e2b-7c5e-7a2e-8c3b-987654321def'
 
-const mockGetServerSession = vi.fn<() => Promise<ServerSession | null>>()
-
-vi.mock('./server-session', () => ({
-  getServerSession: () => mockGetServerSession(),
+const mockAccess = vi.fn()
+vi.mock('./workspace-access', () => ({
+  getWorkspaceAccess: (...args: unknown[]) => mockAccess(...args) as unknown,
 }))
 
-const mockWithWorkspace =
-  vi.fn<(_ctx: unknown, fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>>()
-const mockWithSystemScope = vi.fn<(_fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>>()
-
+const mockWithWorkspace = vi.fn()
 vi.mock('./db', () => ({
-  getDatabase: () => ({
-    withWorkspace: mockWithWorkspace,
-    withSystemScope: mockWithSystemScope,
-    resolveStorefrontByHostname: vi.fn().mockResolvedValue(null),
-    schema: {
-      storefronts: {
-        subdomain: 'subdomain',
-        customDomain: 'custom_domain',
-      },
-      sql: (strings: TemplateStringsArray, ...args: unknown[]) => ({ strings, args }),
-    },
-  }),
+  getDatabase: () => ({ withWorkspace: mockWithWorkspace }),
 }))
 
-const mockFindMemberByUserId = vi.fn()
-const mockFindStorefrontByWorkspaceId = vi.fn()
-const mockCreateStorefront = vi.fn()
-const mockUpdateStorefront = vi.fn()
-const mockUpdateCustomDomainStatus = vi.fn()
-const mockWriteAuditLog = vi.fn()
-const mockFindCurrentWorkspace = vi.fn()
-const mockFindProductBySlug = vi.fn()
-const mockListAssetsForProduct = vi.fn()
+const mockVerifyDns = vi.fn()
+vi.mock('./domain-verification', () => ({
+  generateDomainVerificationToken: () => 'ch_verify_test_token',
+  verifyCustomDomainDns: (...args: unknown[]) => mockVerifyDns(...args) as unknown,
+}))
 
+const store = {
+  findStorefrontByWorkspaceId: vi.fn(),
+  updateStorefront: vi.fn(),
+  setCustomDomain: vi.fn(),
+  updateCustomDomainStatus: vi.fn(),
+}
+const findAssetById = vi.fn()
 vi.mock('@creatorhub/db', () => ({
-  workspaceMembers: {
-    findMemberByUserId: (...args: unknown[]) => mockFindMemberByUserId(...args) as unknown,
-  },
-  workspaces: {
-    findCurrentWorkspace: (...args: unknown[]) => mockFindCurrentWorkspace(...args) as unknown,
-  },
   storefronts: {
-    findStorefrontByWorkspaceId: (...args: unknown[]) =>
-      mockFindStorefrontByWorkspaceId(...args) as unknown,
-    createStorefront: (...args: unknown[]) => mockCreateStorefront(...args) as unknown,
-    updateStorefront: (...args: unknown[]) => mockUpdateStorefront(...args) as unknown,
-    updateCustomDomainStatus: (...args: unknown[]) =>
-      mockUpdateCustomDomainStatus(...args) as unknown,
+    findStorefrontByWorkspaceId: (...a: unknown[]) =>
+      store.findStorefrontByWorkspaceId(...a) as unknown,
+    updateStorefront: (...a: unknown[]) => store.updateStorefront(...a) as unknown,
+    setCustomDomain: (...a: unknown[]) => store.setCustomDomain(...a) as unknown,
+    updateCustomDomainStatus: (...a: unknown[]) => store.updateCustomDomainStatus(...a) as unknown,
   },
-  auditLog: {
-    writeAuditLog: (...args: unknown[]) => mockWriteAuditLog(...args) as unknown,
-  },
-  catalogue: {
-    listProducts: vi.fn().mockResolvedValue([]),
-    findProductBySlug: (...args: unknown[]) => mockFindProductBySlug(...args) as unknown,
-    listAssetsForProduct: (...args: unknown[]) => mockListAssetsForProduct(...args) as unknown,
-  },
+  catalogue: { findAssetById: (...a: unknown[]) => findAssetById(...a) as unknown },
+  auditLog: { writeAuditLog: vi.fn().mockResolvedValue(undefined) },
 }))
 
 import {
-  getPublicProductDetailByCustomDomain,
-  getPublicProductDetailBySubdomain,
-  getPublicStorefrontDataByCustomDomain,
-  getPublicStorefrontDataBySubdomain,
-  getStorefrontForWorkspaceAction,
-  initiateCustomDomainAction,
-  publishStorefrontAction,
-  removeCustomDomainAction,
+  connectCustomDomainAction,
   saveStorefrontAction,
+  setStorefrontPublishedAction,
   verifyCustomDomainAction,
 } from './storefront-actions'
 
-describe('Storefront Server Actions', () => {
-  const validWorkspaceId = '018f9e2b-7c5e-7a2e-8c3b-123456789abc'
-  const validUserId = userId('018f9e2b-7c5e-7a2e-8c3b-987654321def')
+function signedInAs(role: 'owner' | 'admin' | 'member') {
+  mockAccess.mockResolvedValue({
+    session: { userId: USER, user: { id: USER, email: 'a@example.com' } },
+    access: {
+      session: { userId: USER },
+      role,
+      workspace: { id: WS, name: 'Studio', slug: 'studio', currency: 'INR' },
+      storefront: null,
+    },
+  })
+}
 
+const existingStore = {
+  id: '018f9e2b-7c5e-7a2e-8c3b-00000000000a',
+  status: 'draft',
+  customDomain: null as string | null,
+  customDomainVerificationToken: null as string | null,
+}
+
+const theme = {
+  accentColor: '#e2541c',
+  fontPreset: 'sans' as const,
+  layoutPreset: 'showcase' as const,
+  socialLinks: [{ platform: 'instagram' as const, url: 'https://instagram.com/asha' }],
+  customLinks: [{ label: 'Book a call', url: 'https://cal.com/asha' }],
+}
+
+describe('storefront actions', () => {
   beforeEach(() => {
-    mockGetServerSession.mockReset()
-    mockWithWorkspace.mockReset()
-    mockWithSystemScope.mockReset()
-    mockFindMemberByUserId.mockReset()
-    mockFindStorefrontByWorkspaceId.mockReset()
-    mockCreateStorefront.mockReset()
-    mockUpdateStorefront.mockReset()
-    mockUpdateCustomDomainStatus.mockReset()
-    mockWriteAuditLog.mockReset()
-    mockFindCurrentWorkspace.mockReset()
-  })
-
-  it('rejects getStorefrontForWorkspaceAction when unauthenticated', async () => {
-    mockGetServerSession.mockResolvedValue(null)
-
-    const res = await getStorefrontForWorkspaceAction(validWorkspaceId)
-    expect(res.success).toBe(false)
-    if (!res.success) {
-      expect(res.error).toMatch(/unauthorized/i)
-    }
-  })
-
-  it('rejects saveStorefrontAction when unauthenticated', async () => {
-    mockGetServerSession.mockResolvedValue(null)
-
-    const res = await saveStorefrontAction(validWorkspaceId, {
-      title: 'Updated Store',
-    })
-    expect(res.success).toBe(false)
-    if (!res.success) {
-      expect(res.error).toMatch(/unauthorized/i)
-    }
-  })
-
-  it('rejects saveStorefrontAction with invalid inputs', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const res = await saveStorefrontAction(validWorkspaceId, {
-      title: '', // Title cannot be empty
-    })
-    expect(res.success).toBe(false)
-  })
-
-  it('handles successful storefront fetch', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: null,
-      customDomainStatus: 'pending' as const,
-      customDomainVerificationToken: null,
-      customDomainVerifiedAt: null,
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'draft' as const,
-      publishedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindMemberByUserId.mockResolvedValue({ role: 'owner' })
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      const res = await fn({})
-      return res
-    })
-
-    const res = await getStorefrontForWorkspaceAction(validWorkspaceId)
-    expect(res.success).toBe(true)
-    if (res.success) {
-      expect(res.data.title).toBe('My Store')
-    }
-  })
-
-  it('rejects publishStorefrontAction when unauthenticated', async () => {
-    mockGetServerSession.mockResolvedValue(null)
-
-    const res = await publishStorefrontAction(validWorkspaceId)
-    expect(res.success).toBe(false)
-  })
-
-  it('initiates custom domain configuration and generates DNS challenge records (4.3)', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: null,
-      customDomainStatus: 'pending' as const,
-      customDomainVerificationToken: null,
-      customDomainVerifiedAt: null,
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'draft' as const,
-      publishedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindMemberByUserId.mockResolvedValue({ role: 'owner' })
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      mockUpdateStorefront.mockResolvedValue({
-        ...mockStorefront,
-        customDomain: 'shop.janedoe.com',
-      })
-      const res = await fn({})
-      return res
-    })
-
-    const res = await initiateCustomDomainAction(validWorkspaceId, 'shop.janedoe.com')
-    expect(res.success).toBe(true)
-    if (res.success) {
-      expect(res.data.challenge.domain).toBe('shop.janedoe.com')
-      expect(res.data.challenge.txtRecord.host).toBe('_creatorhub-challenge.shop.janedoe.com')
-      expect(res.data.challenge.cnameRecord.target).toBe('cname.creatorhub.com')
-      expect(res.data.storefront.customDomain).toBe('shop.janedoe.com')
-    }
-  })
-
-  it('rejects initiating custom domain with invalid domain syntax', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const res = await initiateCustomDomainAction(validWorkspaceId, 'not a domain!')
-    expect(res.success).toBe(false)
-  })
-
-  it('verifies custom domain with mock DNS resolver (4.3)', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const token = 'ch_verify_valid_token_123'
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: 'shop.janedoe.com',
-      customDomainStatus: 'pending' as const,
-      customDomainVerificationToken: token,
-      customDomainVerifiedAt: null,
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'draft' as const,
-      publishedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindMemberByUserId.mockResolvedValue({ role: 'owner' })
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      mockUpdateCustomDomainStatus.mockResolvedValue({
-        ...mockStorefront,
-        customDomainStatus: 'verified',
-        customDomainVerifiedAt: new Date(),
-      })
-      const res = await fn({})
-      return res
-    })
-
-    const mockResolver = {
-      resolveTxt: vi.fn().mockResolvedValue([[token]]),
-      resolveCname: vi.fn().mockRejectedValue(new Error('not used')),
-    }
-
-    const res = await verifyCustomDomainAction(validWorkspaceId, { resolver: mockResolver })
-    expect(res.success).toBe(true)
-    if (res.success) {
-      expect(res.verified).toBe(true)
-      expect(res.storefront.customDomainStatus).toBe('verified')
-    }
-  })
-
-  it('removes custom domain and resets status (4.3)', async () => {
-    mockGetServerSession.mockResolvedValue({
-      userId: validUserId,
-      user: { id: validUserId, email: 'test@example.com' },
-    })
-
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: 'shop.janedoe.com',
-      customDomainStatus: 'verified' as const,
-      customDomainVerificationToken: 'ch_verify_123',
-      customDomainVerifiedAt: new Date(),
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'published' as const,
-      publishedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindMemberByUserId.mockResolvedValue({ role: 'owner' })
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      mockUpdateStorefront.mockResolvedValue({
-        ...mockStorefront,
-        customDomain: null,
-        customDomainStatus: 'pending',
-        customDomainVerificationToken: null,
-        customDomainVerifiedAt: null,
-      })
-      const res = await fn({})
-      return res
-    })
-
-    const res = await removeCustomDomainAction(validWorkspaceId)
-    expect(res.success).toBe(true)
-    if (res.success) {
-      expect(res.data.customDomain).toBeNull()
-    }
-  })
-
-  it('loads public product detail by subdomain and slug (4.4)', async () => {
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: null,
-      customDomainStatus: 'pending' as const,
-      customDomainVerificationToken: null,
-      customDomainVerifiedAt: null,
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'published' as const,
-      publishedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const mockProduct = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-222222222222',
-      workspaceId: validWorkspaceId,
-      title: 'Digital Masterclass',
-      slug: 'digital-masterclass',
-      description: 'Complete video course',
-      status: 'published' as const,
-      currency: 'USD',
-      basePrice: 4900n,
-      compareAtPrice: 9900n,
-      visibility: 'public' as const,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      mockFindProductBySlug.mockResolvedValue(mockProduct)
-      mockListAssetsForProduct.mockResolvedValue([
-        {
-          productAsset: { role: 'deliverable' },
-          asset: {
-            id: '018f9e2b-7c5e-7a2e-8c3b-333333333333',
-            originalFilename: 'masterclass.zip',
-            mimeType: 'application/zip',
-            byteSize: 10485760,
-          },
-        },
-      ])
-      const res = await fn({})
-      return res
-    })
-
-    const res = await getPublicProductDetailBySubdomain(
-      'my-store',
-      'digital-masterclass',
-      validWorkspaceId,
+    vi.clearAllMocks()
+    mockWithWorkspace.mockImplementation((_ctx: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({}),
     )
-    expect(res).not.toBeNull()
-    if (res) {
-      expect(res.storefront.title).toBe('My Store')
-      expect(res.product.title).toBe('Digital Masterclass')
-      expect(res.product.basePrice).toBe('4900')
-      expect(res.product.assets).toHaveLength(1)
-      expect(res.product.assets[0]?.originalFilename).toBe('masterclass.zip')
-    }
+    store.findStorefrontByWorkspaceId.mockResolvedValue(existingStore)
   })
 
-  it('loads public storefront data by subdomain in preview mode (4.4)', async () => {
-    const mockStorefront = {
-      id: '018f9e2b-7c5e-7a2e-8c3b-111111111111',
-      workspaceId: validWorkspaceId,
-      subdomain: 'my-store',
-      customDomain: null,
-      customDomainStatus: 'pending' as const,
-      customDomainVerificationToken: null,
-      customDomainVerifiedAt: null,
-      title: 'My Store',
-      tagline: null,
-      description: null,
-      themeConfig: {
-        accentColor: '#4f46e5',
-        fontPreset: 'sans' as const,
-        layoutPreset: 'showcase' as const,
-      },
-      status: 'published' as const,
-      publishedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
+  it('refuses a signed-out caller', async () => {
+    mockAccess.mockResolvedValue({ session: null, access: null })
+    const result = await saveStorefrontAction(WS, { title: 'Studio', tagline: null, theme })
+    expect(result.ok).toBe(false)
+    expect(store.updateStorefront).not.toHaveBeenCalled()
+  })
 
-    mockWithWorkspace.mockImplementation(async (_context, fn) => {
-      mockFindStorefrontByWorkspaceId.mockResolvedValue(mockStorefront)
-      const res = await fn({})
-      return res
+  it('refuses a member without storefront.manage', async () => {
+    signedInAs('member')
+    const result = await saveStorefrontAction(WS, { title: 'Studio', tagline: null, theme })
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('role') })
+    expect(store.updateStorefront).not.toHaveBeenCalled()
+  })
+
+  it('rejects a link that would run script, before touching the database', async () => {
+    signedInAs('owner')
+    const result = await saveStorefrontAction(WS, {
+      title: 'Studio',
+      tagline: null,
+      theme: { ...theme, customLinks: [{ label: 'x', url: 'javascript:alert(1)' }] },
+    })
+    expect(result.ok).toBe(false)
+    expect(mockWithWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('saves profile and theme but never status or domain', async () => {
+    signedInAs('admin')
+    const result = await saveStorefrontAction(WS, { title: 'Studio', tagline: '  ', theme })
+    expect(result.ok).toBe(true)
+    const patch = store.updateStorefront.mock.calls[0]?.[2] as Record<string, unknown>
+    expect(patch).toMatchObject({ title: 'Studio', tagline: null })
+    expect(patch).not.toHaveProperty('status')
+    expect(patch).not.toHaveProperty('customDomain')
+  })
+
+  it('rejects a logo that is not an image', async () => {
+    signedInAs('owner')
+    findAssetById.mockResolvedValue({ mimeType: 'application/zip', scanStatus: 'clean' })
+    const result = await saveStorefrontAction(WS, {
+      title: 'Studio',
+      tagline: null,
+      theme: { ...theme, logoAssetId: '018f9e2b-7c5e-7a2e-8c3b-0000000000ff' },
+    })
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('logo') })
+  })
+
+  it('will not publish a suspended store', async () => {
+    signedInAs('owner')
+    store.findStorefrontByWorkspaceId.mockResolvedValue({ ...existingStore, status: 'suspended' })
+    const result = await setStorefrontPublishedAction(WS, true)
+    expect(result.ok).toBe(false)
+    expect(store.updateStorefront).not.toHaveBeenCalled()
+  })
+
+  it('stores the same verification token it shows the creator', async () => {
+    signedInAs('owner')
+    const result = await connectCustomDomainAction(WS, 'https://Shop.Example.com/')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(store.setCustomDomain).toHaveBeenCalledWith(
+      expect.anything(),
+      existingStore.id,
+      'shop.example.com',
+      'ch_verify_test_token',
+    )
+    expect(result.data.challenge?.txtRecord.value).toBe('ch_verify_test_token')
+  })
+
+  it('refuses a CreatorHub address as a custom domain', async () => {
+    signedInAs('owner')
+    vi.stubEnv('PLATFORM_ROOT_DOMAIN', 'creatorhub.store')
+    const result = await connectCustomDomainAction(WS, 'someone.creatorhub.store')
+    vi.unstubAllEnvs()
+    expect(result.ok).toBe(false)
+    expect(store.setCustomDomain).not.toHaveBeenCalled()
+  })
+
+  it('explains a domain another store already holds', async () => {
+    signedInAs('owner')
+    store.setCustomDomain.mockRejectedValue(
+      Object.assign(new Error('insert failed'), { cause: { code: '23505' } }),
+    )
+    const result = await connectCustomDomainAction(WS, 'shop.example.com')
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('already connected') })
+  })
+
+  it('checks DNS against the stored token, outside any transaction', async () => {
+    signedInAs('owner')
+    const pending = {
+      ...existingStore,
+      customDomain: 'shop.example.com',
+      customDomainVerificationToken: 'tok_1',
+    }
+    store.findStorefrontByWorkspaceId.mockResolvedValue(pending)
+    let open = 0
+    mockWithWorkspace.mockImplementation(
+      async (_ctx: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+        open += 1
+        try {
+          return await fn({})
+        } finally {
+          open -= 1
+        }
+      },
+    )
+    mockVerifyDns.mockImplementation(() => {
+      expect(open).toBe(0)
+      return Promise.resolve({ verified: true, method: 'txt', verifiedAt: new Date() })
     })
 
-    const res = await getPublicStorefrontDataBySubdomain('my-store', validWorkspaceId)
-    expect(res).not.toBeNull()
-    if (res) {
-      expect(res.storefront.title).toBe('My Store')
-    }
-  })
-
-  it('loads public storefront and product detail by custom domain (4.4)', async () => {
-    const resStorefront = await getPublicStorefrontDataByCustomDomain('unknown.domain.com')
-    expect(resStorefront).toBeNull()
-
-    const resProduct = await getPublicProductDetailByCustomDomain('unknown.domain.com', 'some-slug')
-    expect(resProduct).toBeNull()
+    const result = await verifyCustomDomainAction(WS)
+    expect(result.ok).toBe(true)
+    expect(mockVerifyDns).toHaveBeenCalledWith('shop.example.com', 'tok_1', expect.anything())
+    expect(store.updateCustomDomainStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      pending.id,
+      'verified',
+    )
   })
 })

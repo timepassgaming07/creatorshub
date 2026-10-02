@@ -18,7 +18,9 @@ import { StoreAvatar } from './StoreShell'
 function safeHref(url: string): string | null {
   try {
     const parsed = new URL(url)
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:' || parsed.protocol === 'mailto:'
+    return parsed.protocol === 'https:' ||
+      parsed.protocol === 'http:' ||
+      parsed.protocol === 'mailto:'
       ? parsed.toString()
       : null
   } catch {
@@ -48,26 +50,33 @@ export function StoreHome({
         {store.bannerUrl ? (
           <div className="overflow-hidden rounded-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element -- media route */}
-            <img src={store.bannerUrl} alt="" className="h-40 w-full object-cover sm:h-56" />
+            <img src={store.bannerUrl} alt="" className="h-40 w-full object-cover @xl:h-56" />
           </div>
         ) : (
           <div
             aria-hidden="true"
-            className="h-32 rounded-3xl sm:h-44"
+            className="h-32 rounded-3xl @xl:h-44"
             style={{
               background:
                 'radial-gradient(80% 140% at 15% 0%, color-mix(in oklch, var(--store-accent) 55%, transparent), transparent 70%), radial-gradient(90% 120% at 100% 100%, color-mix(in oklch, var(--store-accent) 30%, var(--surface-sunken)), var(--surface-sunken))',
             }}
           />
         )}
-        <div className="-mt-12 flex flex-col items-center text-center sm:-mt-14">
+        <div className="-mt-12 flex flex-col items-center text-center @xl:-mt-14">
           <div className="rounded-full bg-surface-base p-1.5">
-            <StoreAvatar store={store} className="size-24 text-3xl sm:size-28" />
+            <StoreAvatar store={store} className="size-24 text-3xl @xl:size-28" />
           </div>
-          <h1 id="store-name" className="mt-4 text-3xl font-semibold tracking-tight store-heading sm:text-4xl">
+          <h1
+            id="store-name"
+            className="mt-4 text-3xl font-semibold tracking-tight store-heading @xl:text-4xl"
+          >
             {store.title}
           </h1>
-          {headline && <p className="mt-2 max-w-xl text-[17px] text-content-secondary text-balance">{headline}</p>}
+          {headline && (
+            <p className="mt-2 max-w-xl text-[17px] text-content-secondary text-balance">
+              {headline}
+            </p>
+          )}
           {bio && bio !== headline && (
             <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-content-secondary text-pretty whitespace-pre-line">
               {bio}
@@ -106,7 +115,10 @@ export function StoreHome({
                       {link.emoji && <span aria-hidden="true">{link.emoji}</span>}
                       <span className="truncate">{link.label}</span>
                     </span>
-                    <ArrowUpRight className="size-4 shrink-0 text-content-tertiary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+                    <ArrowUpRight
+                      className="size-4 shrink-0 text-content-tertiary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      aria-hidden="true"
+                    />
                   </a>
                 </li>
               ))}
@@ -138,7 +150,11 @@ export function StoreHome({
           <ul className="mx-auto flex max-w-xl flex-col gap-3">
             {products.map((product) => (
               <li key={product.id}>
-                <ProductCard product={product} href={`${basePath}/p/${product.slug}`} variant="row" />
+                <ProductCard
+                  product={product}
+                  href={`${basePath}/p/${product.slug}`}
+                  variant="row"
+                />
               </li>
             ))}
           </ul>
@@ -146,8 +162,8 @@ export function StoreHome({
           <ul
             className={
               layout === 'grid'
-                ? 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
-                : 'grid grid-cols-1 gap-6 sm:grid-cols-2'
+                ? 'grid grid-cols-1 gap-5 @xl:grid-cols-2 @5xl:grid-cols-3'
+                : 'grid grid-cols-1 gap-6 @xl:grid-cols-2'
             }
           >
             {products.map((product) => (

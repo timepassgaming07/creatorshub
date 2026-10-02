@@ -105,16 +105,32 @@ export const SOCIAL_PLATFORMS = [
 ] as const
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
 
+/**
+ * A link a buyer will click. `z.string().url()` alone accepts `javascript:`
+ * and `data:` URLs, which would run script on the storefront's origin.
+ */
+function linkUrl(protocols: readonly string[]) {
+  return z
+    .string()
+    .trim()
+    .max(500)
+    .url('Must be a valid URL.')
+    .refine(
+      (value) => protocols.some((protocol) => value.toLowerCase().startsWith(protocol)),
+      'Links must start with https://.',
+    )
+}
+
 export const socialLinkSchema = z.object({
   platform: z.enum(SOCIAL_PLATFORMS),
-  url: z.string().url('Must be a valid URL.').max(500),
+  url: linkUrl(['https:', 'http:']),
 })
 
 export type SocialLink = z.infer<typeof socialLinkSchema>
 
 export const customLinkSchema = z.object({
   label: z.string().trim().min(1).max(80),
-  url: z.string().url('Must be a valid URL.').max(500),
+  url: linkUrl(['https:', 'http:', 'mailto:']),
   emoji: z.string().max(4).optional(),
 })
 

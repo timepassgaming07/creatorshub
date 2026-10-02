@@ -60,6 +60,15 @@ export function storefrontUrl(subdomain: string): string {
   return `${protocol}://${subdomain}.${root}`
 }
 
+/**
+ * The hostname a creator's custom domain CNAMEs to. It must route to this app
+ * and terminate TLS for arbitrary hostnames (an on-demand TLS proxy or the
+ * hosting platform's custom domain feature).
+ */
+export function customDomainTarget(): string {
+  return read('CUSTOM_DOMAIN_TARGET') ?? `domains.${platformRootDomain()}`
+}
+
 const DEVELOPMENT_AUDIT_SALT = 'development-audit-ip-salt-at-least-32-chars-long'
 
 /**

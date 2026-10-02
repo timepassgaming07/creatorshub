@@ -177,6 +177,35 @@ export async function publishStorefront(
 }
 
 /**
+ * Point a storefront at a custom domain (or clear it), starting a fresh
+ * verification: the token the creator is shown is the one stored here.
+ */
+export async function setCustomDomain(
+  scope: RepositoryScope,
+  id: StorefrontId,
+  domain: string | null,
+  verificationToken: string | null,
+): Promise<StorefrontRecord> {
+  const [row] = await scope.tx
+    .update(storefronts)
+    .set({
+      customDomain: domain ? domain.toLowerCase() : null,
+      customDomainVerificationToken: verificationToken,
+      customDomainStatus: 'pending',
+      customDomainVerifiedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(scoped(scope, storefronts, eq(storefronts.id, id)))
+    .returning()
+
+  if (!row) {
+    throw new Error(`Storefront ${id} not found or not accessible to tenant.`)
+  }
+
+  return row
+}
+
+/**
  * Updates custom domain verification state.
  */
 export async function updateCustomDomainStatus(

@@ -76,3 +76,15 @@ export function storeStyle(theme: Partial<StorefrontTheme>): CSSProperties {
 export function storeModeClass(theme: Partial<StorefrontTheme>): string {
   return storeLayout(theme) === 'editorial' ? 'store-dark' : 'store-light'
 }
+
+/** Starting points for a creator's accent. Creator data, not design tokens. */
+export const ACCENT_PRESETS: readonly { readonly name: string; readonly hex: string }[] = [
+  { name: 'Ember', hex: '#e2541c' },
+  { name: 'Marigold', hex: '#e8a317' },
+  { name: 'Jade', hex: '#13855c' },
+  { name: 'Lagoon', hex: '#0f7c90' },
+  { name: 'Indigo', hex: '#4f46e5' },
+  { name: 'Orchid', hex: '#a23ec2' },
+  { name: 'Rose', hex: '#d6336c' },
+  { name: 'Ink', hex: '#18181b' },
+]

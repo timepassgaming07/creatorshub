@@ -177,7 +177,8 @@ export function createDatabase(config: DatabaseConfig): Database {
       >`
         SELECT id, workspace_id, subdomain, custom_domain, title, status
         FROM storefronts
-        WHERE (lower(subdomain) = ${clean} OR lower(custom_domain) = ${clean})
+        WHERE lower(subdomain) = ${clean}
+           OR (lower(custom_domain) = ${clean} AND custom_domain_status = 'verified')
         LIMIT 1
       `
       const row = rows[0]

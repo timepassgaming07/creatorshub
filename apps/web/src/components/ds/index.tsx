@@ -153,7 +153,9 @@ export function PageHeader({
                     {crumb.label}
                   </span>
                 )}
-                {index < crumbs.length - 1 && <ChevronRight className="size-3.5" aria-hidden="true" />}
+                {index < crumbs.length - 1 && (
+                  <ChevronRight className="size-3.5" aria-hidden="true" />
+                )}
               </li>
             ))}
           </ol>
@@ -230,7 +232,10 @@ const ORDER_STATUS: Record<string, { label: string; tone: Tone }> = {
 }
 
 export function OrderStatusBadge({ status }: { readonly status: string }) {
-  const meta = ORDER_STATUS[status] ?? { label: status.replaceAll('_', ' '), tone: 'neutral' as const }
+  const meta = ORDER_STATUS[status] ?? {
+    label: status.replaceAll('_', ' '),
+    tone: 'neutral' as const,
+  }
   return (
     <Badge tone={meta.tone} dot>
       {meta.label}
@@ -254,7 +259,8 @@ export function Stat({
   readonly value: ReactNode
   readonly hint?: ReactNode
   readonly icon?: ReactNode
-  readonly trend?: { readonly direction: 'up' | 'down' | 'flat'; readonly label: string } | undefined
+  readonly trend?:
+    { readonly direction: 'up' | 'down' | 'flat'; readonly label: string } | undefined
   readonly className?: string
 }) {
   return (
@@ -317,7 +323,9 @@ export function EmptyState({
       )}
       <h3 className="text-heading font-semibold text-content-primary">{title}</h3>
       {description && (
-        <p className="mt-1.5 max-w-sm text-body text-content-secondary text-pretty">{description}</p>
+        <p className="mt-1.5 max-w-sm text-body text-content-secondary text-pretty">
+          {description}
+        </p>
       )}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -381,7 +389,13 @@ export function Notice({
   )
 }
 
-export function Spinner({ className = 'size-4', label }: { readonly className?: string; readonly label?: string }) {
+export function Spinner({
+  className = 'size-4',
+  label,
+}: {
+  readonly className?: string
+  readonly label?: string
+}) {
   return (
     <>
       <Loader2 className={cn('animate-spin', className)} aria-hidden="true" />
@@ -391,7 +405,12 @@ export function Spinner({ className = 'size-4', label }: { readonly className?: 
 }
 
 export function SkeletonBlock({ className }: { readonly className?: string }) {
-  return <div className={cn('rounded-md bg-surface-sunken animate-shimmer', className)} aria-hidden="true" />
+  return (
+    <div
+      className={cn('rounded-md bg-surface-sunken animate-shimmer', className)}
+      aria-hidden="true"
+    />
+  )
 }
 
 export function LoadingRows({ rows = 5 }: { readonly rows?: number }) {
@@ -439,9 +458,20 @@ export function Avatar({
 // Tables
 // ---------------------------------------------------------------------------
 
-export function Table({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
+export function Table({
+  children,
+  className,
+}: {
+  readonly children: ReactNode
+  readonly className?: string
+}) {
   return (
-    <div className={cn('overflow-x-auto rounded-xl border border-border-subtle bg-surface-raised', className)}>
+    <div
+      className={cn(
+        'overflow-x-auto rounded-xl border border-border-subtle bg-surface-raised',
+        className,
+      )}
+    >
       <table className="w-full min-w-[640px] border-collapse text-left text-body">{children}</table>
     </div>
   )
@@ -632,9 +662,11 @@ export function Segmented<T extends string>({
 // Tabs
 // ---------------------------------------------------------------------------
 
-const TabsContext = createContext<{ value: string; setValue: (v: string) => void; id: string } | null>(
-  null,
-)
+const TabsContext = createContext<{
+  value: string
+  setValue: (v: string) => void
+  id: string
+} | null>(null)
 
 export function Tabs({
   defaultValue,
@@ -663,7 +695,13 @@ export function Tabs({
   )
 }
 
-export function TabList({ children, label }: { readonly children: ReactNode; readonly label: string }) {
+export function TabList({
+  children,
+  label,
+}: {
+  readonly children: ReactNode
+  readonly label: string
+}) {
   return (
     <div
       role="tablist"
@@ -702,7 +740,13 @@ export function Tab({ value, children }: { readonly value: string; readonly chil
   )
 }
 
-export function TabPanel({ value, children }: { readonly value: string; readonly children: ReactNode }) {
+export function TabPanel({
+  value,
+  children,
+}: {
+  readonly value: string
+  readonly children: ReactNode
+}) {
   const ctx = useContext(TabsContext)
   if (!ctx || ctx.value !== value) return null
   return (
@@ -720,15 +764,19 @@ export function CopyButton({
   value,
   label = 'Copy',
   className,
+  iconOnly = false,
 }: {
   readonly value: string
   readonly label?: string
   readonly className?: string
+  /** Show only the icon; the label stays as the accessible name. */
+  readonly iconOnly?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
       type="button"
+      {...(iconOnly ? { 'aria-label': label, title: label } : {})}
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => {
           setCopied(true)
@@ -738,12 +786,17 @@ export function CopyButton({
         })
       }}
       className={cn(
-        'inline-flex h-8 items-center gap-1.5 rounded-md border border-border-subtle bg-surface-raised px-2.5 text-caption font-medium text-content-secondary transition-colors hover:text-content-primary',
+        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border-subtle bg-surface-raised text-caption font-medium text-content-secondary transition-colors hover:text-content-primary',
+        iconOnly ? 'w-8 justify-center' : 'px-2.5',
         className,
       )}
     >
-      {copied ? <Check className="size-3.5 text-positive" aria-hidden="true" /> : <Copy className="size-3.5" aria-hidden="true" />}
-      <span>{copied ? 'Copied' : label}</span>
+      {copied ? (
+        <Check className="size-3.5 text-positive" aria-hidden="true" />
+      ) : (
+        <Copy className="size-3.5" aria-hidden="true" />
+      )}
+      {!iconOnly && <span>{copied ? 'Copied' : label}</span>}
       <span className="sr-only" aria-live="polite">
         {copied ? 'Copied to clipboard' : ''}
       </span>

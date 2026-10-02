@@ -100,7 +100,7 @@ async function openStore(
   }
 }
 
-async function storeRecord(scope: RepositoryScope, isPreview: boolean): Promise<PublicStore | null> {
+export async function storeRecord(scope: RepositoryScope, isPreview: boolean): Promise<PublicStore | null> {
   const sf = await storefronts.findStorefrontByWorkspaceId(scope)
   if (!sf) return null
   const ws = scope.context.workspaceId
@@ -119,7 +119,7 @@ async function storeRecord(scope: RepositoryScope, isPreview: boolean): Promise<
   }
 }
 
-async function cardFor(
+export async function cardFor(
   scope: RepositoryScope,
   product: Awaited<ReturnType<typeof catalogue.listProducts>>[number],
 ): Promise<PublicProductCard> {

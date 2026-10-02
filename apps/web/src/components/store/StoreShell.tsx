@@ -48,7 +48,10 @@ export function StoreShell({
 }) {
   const home = basePath || '/'
   return (
-    <div className={`${storeModeClass(store.theme)} flex min-h-dvh flex-col`} style={storeStyle(store.theme)}>
+    <div
+      className={`${storeModeClass(store.theme)} @container flex min-h-dvh flex-col`}
+      style={storeStyle(store.theme)}
+    >
       {store.isPreview && (
         <div className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-[var(--store-accent)] px-4 py-2 text-[13px] font-medium text-[var(--store-accent-fg)]">
           <Eye className="size-4" aria-hidden="true" />
@@ -60,21 +63,20 @@ export function StoreShell({
       >
         <Link href={home} className="flex min-w-0 items-center gap-3 rounded-md">
           <StoreAvatar store={store} />
-          <span className="truncate text-[15px] font-semibold tracking-tight store-heading">{store.title}</span>
+          <span className="truncate text-[15px] font-semibold tracking-tight store-heading">
+            {store.title}
+          </span>
         </Link>
       </header>
       <main id="main" className="flex-1">
         {children}
       </main>
       <footer className="mx-auto w-full max-w-5xl px-5 py-10">
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-border-subtle pt-6 text-[13px] text-content-tertiary sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-border-subtle pt-6 text-[13px] text-content-tertiary @xl:flex-row">
           <p>
             © {new Date().getFullYear()} {store.title}
           </p>
-          <a
-            href={appUrl}
-            className="inline-flex items-center gap-1.5 hover:text-content-primary"
-          >
+          <a href={appUrl} className="inline-flex items-center gap-1.5 hover:text-content-primary">
             Sell with <span className="font-semibold text-content-secondary">CreatorHub</span>
           </a>
         </div>

@@ -1,930 +1,281 @@
 /**
- * Server actions and public loaders for creator storefronts (Implementation Plan §4.2 & §4.3).
+ * Server actions behind the storefront editor: save the profile and theme,
+ * publish or take the store down, and connect a custom domain.
  *
- * Responsibilities:
- * 1. Admin/Creator actions: View, update theme/domain settings, publish storefronts.
- * 2. Custom domain lifecycle: Initiate verification challenge, verify DNS records, remove domains.
- * 3. Public read loaders: Resolve storefront by subdomain or verified custom domain.
- * 4. Audit logging: Log changes to storefront domains, theme configurations, and publication.
+ * Status and the custom domain each have their own action rather than riding
+ * along with a save, so a creator cannot lift a platform suspension or claim
+ * a domain without the verification flow.
  */
 'use server'
 
-import { randomUUID } from 'node:crypto'
 import {
   buildDomainChallenge,
-  type CustomDomainChallenge,
   customDomainSchema,
   productId,
+  type CustomDomainChallenge,
   type RecordStorefrontEventInput,
   recordStorefrontEventInputSchema,
   requestId,
   storefrontId,
-  type StorefrontRecord,
-  type StorefrontTheme,
-  type UpdateStorefrontInput,
-  updateStorefrontInputSchema,
-  userId,
+  storefrontThemeSchema,
+  assetId as toAssetId,
   workspaceContext,
-  workspaceId,
-  workspaceIdSchema,
 } from '@creatorhub/contracts'
-import { auditLog, catalogue, storefronts, workspaceMembers, workspaces } from '@creatorhub/db'
-import { can } from '@creatorhub/domain'
+import { auditLog, catalogue, storefronts, type RepositoryScope } from '@creatorhub/db'
+import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 
 import { getDatabase } from './db'
+import { generateDomainVerificationToken, verifyCustomDomainDns } from './domain-verification'
+import { auditOptions, customDomainTarget, platformRootDomain } from './env'
 import {
-  generateDomainVerificationToken,
-  verifyCustomDomainDns,
-  type VerifyDomainOptions,
-} from './domain-verification'
-import { getServerSession } from './server-session'
-import { auditOptions } from './env'
+  ActionFailure,
+  authoriseMember,
+  inWorkspace,
+  isUniqueViolation,
+  memberAction,
+  runAction,
+  type ActionResult,
+} from './member-action'
 
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
 
-export type StorefrontActionResult<T> =
-  { readonly success: true; readonly data: T } | { readonly success: false; readonly error: string }
+const saveStorefrontSchema = z.object({
+  title: z.string().trim().min(1, 'Give your store a name.').max(100),
+  tagline: z.string().trim().max(200).nullable(),
+  theme: storefrontThemeSchema,
+})
 
-export type InitiateCustomDomainResult = {
-  readonly challenge: CustomDomainChallenge
-  readonly storefront: StorefrontRecord
+export type SaveStorefrontInput = z.input<typeof saveStorefrontSchema>
+
+async function requireStore(scope: RepositoryScope) {
+  const store = await storefronts.findStorefrontByWorkspaceId(scope)
+  if (!store) throw new ActionFailure('This workspace has no store yet. Reload the page.')
+  return store
 }
 
-export type VerifyCustomDomainActionResult =
-  | { readonly success: true; readonly verified: true; readonly storefront: StorefrontRecord }
-  | {
-      readonly success: false
-      readonly verified: false
-      readonly error: string
-      readonly reason?: string
-    }
-
-export type PublicStorefrontData = {
-  readonly storefront: StorefrontRecord
-  readonly products: readonly {
-    readonly id: string
-    readonly title: string
-    readonly slug: string
-    readonly description: string | null
-    readonly basePrice: string
-    readonly compareAtPrice: string | null
-    readonly currency: string
-  }[]
-}
-
-export type PublicProductDetailData = {
-  readonly storefront: StorefrontRecord
-  readonly product: {
-    readonly id: string
-    readonly title: string
-    readonly slug: string
-    readonly description: string | null
-    readonly basePrice: string
-    readonly compareAtPrice: string | null
-    readonly currency: string
-    readonly assets: readonly {
-      readonly id: string
-      readonly originalFilename: string
-      readonly mimeType: string
-      readonly byteSize: number
-      readonly role: string
-    }[]
+async function assertStoreImage(scope: RepositoryScope, id: string | undefined, label: string) {
+  if (!id) return
+  const asset = await catalogue.findAssetById(scope, toAssetId(id))
+  if (!asset || !IMAGE_TYPES.has(asset.mimeType)) {
+    throw new ActionFailure(`The ${label} must be a PNG, JPEG, WebP, GIF, or AVIF image.`)
+  }
+  if (asset.scanStatus !== 'clean') {
+    throw new ActionFailure(`The ${label} is still being checked. Try saving again in a moment.`)
   }
 }
 
-function mapStorefront(row: {
-  readonly id: string
-  readonly workspaceId: string
-  readonly subdomain: string
-  readonly customDomain: string | null
-  readonly customDomainStatus: 'pending' | 'verified' | 'failed'
-  readonly customDomainVerificationToken: string | null
-  readonly customDomainVerifiedAt: Date | null
-  readonly title: string
-  readonly tagline: string | null
-  readonly description: string | null
-  readonly themeConfig: unknown
-  readonly status: 'draft' | 'published' | 'suspended'
-  readonly publishedAt: Date | null
-  readonly createdAt: Date
-  readonly updatedAt: Date
-}): StorefrontRecord {
-  const rawTheme = (row.themeConfig ?? {}) as Partial<StorefrontTheme>
-  const safeTheme: StorefrontTheme = {
-    accentColor: rawTheme.accentColor ?? '#4f46e5',
-    fontPreset: rawTheme.fontPreset ?? 'sans',
-    layoutPreset: rawTheme.layoutPreset ?? 'showcase',
-    heroHeadline: rawTheme.heroHeadline,
-    heroSubheadline: rawTheme.heroSubheadline,
-    logoAssetId: rawTheme.logoAssetId,
-    bannerAssetId: rawTheme.bannerAssetId,
-    bio: rawTheme.bio,
-    socialLinks: Array.isArray(rawTheme.socialLinks) ? rawTheme.socialLinks : [],
-    customLinks: Array.isArray(rawTheme.customLinks) ? rawTheme.customLinks : [],
-  }
-  return {
-    ...row,
-    id: storefrontId(row.id),
-    workspaceId: workspaceId(row.workspaceId),
-    themeConfig: safeTheme,
-  }
-}
-
-/**
- * Gets or initializes the storefront for a workspace (Creator dashboard).
- */
-export async function getStorefrontForWorkspaceAction(
-  workspaceIdString: string,
-): Promise<StorefrontActionResult<StorefrontRecord>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, error: 'Unauthorized: authentication required.' }
-    }
-
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, error: 'Invalid workspace identifier.' }
-    }
-
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-storefront-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const result = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership) {
-        throw new Error('Forbidden: you are not a member of this workspace.')
-      }
-
-      let storefront = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!storefront) {
-        // Initialize default storefront for workspace
-        const ws = await workspaces.findCurrentWorkspace(scope)
-        const defaultSubdomain = (ws?.slug ?? `store-${randomUUID().slice(0, 6)}`).toLowerCase()
-        const defaultTitle = ws?.name ?? 'My Store'
-
-        storefront = await storefronts.createStorefront(scope, {
-          workspaceId: targetWsId,
-          subdomain: defaultSubdomain,
-          title: defaultTitle,
-          themeConfig: {
-            accentColor: '#4f46e5',
-            fontPreset: 'sans',
-            layoutPreset: 'showcase',
-          },
-        })
-
-        await auditLog.writeAuditLog(scope, auditOptions, {
-          actorType: 'user',
-          actorId: currentUserId,
-          action: 'storefront.create',
-          targetType: 'storefront',
-          targetId: storefront.id,
-          metadata: { subdomain: defaultSubdomain },
-        })
-      }
-
-      return mapStorefront(storefront)
-    })
-
-    return { success: true, data: result }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to load storefront.'
-    return { success: false, error: message }
-  }
-}
-
-export type PublicStorefrontProduct = {
-  readonly id: string
-  readonly title: string
-  readonly slug: string
-  readonly description: string | null
-  readonly basePrice: string
-  readonly compareAtPrice: string | null
-  readonly currency: string
-}
-
-export type StorefrontEditorData = {
-  readonly storefront: StorefrontRecord
-  readonly workspace: {
-    readonly id: string
-    readonly name: string
-    readonly slug: string
-    readonly defaultCurrency: string
-  }
-  readonly products: readonly PublicStorefrontProduct[]
-  readonly canManage: boolean
-  readonly domainChallenge: CustomDomainChallenge | null
-}
-
-/**
- * Loads all workspace context, storefront configuration, products, and permissions for Storefront Studio.
- */
-export async function getStorefrontEditorDataAction(
-  workspaceIdString: string,
-): Promise<StorefrontActionResult<StorefrontEditorData>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, error: 'Unauthorized: authentication required.' }
-    }
-
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, error: 'Invalid workspace identifier.' }
-    }
-
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-storefront-editor-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const result = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership) {
-        throw new Error('Forbidden: you are not a member of this workspace.')
-      }
-
-      const canManage = can(membership.role, 'storefront.manage')
-      const ws = await workspaces.findCurrentWorkspace(scope)
-      if (!ws) {
-        throw new Error('Workspace not found.')
-      }
-
-      let storefront = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!storefront) {
-        const defaultSubdomain = ws.slug.toLowerCase()
-        const defaultTitle = ws.name
-
-        storefront = await storefronts.createStorefront(scope, {
-          workspaceId: targetWsId,
-          subdomain: defaultSubdomain,
-          title: defaultTitle,
-          themeConfig: {
-            accentColor: '#4f46e5',
-            fontPreset: 'sans',
-            layoutPreset: 'showcase',
-          },
-        })
-
-        await auditLog.writeAuditLog(scope, auditOptions, {
-          actorType: 'user',
-          actorId: currentUserId,
-          action: 'storefront.create',
-          targetType: 'storefront',
-          targetId: storefront.id,
-          metadata: { subdomain: defaultSubdomain },
-        })
-      }
-
-      // Fetch products for live preview
-      const dbProducts = await catalogue.listProducts(scope)
-      const mappedProducts: PublicStorefrontProduct[] = dbProducts.map((p) => ({
-        id: p.id,
-        title: p.title,
-        slug: p.slug,
-        description: p.description,
-        basePrice: p.basePrice.toString(),
-        compareAtPrice: p.compareAtPrice?.toString() ?? null,
-        currency: p.currency,
-      }))
-
-      const domainChallenge =
-        storefront.customDomain && storefront.customDomainVerificationToken
-          ? buildDomainChallenge(storefront.customDomain, storefront.customDomainVerificationToken)
-          : null
-
-      return {
-        storefront: mapStorefront(storefront),
-        workspace: {
-          id: ws.id,
-          name: ws.name,
-          slug: ws.slug,
-          defaultCurrency: ws.defaultCurrency,
-        },
-        products: mappedProducts,
-        canManage,
-        domainChallenge,
-      }
-    })
-
-    return { success: true, data: result }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to load storefront editor data.'
-    return { success: false, error: message }
-  }
-}
-
-/**
- * Updates storefront settings, custom domain, or theme.
- */
 export async function saveStorefrontAction(
-  workspaceIdString: string,
-  input: UpdateStorefrontInput,
-): Promise<StorefrontActionResult<StorefrontRecord>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, error: 'Unauthorized: authentication required.' }
-    }
+  rawWorkspaceId: string,
+  input: SaveStorefrontInput,
+): Promise<ActionResult<{ readonly savedAt: string }>> {
+  const parsed = saveStorefrontSchema.safeParse(input)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const where = issue?.path.join('.') ?? ''
+    const message = where.includes('Links')
+      ? 'One of your links is not a valid web address. Links must start with https://.'
+      : (issue?.message ?? 'Some fields are not valid.')
+    return { ok: false, error: message }
+  }
+  const { title, tagline, theme } = parsed.data
 
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, error: 'Invalid workspace identifier.' }
-    }
+  return memberAction(
+    'storefront.save',
+    rawWorkspaceId,
+    'storefront.manage',
+    async (scope, member) => {
+      const store = await requireStore(scope)
+      await assertStoreImage(scope, theme.logoAssetId, 'logo')
+      await assertStoreImage(scope, theme.bannerAssetId, 'banner')
 
-    const validated = updateStorefrontInputSchema.parse(input)
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-storefront-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const result = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership || !can(membership.role, 'storefront.manage')) {
-        throw new Error('Forbidden: you do not have permission to modify storefront settings.')
-      }
-
-      const existing = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!existing) {
-        throw new Error('Storefront not found for this workspace.')
-      }
-
-      const updated = await storefronts.updateStorefront(
-        scope,
-        storefrontId(existing.id),
-        validated,
-      )
-
+      await storefronts.updateStorefront(scope, storefrontId(store.id), {
+        title,
+        tagline: tagline && tagline.length > 0 ? tagline : null,
+        themeConfig: theme,
+      })
       await auditLog.writeAuditLog(scope, auditOptions, {
         actorType: 'user',
-        actorId: currentUserId,
-        action: 'storefront.update',
+        actorId: member.actorId as never,
+        action: 'storefront.updated',
         targetType: 'storefront',
-        targetId: existing.id,
-        metadata: {
-          title: validated.title,
-          customDomain: validated.customDomain,
-          status: validated.status,
-        },
+        targetId: store.id,
+        metadata: { title, layout: theme.layoutPreset },
       })
-
-      return mapStorefront(updated)
-    })
-
-    return { success: true, data: result }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to update storefront.'
-    return { success: false, error: message }
-  }
+      return { savedAt: new Date().toISOString() }
+    },
+  )
 }
 
-/**
- * Initiates custom domain configuration, generating DNS challenge records (Item 4.3).
- */
-export async function initiateCustomDomainAction(
-  workspaceIdString: string,
-  rawDomain: string,
-): Promise<StorefrontActionResult<InitiateCustomDomainResult>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, error: 'Unauthorized: authentication required.' }
-    }
-
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, error: 'Invalid workspace identifier.' }
-    }
-
-    const domainParsed = customDomainSchema.safeParse(rawDomain)
-    if (!domainParsed.success) {
-      return { success: false, error: domainParsed.error.issues[0]?.message ?? 'Invalid domain.' }
-    }
-
-    const customDomain = domainParsed.data
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-dom-init-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const token = generateDomainVerificationToken()
-    const challenge = buildDomainChallenge(customDomain, token)
-
-    const result = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership || !can(membership.role, 'storefront.manage')) {
-        throw new Error('Forbidden: you do not have permission to configure custom domains.')
-      }
-
-      const existing = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!existing) {
-        throw new Error('Storefront not found for this workspace.')
-      }
-
-      const updated = await storefronts.updateStorefront(scope, storefrontId(existing.id), {
-        customDomain,
-      })
-
-      await auditLog.writeAuditLog(scope, auditOptions, {
-        actorType: 'user',
-        actorId: currentUserId,
-        action: 'storefront.domain.initiated',
-        targetType: 'storefront',
-        targetId: existing.id,
-        metadata: {
-          customDomain,
-          txtHost: challenge.txtRecord.host,
-        },
-      })
-
-      return {
-        challenge,
-        storefront: mapStorefront({
-          ...updated,
-          customDomainStatus: 'pending',
-          customDomainVerificationToken: token,
-          customDomainVerifiedAt: null,
-        }),
-      }
-    })
-
-    return { success: true, data: result }
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : 'Failed to initiate custom domain configuration.'
-    return { success: false, error: message }
-  }
-}
-
-/**
- * Validates DNS challenge for storefront's custom domain (Item 4.3).
- */
-export async function verifyCustomDomainAction(
-  workspaceIdString: string,
-  options?: VerifyDomainOptions,
-): Promise<VerifyCustomDomainActionResult> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, verified: false, error: 'Unauthorized: authentication required.' }
-    }
-
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, verified: false, error: 'Invalid workspace identifier.' }
-    }
-
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-dom-ver-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const verificationResult = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership || !can(membership.role, 'storefront.manage')) {
-        throw new Error('Forbidden: you do not have permission to verify custom domains.')
-      }
-
-      const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!sf?.customDomain) {
-        throw new Error('No custom domain is currently configured for this storefront.')
-      }
-
-      // If token is absent in row, use a deterministic or fallback token
-      const token = sf.customDomainVerificationToken ?? `ch_verify_${sf.id}`
-
-      // Run DNS challenge verification
-      const check = await verifyCustomDomainDns(sf.customDomain, token, options)
-
-      if (check.verified) {
-        const updated = await storefronts.updateCustomDomainStatus(
-          scope,
-          storefrontId(sf.id),
-          'verified',
+export async function setStorefrontPublishedAction(
+  rawWorkspaceId: string,
+  published: boolean,
+): Promise<ActionResult<{ readonly status: 'draft' | 'published' }>> {
+  return memberAction(
+    'storefront.publish',
+    rawWorkspaceId,
+    'storefront.publish',
+    async (scope, member) => {
+      const store = await requireStore(scope)
+      if (store.status === 'suspended') {
+        throw new ActionFailure(
+          'This store is suspended by CreatorHub. Contact support to have it reviewed.',
         )
-
+      }
+      const status = published ? 'published' : 'draft'
+      if (store.status !== status) {
+        await storefronts.updateStorefront(scope, storefrontId(store.id), { status })
         await auditLog.writeAuditLog(scope, auditOptions, {
           actorType: 'user',
-          actorId: currentUserId,
-          action: 'storefront.domain.verified',
+          actorId: member.actorId as never,
+          action: published ? 'storefront.published' : 'storefront.unpublished',
           targetType: 'storefront',
-          targetId: sf.id,
-          metadata: {
-            customDomain: sf.customDomain,
-            method: check.method,
-          },
+          targetId: store.id,
+          metadata: {},
         })
-
-        return {
-          verified: true as const,
-          storefront: mapStorefront(updated),
-        }
       }
+      return { status }
+    },
+  )
+}
 
-      const updated = await storefronts.updateCustomDomainStatus(
-        scope,
-        storefrontId(sf.id),
-        'failed',
-      )
+export type CustomDomainState = {
+  readonly domain: string | null
+  readonly status: 'pending' | 'verified' | 'failed'
+  readonly challenge: CustomDomainChallenge | null
+  readonly message?: string
+}
 
-      await auditLog.writeAuditLog(scope, auditOptions, {
-        actorType: 'user',
-        actorId: currentUserId,
-        action: 'storefront.domain.failed',
-        targetType: 'storefront',
-        targetId: sf.id,
-        metadata: {
-          customDomain: sf.customDomain,
-          reason: check.reason,
-          details: check.details,
-        },
+export async function connectCustomDomainAction(
+  rawWorkspaceId: string,
+  rawDomain: string,
+): Promise<ActionResult<CustomDomainState>> {
+  const parsed = customDomainSchema.safeParse(
+    rawDomain
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, ''),
+  )
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: 'Enter a domain like shop.yourname.com, without https:// or a path.',
+    }
+  }
+  const domain = parsed.data
+  const root = platformRootDomain().toLowerCase()
+  if (domain === root || domain.endsWith(`.${root}`)) {
+    return { ok: false, error: 'That is a CreatorHub address. Use a domain you own.' }
+  }
+
+  return runAction('storefront.domain.connect', async () => {
+    const member = await authoriseMember(rawWorkspaceId, 'storefront.manage')
+    const token = generateDomainVerificationToken()
+    try {
+      await inWorkspace(member, async (scope) => {
+        const store = await requireStore(scope)
+        await storefronts.setCustomDomain(scope, storefrontId(store.id), domain, token)
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: member.actorId as never,
+          action: 'storefront.domain_connected',
+          targetType: 'storefront',
+          targetId: store.id,
+          metadata: { domain },
+        })
       })
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ActionFailure('That domain is already connected to another store.')
+      }
+      throw error
+    }
+    return {
+      domain,
+      status: 'pending' as const,
+      challenge: buildDomainChallenge(domain, token, customDomainTarget()),
+    }
+  })
+}
 
+export async function verifyCustomDomainAction(
+  rawWorkspaceId: string,
+): Promise<ActionResult<CustomDomainState>> {
+  return runAction('storefront.domain.verify', async () => {
+    const member = await authoriseMember(rawWorkspaceId, 'storefront.manage')
+    const pending = await inWorkspace(member, async (scope) => {
+      const store = await requireStore(scope)
+      if (!store.customDomain || !store.customDomainVerificationToken) {
+        throw new ActionFailure('Connect a domain first.')
+      }
       return {
-        verified: false as const,
-        reason: check.reason,
-        details: check.details,
-        storefront: mapStorefront(updated),
+        id: store.id,
+        domain: store.customDomain,
+        token: store.customDomainVerificationToken,
       }
     })
 
-    if (verificationResult.verified) {
-      return {
-        success: true,
-        verified: true,
-        storefront: verificationResult.storefront,
-      }
-    }
+    // DNS is network I/O, so it runs between transactions, never inside one.
+    const check = await verifyCustomDomainDns(pending.domain, pending.token, {
+      cnameTarget: customDomainTarget(),
+    })
+
+    const status = check.verified ? ('verified' as const) : ('failed' as const)
+    await inWorkspace(member, async (scope) => {
+      const store = await requireStore(scope)
+      // The creator may have switched domains while DNS was being checked.
+      if (store.customDomain !== pending.domain) return
+      await storefronts.updateCustomDomainStatus(scope, storefrontId(store.id), status)
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        actorType: 'user',
+        actorId: member.actorId as never,
+        action: check.verified ? 'storefront.domain_verified' : 'storefront.domain_check_failed',
+        targetType: 'storefront',
+        targetId: store.id,
+        metadata: {
+          domain: pending.domain,
+          ...(check.verified ? { method: check.method } : { reason: check.reason }),
+        },
+      })
+    })
 
     return {
-      success: false,
-      verified: false,
-      error: verificationResult.details,
-      reason: verificationResult.reason,
+      domain: pending.domain,
+      status,
+      challenge: buildDomainChallenge(pending.domain, pending.token, customDomainTarget()),
+      ...(check.verified
+        ? {}
+        : {
+            message:
+              check.reason === 'dns_lookup_failed'
+                ? 'We could not find any DNS records for this domain yet. New records can take up to an hour to appear.'
+                : 'The records are not there yet, or do not match. Check them against the values below.',
+          }),
     }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Custom domain verification failed.'
-    return { success: false, verified: false, error: message }
-  }
+  })
 }
 
-/**
- * Removes a custom domain and resets its verification status (Item 4.3).
- */
 export async function removeCustomDomainAction(
-  workspaceIdString: string,
-): Promise<StorefrontActionResult<StorefrontRecord>> {
-  try {
-    const session = await getServerSession()
-    if (!session?.userId) {
-      return { success: false, error: 'Unauthorized: authentication required.' }
-    }
-
-    const wsParsed = workspaceIdSchema.safeParse(workspaceIdString)
-    if (!wsParsed.success) {
-      return { success: false, error: 'Invalid workspace identifier.' }
-    }
-
-    const db = getDatabase()
-    const targetWsId = wsParsed.data
-    const currentUserId = session.userId
-    const reqId = requestId(`req-dom-rem-${randomUUID().slice(0, 8)}`)
-
-    const context = workspaceContext({
-      workspaceId: targetWsId,
-      actorId: currentUserId,
-      requestId: reqId,
-    })
-
-    const result = await db.withWorkspace(context, async (tx) => {
-      const scope = { tx, context }
-      const membership = await workspaceMembers.findMemberByUserId(scope, currentUserId)
-      if (!membership || !can(membership.role, 'storefront.manage')) {
-        throw new Error('Forbidden: you do not have permission to remove custom domains.')
-      }
-
-      const existing = await storefronts.findStorefrontByWorkspaceId(scope)
-      if (!existing) {
-        throw new Error('Storefront not found for this workspace.')
-      }
-
-      const updated = await storefronts.updateStorefront(scope, storefrontId(existing.id), {
-        customDomain: null,
-      })
-
+  rawWorkspaceId: string,
+): Promise<ActionResult<CustomDomainState>> {
+  return memberAction(
+    'storefront.domain.remove',
+    rawWorkspaceId,
+    'storefront.manage',
+    async (scope, member) => {
+      const store = await requireStore(scope)
+      await storefronts.setCustomDomain(scope, storefrontId(store.id), null, null)
       await auditLog.writeAuditLog(scope, auditOptions, {
         actorType: 'user',
-        actorId: currentUserId,
-        action: 'storefront.domain.removed',
+        actorId: member.actorId as never,
+        action: 'storefront.domain_removed',
         targetType: 'storefront',
-        targetId: existing.id,
-        metadata: {
-          previousCustomDomain: existing.customDomain,
-        },
+        targetId: store.id,
+        metadata: { domain: store.customDomain },
       })
-
-      return mapStorefront(updated)
-    })
-
-    return { success: true, data: result }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to remove custom domain.'
-    return { success: false, error: message }
-  }
-}
-
-/**
- * Publishes a storefront to make it accessible to the public.
- */
-export async function publishStorefrontAction(
-  workspaceIdString: string,
-): Promise<StorefrontActionResult<StorefrontRecord>> {
-  return saveStorefrontAction(workspaceIdString, { status: 'published' })
-}
-
-/**
- * Public Data Loader: Fetches published storefront & products by subdomain.
- */
-export async function getPublicStorefrontDataBySubdomain(
-  subdomain: string,
-  previewWorkspaceId?: string,
-): Promise<PublicStorefrontData | null> {
-  const db = getDatabase()
-
-  if (previewWorkspaceId) {
-    const wsParsed = workspaceIdSchema.safeParse(previewWorkspaceId)
-    if (wsParsed.success) {
-      const context = workspaceContext({
-        workspaceId: wsParsed.data,
-        requestId: requestId(`req-prev-${randomUUID().slice(0, 8)}`),
-      })
-
-      return db.withWorkspace(context, async (tx) => {
-        const scope = { tx, context }
-        const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-        if (!sf) return null
-
-        const prods = await catalogue.listProducts(scope, { status: 'published' })
-        return {
-          storefront: mapStorefront(sf),
-          products: prods.map((p) => ({
-            id: p.id,
-            title: p.title,
-            slug: p.slug,
-            description: p.description,
-            basePrice: p.basePrice.toString(),
-            compareAtPrice: p.compareAtPrice?.toString() ?? null,
-            currency: p.currency,
-          })),
-        }
-      })
-    }
-  }
-
-  const resolved = await db.resolveStorefrontByHostname(subdomain)
-  if (resolved?.status !== 'published') {
-    return null
-  }
-
-  const context = workspaceContext({
-    workspaceId: resolved.workspaceId,
-    requestId: requestId(`req-pub-sub-${randomUUID().slice(0, 8)}`),
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-    if (!sf) return null
-
-    const prods = await catalogue.listProducts(scope, { status: 'published' })
-    return {
-      storefront: mapStorefront(sf),
-      products: prods.map((p) => ({
-        id: p.id,
-        title: p.title,
-        slug: p.slug,
-        description: p.description,
-        basePrice: p.basePrice.toString(),
-        compareAtPrice: p.compareAtPrice?.toString() ?? null,
-        currency: p.currency,
-      })),
-    }
-  })
-}
-
-/**
- * Public Data Loader: Fetches published storefront & products by custom domain.
- */
-export async function getPublicStorefrontDataByCustomDomain(
-  domain: string,
-): Promise<PublicStorefrontData | null> {
-  const db = getDatabase()
-  const resolved = await db.resolveStorefrontByHostname(domain)
-  if (resolved?.status !== 'published') {
-    return null
-  }
-
-  const context = workspaceContext({
-    workspaceId: resolved.workspaceId,
-    requestId: requestId(`req-pub-dom-${randomUUID().slice(0, 8)}`),
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-    if (!sf) return null
-
-    const prods = await catalogue.listProducts(scope, { status: 'published' })
-    return {
-      storefront: mapStorefront(sf),
-      products: prods.map((p) => ({
-        id: p.id,
-        title: p.title,
-        slug: p.slug,
-        description: p.description,
-        basePrice: p.basePrice.toString(),
-        compareAtPrice: p.compareAtPrice?.toString() ?? null,
-        currency: p.currency,
-      })),
-    }
-  })
-}
-
-/**
- * Public Data Loader: Fetches product detail & storefront by subdomain and slug.
- */
-export async function getPublicProductDetailBySubdomain(
-  subdomain: string,
-  slug: string,
-  previewWorkspaceId?: string,
-): Promise<PublicProductDetailData | null> {
-  const db = getDatabase()
-
-  if (previewWorkspaceId) {
-    const wsParsed = workspaceIdSchema.safeParse(previewWorkspaceId)
-    if (wsParsed.success) {
-      const context = workspaceContext({
-        workspaceId: wsParsed.data,
-        requestId: requestId(`req-prev-prod-${randomUUID().slice(0, 8)}`),
-      })
-
-      return db.withWorkspace(context, async (tx) => {
-        const scope = { tx, context }
-        const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-        if (!sf) return null
-
-        const prod = await catalogue.findProductBySlug(scope, slug)
-        if (!prod) return null
-
-        const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
-        return {
-          storefront: mapStorefront(sf),
-          product: {
-            id: prod.id,
-            title: prod.title,
-            slug: prod.slug,
-            description: prod.description,
-            basePrice: prod.basePrice.toString(),
-            compareAtPrice: prod.compareAtPrice?.toString() ?? null,
-            currency: prod.currency,
-            assets: rawAssets.map((a) => ({
-              id: a.asset.id,
-              originalFilename: a.asset.originalFilename,
-              mimeType: a.asset.mimeType,
-              byteSize: Number(a.asset.byteSize),
-              role: a.productAsset.role,
-            })),
-          },
-        }
-      })
-    }
-  }
-
-  const resolved = await db.resolveStorefrontByHostname(subdomain)
-  if (resolved?.status !== 'published') {
-    return null
-  }
-
-  const context = workspaceContext({
-    workspaceId: resolved.workspaceId,
-    requestId: requestId(`req-pub-prod-${randomUUID().slice(0, 8)}`),
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-    if (!sf) return null
-
-    const prod = await catalogue.findProductBySlug(scope, slug)
-    if (prod?.status !== 'published') return null
-
-    const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
-    return {
-      storefront: mapStorefront(sf),
-      product: {
-        id: prod.id,
-        title: prod.title,
-        slug: prod.slug,
-        description: prod.description,
-        basePrice: prod.basePrice.toString(),
-        compareAtPrice: prod.compareAtPrice?.toString() ?? null,
-        currency: prod.currency,
-        assets: rawAssets.map((a) => ({
-          id: a.asset.id,
-          originalFilename: a.asset.originalFilename,
-          mimeType: a.asset.mimeType,
-          byteSize: Number(a.asset.byteSize),
-          role: a.productAsset.role,
-        })),
-      },
-    }
-  })
-}
-
-/**
- * Public Data Loader: Fetches product detail & storefront by custom domain and slug.
- */
-export async function getPublicProductDetailByCustomDomain(
-  domain: string,
-  slug: string,
-): Promise<PublicProductDetailData | null> {
-  const db = getDatabase()
-  const resolved = await db.resolveStorefrontByHostname(domain)
-  if (resolved?.status !== 'published') {
-    return null
-  }
-
-  const context = workspaceContext({
-    workspaceId: resolved.workspaceId,
-    requestId: requestId(`req-pub-cd-prod-${randomUUID().slice(0, 8)}`),
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const sf = await storefronts.findStorefrontByWorkspaceId(scope)
-    if (!sf) return null
-
-    const prod = await catalogue.findProductBySlug(scope, slug)
-    if (prod?.status !== 'published') return null
-
-    const rawAssets = await catalogue.listAssetsForProduct(scope, productId(prod.id))
-    return {
-      storefront: mapStorefront(sf),
-      product: {
-        id: prod.id,
-        title: prod.title,
-        slug: prod.slug,
-        description: prod.description,
-        basePrice: prod.basePrice.toString(),
-        compareAtPrice: prod.compareAtPrice?.toString() ?? null,
-        currency: prod.currency,
-        assets: rawAssets.map((a) => ({
-          id: a.asset.id,
-          originalFilename: a.asset.originalFilename,
-          mimeType: a.asset.mimeType,
-          byteSize: Number(a.asset.byteSize),
-          role: a.productAsset.role,
-        })),
-      },
-    }
-  })
+      return { domain: null, status: 'pending' as const, challenge: null }
+    },
+  )
 }
 
 /**
@@ -933,7 +284,10 @@ export async function getPublicProductDetailByCustomDomain(
 export async function recordStorefrontEventAction(
   rawInput: RecordStorefrontEventInput,
   userAgentHeader?: string,
-): Promise<StorefrontActionResult<{ readonly eventId: string }>> {
+): Promise<
+  | { readonly success: true; readonly data: { readonly eventId: string } }
+  | { readonly success: false; readonly error: string }
+> {
   const parsed = recordStorefrontEventInputSchema.safeParse(rawInput)
   if (!parsed.success) {
     return {
@@ -981,7 +335,7 @@ export async function recordStorefrontEventAction(
     })
 
     return {
-      success: true,
+      success: true as const,
       data: { eventId: row.id },
     }
   })
