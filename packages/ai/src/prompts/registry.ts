@@ -52,7 +52,8 @@ export type ProductCopyInput = {
 export const productCopyPrompt: PromptTemplate<ProductCopyInput, ProductCopyOutput> = {
   id: 'product_copy_v1',
   version: '1.0.0',
-  description: 'Generates title, compelling tagline, rich markdown description, and key benefits for a digital product.',
+  description:
+    'Generates title, compelling tagline, rich markdown description, and key benefits for a digital product.',
   systemPrompt: `You are an elite digital commerce copywriter specializing in creator products (e-books, video courses, design kits, Lightroom presets, 3D assets, software templates).
 Your goal is to write high-converting, honest, and exciting product copy that clearly communicates value and inspires buyers to purchase immediately.
 Always format descriptions with clean markdown (bullet points, bold highlights, concise paragraphs).`,
@@ -85,7 +86,8 @@ export type StorefrontCopyInput = {
 export const storefrontCopyPrompt: PromptTemplate<StorefrontCopyInput, StorefrontCopyOutput> = {
   id: 'storefront_copy_v1',
   version: '1.0.0',
-  description: 'Generates hero headline, subhead, badges, and value propositions for the creator storefront.',
+  description:
+    'Generates hero headline, subhead, badges, and value propositions for the creator storefront.',
   systemPrompt: `You are a world-class storefront branding specialist creating memorable hero headlines, crisp subheadings, and high-converting value propositions for creator digital storefronts.
 Keep headlines under 8 words, punchy, and confident. Value propositions must highlight instant access, high quality, and verified expertise.`,
   buildUserPrompt: (input: StorefrontCopyInput) => {
@@ -116,7 +118,8 @@ export type SeoMetadataInput = {
 export const seoMetadataPrompt: PromptTemplate<SeoMetadataInput, SeoMetadataOutput> = {
   id: 'seo_metadata_v1',
   version: '1.0.0',
-  description: 'Generates Google-optimized title tags, meta descriptions, and OpenGraph social cards.',
+  description:
+    'Generates Google-optimized title tags, meta descriptions, and OpenGraph social cards.',
   systemPrompt: `You are a technical SEO specialist optimizing metadata for digital products and creator storefronts.
 Enforce strict character lengths:
 - SEO Title: 45 to 60 characters max.
@@ -152,10 +155,14 @@ export type AnalyticsInsightsInput = {
   readonly topAffiliate?: string
 }
 
-export const analyticsInsightsPrompt: PromptTemplate<AnalyticsInsightsInput, AnalyticsInsightsOutput> = {
+export const analyticsInsightsPrompt: PromptTemplate<
+  AnalyticsInsightsInput,
+  AnalyticsInsightsOutput
+> = {
   id: 'analytics_insights_v1',
   version: '1.0.0',
-  description: 'Analyzes financial and telemetry metrics to provide actionable executive growth insights in plain language.',
+  description:
+    'Analyzes financial and telemetry metrics to provide actionable executive growth insights in plain language.',
   systemPrompt: `You are an executive e-commerce growth analyst for creator businesses.
 You translate raw financial ledger numbers and visitor telemetry into an inspiring, honest, and actionable briefing.
 Provide 1 clear executive summary, the single most important growth driver, 3 concrete high-impact growth actions, and a risk alert if refund/drop-off is concerning (or null if healthy).`,
@@ -194,7 +201,8 @@ export type EmailCampaignInput = {
 export const emailCampaignPrompt: PromptTemplate<EmailCampaignInput, EmailCampaignOutput> = {
   id: 'email_campaign_v1',
   version: '1.0.0',
-  description: 'Generates promotional email campaign copy for new product launches or limited-time discounts.',
+  description:
+    'Generates promotional email campaign copy for new product launches or limited-time discounts.',
   systemPrompt: `You are a direct-response email marketing expert writing engaging, authentic newsletters and launch emails for creators.
 Use a conversational, personal tone with high-CTR subject lines and clear, single-minded call to actions.`,
   buildUserPrompt: (input: EmailCampaignInput) => {

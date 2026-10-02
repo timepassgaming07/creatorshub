@@ -38,7 +38,10 @@ const buyerSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, 'Enter a valid GSTIN or leave it blank.')
+    .regex(
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/,
+      'Enter a valid GSTIN or leave it blank.',
+    )
     .nullish()
     .or(z.literal('')),
 })
@@ -166,10 +169,17 @@ export async function completeTestPaymentAction(raw: {
   const parsed = z.object({ host: hostSchema, orderId: idSchema }).safeParse(raw)
   if (!parsed.success) return invalid(parsed.error)
   try {
-    return await completeTestPayment({ store: { host: parsed.data.host }, orderId: parsed.data.orderId })
+    return await completeTestPayment({
+      store: { host: parsed.data.host },
+      orderId: parsed.data.orderId,
+    })
   } catch (error) {
     console.error('[checkout] test payment failed', error instanceof Error ? error.message : error)
-    return { ok: false, code: 'TEST_PAYMENT_FAILED', message: 'The test payment could not complete.' }
+    return {
+      ok: false,
+      code: 'TEST_PAYMENT_FAILED',
+      message: 'The test payment could not complete.',
+    }
   }
 }
 

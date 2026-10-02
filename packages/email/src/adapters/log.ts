@@ -12,15 +12,16 @@ import { MemoryEmailProvider } from './memory.js'
 export class LogEmailProvider extends MemoryEmailProvider {
   override readonly name = 'log'
 
-  constructor(private readonly write: (line: string) => void = (line) => process.stdout.write(`${line}\n`)) {
+  constructor(
+    private readonly write: (line: string) => void = (line) => process.stdout.write(`${line}\n`),
+  ) {
     super()
   }
 
   override async send(input: SendEmailInput): Promise<SendEmailResult> {
     const result = await super.send(input)
     const recipients = (Array.isArray(input.to) ? input.to : [input.to]) as readonly (
-      | string
-      | { email: string }
+      string | { email: string }
     )[]
     const to = recipients.map((r) => (typeof r === 'string' ? r : r.email)).join(', ')
     const links = [...input.html.matchAll(/href="([^"]+)"/g)]

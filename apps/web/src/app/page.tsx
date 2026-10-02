@@ -231,7 +231,10 @@ export default function LandingPage() {
                 className="absolute -inset-10 -z-10 rounded-[3rem] bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--content-primary)_14%,transparent),transparent)] blur-2xl"
               />
               <figure className="overflow-hidden rounded-[2.4rem] border-[6px] border-content-primary/10 bg-surface-base shadow-elevation-3 ring-1 ring-border-default">
-                <div className="store-light h-[600px] overflow-hidden [clip-path:inset(0_round_2rem)]" inert>
+                <div
+                  className="store-light h-[600px] overflow-hidden [clip-path:inset(0_round_2rem)]"
+                  inert
+                >
                   <div data-phone-scroll>
                     <StoreShell store={exampleStore} basePath="#">
                       <StoreHome store={exampleStore} products={exampleProducts} basePath="#" />

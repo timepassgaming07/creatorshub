@@ -54,7 +54,11 @@ export type PublicProductDetail = PublicProductCard & {
   readonly description: string | null
   readonly gallery: readonly string[]
   readonly files: readonly { readonly name: string; readonly size: string; readonly type: string }[]
-  readonly variants: readonly { readonly id: string; readonly title: string; readonly price: string }[]
+  readonly variants: readonly {
+    readonly id: string
+    readonly title: string
+    readonly price: string
+  }[]
 }
 
 export function mediaUrl(workspaceId: string, assetId: string): string {
@@ -100,7 +104,10 @@ async function openStore(
   }
 }
 
-export async function storeRecord(scope: RepositoryScope, isPreview: boolean): Promise<PublicStore | null> {
+export async function storeRecord(
+  scope: RepositoryScope,
+  isPreview: boolean,
+): Promise<PublicStore | null> {
   const sf = await storefronts.findStorefrontByWorkspaceId(scope)
   if (!sf) return null
   const ws = scope.context.workspaceId

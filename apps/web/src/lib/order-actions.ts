@@ -34,7 +34,6 @@ import { issueDownloadGrants, sendPurchaseEmails, type IssuedDownload } from './
 import { getServerSession } from './server-session'
 import { auditOptions } from './env'
 
-
 export type OrderListItemDTO = {
   readonly id: string
   readonly customerEmail: string
@@ -178,7 +177,10 @@ export async function listOrdersAction(
     const scope = { tx, context }
     const member = await workspaceMembers.findMemberByUserId(scope, actorId)
     if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' },
+      }
     }
 
     const authCheck = authorise(
@@ -187,7 +189,10 @@ export async function listOrdersAction(
       'order.view',
     )
     if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view orders.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'Permission denied to view orders.' },
+      }
     }
 
     const orderFilter = {
@@ -261,7 +266,10 @@ export async function getOrderDetailsAction(
     const scope = { tx, context }
     const member = await workspaceMembers.findMemberByUserId(scope, actorId)
     if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' },
+      }
     }
 
     const authCheck = authorise(
@@ -270,7 +278,10 @@ export async function getOrderDetailsAction(
       'order.view',
     )
     if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view order details.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'Permission denied to view order details.' },
+      }
     }
 
     const orderWithItems = await orders.findOrderWithItems(scope, ordId)

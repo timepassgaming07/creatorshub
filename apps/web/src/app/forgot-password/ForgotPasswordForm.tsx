@@ -46,12 +46,16 @@ export function ForgotPasswordForm() {
         title="Check your email"
         subtitle={
           <>
-            If an account exists for <span className="font-medium text-content-primary">{email}</span>, a link to set a
-            new password is on its way. It works for one hour.
+            If an account exists for{' '}
+            <span className="font-medium text-content-primary">{email}</span>, a link to set a new
+            password is on its way. It works for one hour.
           </>
         }
         footer={
-          <Link href="/sign-in" className="font-medium text-content-primary underline-offset-4 hover:underline">
+          <Link
+            href="/sign-in"
+            className="font-medium text-content-primary underline-offset-4 hover:underline"
+          >
             Back to sign in
           </Link>
         }
@@ -69,7 +73,10 @@ export function ForgotPasswordForm() {
       title="Set a new password"
       subtitle="Enter your email and we will send you a link."
       footer={
-        <Link href="/sign-in" className="font-medium text-content-primary underline-offset-4 hover:underline">
+        <Link
+          href="/sign-in"
+          className="font-medium text-content-primary underline-offset-4 hover:underline"
+        >
           Back to sign in
         </Link>
       }

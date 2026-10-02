@@ -9,11 +9,7 @@
  */
 import { err, type Result } from '@creatorhub/domain'
 
-import {
-  type AiError,
-  AiModelUnavailableError,
-  AiSchemaValidationError,
-} from './errors.js'
+import { type AiError, AiModelUnavailableError, AiSchemaValidationError } from './errors.js'
 import { AnthropicAiProvider } from './providers/anthropic.js'
 import { MemoryAiProvider } from './providers/memory.js'
 import type {
@@ -34,7 +30,10 @@ export class AiGateway {
     if (config.provider === 'memory' || !config.anthropicApiKey) {
       this.provider = new MemoryAiProvider()
     } else {
-      this.provider = new AnthropicAiProvider({ apiKey: config.anthropicApiKey, model: config.defaultModel })
+      this.provider = new AnthropicAiProvider({
+        apiKey: config.anthropicApiKey,
+        model: config.defaultModel,
+      })
     }
   }
 
@@ -66,7 +65,8 @@ export class AiGateway {
 
       return initialAttempt
     } catch (unexpectedError) {
-      const message = unexpectedError instanceof Error ? unexpectedError.message : 'Unknown AI failure'
+      const message =
+        unexpectedError instanceof Error ? unexpectedError.message : 'Unknown AI failure'
       return err(new AiModelUnavailableError(message))
     }
   }
@@ -74,13 +74,12 @@ export class AiGateway {
   /**
    * Generates unstructured raw text.
    */
-  async generateText(
-    options: AiGenerateTextOptions,
-  ): Promise<Result<AiTextResponse, AiError>> {
+  async generateText(options: AiGenerateTextOptions): Promise<Result<AiTextResponse, AiError>> {
     try {
       return await this.provider.generateText(options)
     } catch (unexpectedError) {
-      const message = unexpectedError instanceof Error ? unexpectedError.message : 'Unknown AI text failure'
+      const message =
+        unexpectedError instanceof Error ? unexpectedError.message : 'Unknown AI text failure'
       return err(new AiModelUnavailableError(message))
     }
   }

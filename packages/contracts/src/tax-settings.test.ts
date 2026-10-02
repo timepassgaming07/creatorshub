@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { gstStateCode, parseWorkspaceTaxSettings, workspaceTaxSettingsSchema } from './tax-settings.js'
+import {
+  gstStateCode,
+  parseWorkspaceTaxSettings,
+  workspaceTaxSettingsSchema,
+} from './tax-settings.js'
 
 describe('workspace tax settings', () => {
   it('defaults anything malformed to unregistered', () => {

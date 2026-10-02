@@ -257,8 +257,7 @@ export async function applyClawback(
 
   const nextNetAmountMinor = netCommission - clawbackAmountMinor
   const nextStatus = nextNetAmountMinor === 0n ? 'clawed_back' : existing.status
-  const clawbackStatus =
-    existing.status === 'paid' ? 'uncollectable' : (input.status ?? 'applied')
+  const clawbackStatus = existing.status === 'paid' ? 'uncollectable' : (input.status ?? 'applied')
 
   // 1. Insert clawback record
   const [clawback] = await scope.tx
@@ -343,13 +342,7 @@ export async function getAffiliateLedgerBreakdown(
     .select({ total: sql<string>`COALESCE(SUM(${commissionClawbacks.amount}), 0)::text` })
     .from(commissionClawbacks)
     .innerJoin(commissions, eq(commissionClawbacks.commissionId, commissions.id))
-    .where(
-      scoped(
-        scope,
-        commissionClawbacks,
-        eq(commissions.affiliateId, affiliateId),
-      ),
-    )
+    .where(scoped(scope, commissionClawbacks, eq(commissions.affiliateId, affiliateId)))
 
   clawedBackMinor = BigInt(clawbacks[0]?.total ?? '0')
 
@@ -371,15 +364,27 @@ export async function getAffiliateLedgerBreakdown(
 export async function markVestedCommissionsPaid(
   scope: RepositoryScope,
   affiliateId: AffiliateId,
-): Promise<{ readonly count: number; readonly totalMinor: bigint; readonly currency: string | null }> {
+): Promise<{
+  readonly count: number
+  readonly totalMinor: bigint
+  readonly currency: string | null
+}> {
   const rows = await scope.tx
     .update(commissions)
     .set({ status: 'paid', paidAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()` })
-    .where(scoped(scope, commissions, eq(commissions.affiliateId, affiliateId), eq(commissions.status, 'vested')))
+    .where(
+      scoped(
+        scope,
+        commissions,
+        eq(commissions.affiliateId, affiliateId),
+        eq(commissions.status, 'vested'),
+      ),
+    )
     .returning({ netAmount: commissions.netAmount, currency: commissions.currency })
 
   const currencies = new Set(rows.map((r) => r.currency))
-  if (currencies.size > 1) throw new Error('Commissions in more than one currency; settle them separately.')
+  if (currencies.size > 1)
+    throw new Error('Commissions in more than one currency; settle them separately.')
   return {
     count: rows.length,
     totalMinor: rows.reduce((sum, r) => sum + r.netAmount, 0n),

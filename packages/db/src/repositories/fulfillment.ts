@@ -20,12 +20,7 @@ import { desc, eq, sql } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
-import {
-  assets,
-  downloadEvents,
-  downloadGrants,
-  entitlements,
-} from '../schema/index.js'
+import { assets, downloadEvents, downloadGrants, entitlements } from '../schema/index.js'
 
 export type CreateEntitlementRepoInput = {
   readonly id?: EntitlementId | string

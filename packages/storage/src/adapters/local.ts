@@ -120,7 +120,8 @@ export class LocalStorageDriver implements StorageDriver {
   // -------------------------------------------------------------------------
 
   generateUploadUrl(options: GenerateUploadUrlOptions): Promise<PresignedUploadResult> {
-    if (!this.isValidKey(options.key)) return Promise.reject(new InvalidStorageKeyError(options.key))
+    if (!this.isValidKey(options.key))
+      return Promise.reject(new InvalidStorageKeyError(options.key))
     const ttl = options.expiresInSeconds ?? 900
     const expires = Math.floor(Date.now() / 1000) + ttl
     const request = {
@@ -147,7 +148,8 @@ export class LocalStorageDriver implements StorageDriver {
   }
 
   generateDownloadUrl(options: GenerateDownloadUrlOptions): Promise<PresignedDownloadResult> {
-    if (!this.isValidKey(options.key)) return Promise.reject(new InvalidStorageKeyError(options.key))
+    if (!this.isValidKey(options.key))
+      return Promise.reject(new InvalidStorageKeyError(options.key))
     const ttl = options.expiresInSeconds ?? 300
     const expires = Math.floor(Date.now() / 1000) + ttl
     const request = {

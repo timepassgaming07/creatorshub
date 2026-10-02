@@ -9,7 +9,12 @@
  * The connection string this uses connects as `creatorhub_auth`, never as
  * `creatorhub_app`. Pointing it at the application role fails sign-in.
  */
-import { createAuthDatabase, createAuthOptions, loadAuthConfig, type AuthMailer } from '@creatorhub/auth'
+import {
+  createAuthDatabase,
+  createAuthOptions,
+  loadAuthConfig,
+  type AuthMailer,
+} from '@creatorhub/auth'
 import { betterAuth } from 'better-auth'
 
 import { getEmailService } from './email'

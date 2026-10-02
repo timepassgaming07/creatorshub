@@ -28,7 +28,9 @@ export function BuyBox({
   const price = variant?.price ?? product.price
   const isFree = BigInt(price) === 0n
   const href = `${checkoutHref}?product=${encodeURIComponent(product.slug)}${variant ? `&variant=${variant.id}` : ''}`
-  const label = isFree ? 'Get it free' : `Buy for ${formatAmount(price, product.currency, { compact: true })}`
+  const label = isFree
+    ? 'Get it free'
+    : `Buy for ${formatAmount(price, product.currency, { compact: true })}`
 
   useEffect(() => {
     const el = buttonRef.current
@@ -53,7 +55,9 @@ export function BuyBox({
 
       {product.variants.length > 1 && (
         <fieldset className="mt-6">
-          <legend className="mb-2.5 text-[13px] font-medium text-content-secondary">Choose an option</legend>
+          <legend className="mb-2.5 text-[13px] font-medium text-content-secondary">
+            Choose an option
+          </legend>
           <div className="grid gap-2">
             {product.variants.map((option) => (
               <label
@@ -78,7 +82,9 @@ export function BuyBox({
                   <span className="font-medium">{option.title}</span>
                 </span>
                 <span className="tabular-nums text-content-secondary">
-                  {BigInt(option.price) === 0n ? 'Free' : formatAmount(option.price, product.currency, { compact: true })}
+                  {BigInt(option.price) === 0n
+                    ? 'Free'
+                    : formatAmount(option.price, product.currency, { compact: true })}
                 </span>
               </label>
             ))}

@@ -57,9 +57,7 @@ export const affiliatePrograms = pgTable(
       .notNull()
       .default(sql`clock_timestamp()`),
   },
-  (table) => [
-    index('idx_affiliate_programs_ws').on(table.workspaceId),
-  ],
+  (table) => [index('idx_affiliate_programs_ws').on(table.workspaceId)],
 )
 
 export type AffiliateProgramRow = typeof affiliatePrograms.$inferSelect
@@ -85,7 +83,9 @@ export const affiliates = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`)
       .$type<Record<string, unknown>>(),
-    totalEarnings: bigint('total_earnings', { mode: 'bigint' }).notNull().default(sql`0`),
+    totalEarnings: bigint('total_earnings', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
     totalConversions: integer('total_conversions').notNull().default(0),
     joinedAt: timestamp('joined_at', { withTimezone: true, mode: 'date' })
       .notNull()
@@ -204,7 +204,9 @@ export const attributions = pgTable(
       onDelete: 'set null',
     }),
     commissionBps: integer('commission_bps').notNull(),
-    commissionAmount: bigint('commission_amount', { mode: 'bigint' }).notNull().default(sql`0`),
+    commissionAmount: bigint('commission_amount', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
     status: text('status').notNull(),
     rejectionReason: text('rejection_reason'),
     attributedAt: timestamp('attributed_at', { withTimezone: true, mode: 'date' })
@@ -214,11 +216,7 @@ export const attributions = pgTable(
   (table) => [
     uniqueIndex('attributions_workspace_order_unique').on(table.workspaceId, table.orderId),
     index('idx_attributions_ws_order').on(table.workspaceId, table.orderId),
-    index('idx_attributions_ws_affiliate').on(
-      table.workspaceId,
-      table.affiliateId,
-      table.status,
-    ),
+    index('idx_attributions_ws_affiliate').on(table.workspaceId, table.affiliateId, table.status),
   ],
 )
 

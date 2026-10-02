@@ -9,10 +9,7 @@
  */
 import { z } from 'zod'
 
-import {
-  beneficiaryAccountIdSchema,
-  payoutIdSchema,
-} from './identifiers.js'
+import { beneficiaryAccountIdSchema, payoutIdSchema } from './identifiers.js'
 import type {
   BeneficiaryAccountId,
   PayoutId,
@@ -75,8 +72,18 @@ export const createBeneficiaryAccountSchema = z
     accountHolderName: z.string().trim().min(2).max(120),
     accountType: beneficiaryAccountTypeSchema,
     accountNumber: z.string().trim().min(6).max(34).optional(),
-    ifscCode: z.string().trim().toUpperCase().regex(IFSC_PATTERN, 'Invalid Indian IFSC code.').optional(),
-    vpa: z.string().trim().toLowerCase().regex(UPI_VPA_PATTERN, 'Invalid UPI ID format.').optional(),
+    ifscCode: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(IFSC_PATTERN, 'Invalid Indian IFSC code.')
+      .optional(),
+    vpa: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(UPI_VPA_PATTERN, 'Invalid UPI ID format.')
+      .optional(),
     isDefault: z.boolean().default(false),
   })
   .refine(
@@ -115,7 +122,9 @@ export type BeneficiaryAccountDTO = {
 
 export const requestPayoutSchema = z.object({
   beneficiaryAccountId: beneficiaryAccountIdSchema,
-  amountMinor: z.string().regex(/^\d+$/, 'Amount must be a positive integer in minor units (paise).'),
+  amountMinor: z
+    .string()
+    .regex(/^\d+$/, 'Amount must be a positive integer in minor units (paise).'),
   currency: z
     .string()
     .length(3)

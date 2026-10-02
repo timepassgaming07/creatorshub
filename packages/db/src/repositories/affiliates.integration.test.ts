@@ -67,7 +67,12 @@ describe('Affiliates Repository Integration', () => {
   beforeEach(async () => {
     await adminClient`TRUNCATE TABLE attributions, affiliate_clicks, affiliate_links, affiliates, affiliate_programs, orders, workspaces CASCADE`
 
-    const seedWorkspace = async (wId: WorkspaceId, name: string, slug: string, uId: typeof actor1) => {
+    const seedWorkspace = async (
+      wId: WorkspaceId,
+      name: string,
+      slug: string,
+      uId: typeof actor1,
+    ) => {
       const context = workspaceContext({
         workspaceId: wId,
         actorId: uId,
@@ -82,7 +87,11 @@ describe('Affiliates Repository Integration', () => {
     await seedWorkspace(ws2Id, 'Code Academy', 'code-academy', actor2)
   })
 
-  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: RepositoryScope) => Promise<T>) => {
+  const inScope = <T>(
+    wId: WorkspaceId,
+    uId: typeof actor1,
+    work: (scope: RepositoryScope) => Promise<T>,
+  ) => {
     const context = workspaceContext({
       workspaceId: wId,
       actorId: uId,

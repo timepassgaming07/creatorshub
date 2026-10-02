@@ -54,34 +54,22 @@ describe('Commission State Machine & Invariants (Slice 9)', () => {
 
       // Before hold expiration -> false
       expect(
-        canVestCommission(
-          { status: 'held', heldUntil },
-          new Date('2026-08-14T23:59:59.000Z'),
-        ),
+        canVestCommission({ status: 'held', heldUntil }, new Date('2026-08-14T23:59:59.000Z')),
       ).toBe(false)
 
       // Exactly at hold expiration -> true
       expect(
-        canVestCommission(
-          { status: 'held', heldUntil },
-          new Date('2026-08-15T00:00:00.000Z'),
-        ),
+        canVestCommission({ status: 'held', heldUntil }, new Date('2026-08-15T00:00:00.000Z')),
       ).toBe(true)
 
       // Past hold expiration -> true
       expect(
-        canVestCommission(
-          { status: 'held', heldUntil },
-          new Date('2026-08-20T00:00:00.000Z'),
-        ),
+        canVestCommission({ status: 'held', heldUntil }, new Date('2026-08-20T00:00:00.000Z')),
       ).toBe(true)
 
       // Wrong status -> false even if time has passed
       expect(
-        canVestCommission(
-          { status: 'pending', heldUntil },
-          new Date('2026-08-20T00:00:00.000Z'),
-        ),
+        canVestCommission({ status: 'pending', heldUntil }, new Date('2026-08-20T00:00:00.000Z')),
       ).toBe(false)
     })
   })

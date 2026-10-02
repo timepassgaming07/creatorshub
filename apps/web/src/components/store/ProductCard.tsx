@@ -71,7 +71,9 @@ export function PriceTag({
         {isFree ? 'Free' : formatAmount(price, currency, { compact: true })}
       </span>
       {hasCompare && (
-        <span className={`text-content-tertiary line-through tabular-nums ${size === 'large' ? 'text-lg' : 'text-[13px]'}`}>
+        <span
+          className={`text-content-tertiary line-through tabular-nums ${size === 'large' ? 'text-lg' : 'text-[13px]'}`}
+        >
           {formatAmount(compareAtPrice, currency, { compact: true })}
         </span>
       )}
@@ -99,10 +101,14 @@ export function ProductCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold store-heading">{product.title}</p>
-          {product.excerpt && <p className="mt-0.5 truncate text-[13px] text-content-secondary">{product.excerpt}</p>}
+          {product.excerpt && (
+            <p className="mt-0.5 truncate text-[13px] text-content-secondary">{product.excerpt}</p>
+          )}
         </div>
         <span className="shrink-0 rounded-full bg-[var(--store-accent)] px-3 py-1.5 text-[13px] font-semibold text-[var(--store-accent-fg)]">
-          {BigInt(product.price) === 0n ? 'Free' : formatAmount(product.price, product.currency, { compact: true })}
+          {BigInt(product.price) === 0n
+            ? 'Free'
+            : formatAmount(product.price, product.currency, { compact: true })}
         </span>
       </Link>
     )
@@ -119,16 +125,27 @@ export function ProductCard({
         </div>
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-[17px] leading-snug font-semibold tracking-tight store-heading">{product.title}</h3>
+        <h3 className="text-[17px] leading-snug font-semibold tracking-tight store-heading">
+          {product.title}
+        </h3>
         {product.excerpt && (
-          <p className="mt-1.5 line-clamp-2 text-[14px] leading-relaxed text-content-secondary">{product.excerpt}</p>
+          <p className="mt-1.5 line-clamp-2 text-[14px] leading-relaxed text-content-secondary">
+            {product.excerpt}
+          </p>
         )}
         <div className="mt-auto flex items-center justify-between pt-5">
-          <PriceTag price={product.price} compareAtPrice={product.compareAtPrice} currency={product.currency} />
+          <PriceTag
+            price={product.price}
+            compareAtPrice={product.compareAtPrice}
+            currency={product.currency}
+          />
           <span className="inline-flex items-center gap-1 text-[13px] font-medium text-content-secondary transition-colors group-hover:text-content-primary">
             {product.fileCount > 0 && <FileDown className="size-3.5" aria-hidden="true" />}
             View
-            <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+            <ArrowUpRight
+              className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              aria-hidden="true"
+            />
           </span>
         </div>
       </div>

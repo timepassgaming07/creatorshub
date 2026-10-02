@@ -25,7 +25,8 @@ export function ProductPage({
   readonly product: PublicProductDetail
   readonly basePath: string
 }) {
-  const isFree = BigInt(product.price) === 0n && product.variants.every((v) => BigInt(v.price) === 0n)
+  const isFree =
+    BigInt(product.price) === 0n && product.variants.every((v) => BigInt(v.price) === 0n)
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 pb-16">
@@ -47,7 +48,12 @@ export function ProductPage({
               {product.gallery.slice(0, 6).map((src) => (
                 <div key={src} className="overflow-hidden rounded-xl border border-border-subtle">
                   {/* eslint-disable-next-line @next/next/no-img-element -- media route */}
-                  <img src={src} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-square w-full object-cover"
+                  />
                 </div>
               ))}
             </div>
@@ -90,7 +96,9 @@ export function ProductPage({
               {product.description}
             </div>
           ) : (
-            <p className="mt-4 text-content-tertiary">The creator has not added a description yet.</p>
+            <p className="mt-4 text-content-tertiary">
+              The creator has not added a description yet.
+            </p>
           )}
         </section>
 
@@ -101,12 +109,19 @@ export function ProductPage({
           {product.files.length > 0 ? (
             <ul className="mt-4 divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised">
               {product.files.map((file) => (
-                <li key={`${file.name}-${file.size}`} className="flex items-center gap-3 px-4 py-3.5">
+                <li
+                  key={`${file.name}-${file.size}`}
+                  className="flex items-center gap-3 px-4 py-3.5"
+                >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-[10px] font-bold tracking-wide text-content-secondary">
                     {fileKind(file.name, file.type).slice(0, 4)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{file.name}</span>
-                  <span className="shrink-0 text-[13px] text-content-tertiary tabular-nums">{formatBytes(file.size)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+                    {file.name}
+                  </span>
+                  <span className="shrink-0 text-[13px] text-content-tertiary tabular-nums">
+                    {formatBytes(file.size)}
+                  </span>
                 </li>
               ))}
             </ul>

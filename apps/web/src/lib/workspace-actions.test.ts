@@ -177,7 +177,11 @@ describe('workspace actions - the owner is permanent', () => {
 
   it('will not change the owner role', async () => {
     const update = vi.spyOn(workspaceMembers, 'updateMemberRole')
-    const res = await updateMemberRoleAction({ workspaceId: ws, targetUserId: owner, role: 'member' })
+    const res = await updateMemberRoleAction({
+      workspaceId: ws,
+      targetUserId: owner,
+      role: 'member',
+    })
     expect(res.success).toBe(false)
     expect(update).not.toHaveBeenCalled()
   })

@@ -64,7 +64,12 @@ describe('Customers Repository Integration', () => {
   beforeEach(async () => {
     await adminClient`TRUNCATE TABLE customers, orders, workspaces CASCADE`
 
-    const seedWorkspace = async (wId: WorkspaceId, name: string, slug: string, uId: typeof actor1) => {
+    const seedWorkspace = async (
+      wId: WorkspaceId,
+      name: string,
+      slug: string,
+      uId: typeof actor1,
+    ) => {
       const context = workspaceContext({
         workspaceId: wId,
         actorId: uId,
@@ -79,7 +84,11 @@ describe('Customers Repository Integration', () => {
     await seedWorkspace(ws2Id, 'Code Academy', 'code-academy', actor2)
   })
 
-  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: RepositoryScope) => Promise<T>) => {
+  const inScope = <T>(
+    wId: WorkspaceId,
+    uId: typeof actor1,
+    work: (scope: RepositoryScope) => Promise<T>,
+  ) => {
     const context = workspaceContext({
       workspaceId: wId,
       actorId: uId,
@@ -164,9 +173,7 @@ describe('Customers Repository Integration', () => {
     expect(highSpenders).toHaveLength(2)
 
     // Summary statistics
-    const summary = await inScope(ws1Id, actor1, (scope) =>
-      customersRepo.getCustomerSummary(scope),
-    )
+    const summary = await inScope(ws1Id, actor1, (scope) => customersRepo.getCustomerSummary(scope))
 
     expect(summary.totalCustomers).toBe(3)
     expect(summary.totalLifetimeValue).toBe(1600000n) // ₹16,000
@@ -198,9 +205,7 @@ describe('Customers Repository Integration', () => {
     expect(foreignEmailLookup).toBeNull()
 
     // Workspace 2 listing contains 0 rows
-    const ws2List = await inScope(ws2Id, actor2, (scope) =>
-      customersRepo.listCustomers(scope),
-    )
+    const ws2List = await inScope(ws2Id, actor2, (scope) => customersRepo.listCustomers(scope))
     expect(ws2List).toHaveLength(0)
 
     // Same email can exist independently in Workspace 2 with completely separate metrics

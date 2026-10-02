@@ -16,5 +16,11 @@ export default async function WorkspaceHomePage({
   const { id } = await params
   const { welcome } = await searchParams
   const [data, session] = await Promise.all([loadHome(id), getServerSession()])
-  return <HomeView data={data} firstName={(session?.user.name ?? '').split(' ')[0] ?? ''} welcome={welcome === '1'} />
+  return (
+    <HomeView
+      data={data}
+      firstName={(session?.user.name ?? '').split(' ')[0] ?? ''}
+      welcome={welcome === '1'}
+    />
+  )
 }

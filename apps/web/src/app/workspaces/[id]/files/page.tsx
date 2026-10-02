@@ -17,7 +17,9 @@ export default async function FilesPage({ params }: { readonly params: Promise<{
       byteSize: a.byteSize.toString(),
       scanStatus: a.scanStatus,
       createdAt: a.createdAt.toISOString(),
-      previewUrl: a.mimeType.startsWith('image/') ? `/api/media/${scope.context.workspaceId}/${a.id}` : null,
+      previewUrl: a.mimeType.startsWith('image/')
+        ? `/api/media/${scope.context.workspaceId}/${a.id}`
+        : null,
     }))
   })
   return <FilesView files={files} />

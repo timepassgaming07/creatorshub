@@ -682,7 +682,9 @@ export function StoreEditor({
                                 label="Move up"
                                 disabled={index === 0}
                                 onClick={() => {
-                                  setTheme({ customLinks: swap(theme.customLinks, index, index - 1) })
+                                  setTheme({
+                                    customLinks: swap(theme.customLinks, index, index - 1),
+                                  })
                                 }}
                               >
                                 <ArrowUp className="size-4" aria-hidden="true" />
@@ -691,7 +693,9 @@ export function StoreEditor({
                                 label="Move down"
                                 disabled={index === theme.customLinks.length - 1}
                                 onClick={() => {
-                                  setTheme({ customLinks: swap(theme.customLinks, index, index + 1) })
+                                  setTheme({
+                                    customLinks: swap(theme.customLinks, index, index + 1),
+                                  })
                                 }}
                               >
                                 <ArrowDown className="size-4" aria-hidden="true" />

@@ -7,10 +7,7 @@
  * 3. Pro-rated clawback calculation: Computes exact integer minor unit reversals on partial refunds.
  * 4. Vesting qualification: Determines eligibility for payout release.
  */
-import type {
-  ClawbackStatus,
-  CommissionStatus,
-} from '@creatorhub/contracts'
+import type { ClawbackStatus, CommissionStatus } from '@creatorhub/contracts'
 import { domainError, err, ok, type Result } from '../result.js'
 
 /**
@@ -81,12 +78,7 @@ export function calculateClawbackMinor(params: {
   readonly orderSubtotalMinor: bigint
   readonly refundAmountMinor: bigint
 }): bigint {
-  const {
-    grossCommissionMinor,
-    netCommissionMinor,
-    orderSubtotalMinor,
-    refundAmountMinor,
-  } = params
+  const { grossCommissionMinor, netCommissionMinor, orderSubtotalMinor, refundAmountMinor } = params
 
   if (netCommissionMinor <= 0n || refundAmountMinor <= 0n || orderSubtotalMinor <= 0n) {
     return 0n

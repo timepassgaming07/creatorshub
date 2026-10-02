@@ -7,13 +7,7 @@
  * 3. Beneficiary account safety cooldowns (e.g. flagging immediate payouts to newly registered bank accounts).
  */
 import type { Money } from '@creatorhub/contracts'
-import {
-  IFSC_PATTERN,
-  UPI_VPA_PATTERN,
-  greaterThan,
-  lessThan,
-  money,
-} from '@creatorhub/contracts'
+import { IFSC_PATTERN, UPI_VPA_PATTERN, greaterThan, lessThan, money } from '@creatorhub/contracts'
 
 import { type Result, domainError, err, ok } from '../result.js'
 
@@ -47,7 +41,8 @@ export function validateIfscCode(code: string): Result<string> {
       domainError({
         code: 'INVALID_IFSC_CODE',
         title: 'Invalid IFSC code',
-        detail: 'Expected 4 alphabetic characters, followed by 0, followed by 6 alphanumeric characters (e.g. HDFC0000060).',
+        detail:
+          'Expected 4 alphabetic characters, followed by 0, followed by 6 alphanumeric characters (e.g. HDFC0000060).',
         action: 'Check your cheque book or bank passbook for the exact 11-character IFSC code.',
       }),
     )

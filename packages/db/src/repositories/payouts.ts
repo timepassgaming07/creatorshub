@@ -158,14 +158,7 @@ export async function rejectPayout(
       failureReason: params.reason,
       updatedAt: new Date(),
     })
-    .where(
-      scoped(
-        scope,
-        payouts,
-        eq(payouts.id, params.payoutId),
-        eq(payouts.status, 'requested'),
-      ),
-    )
+    .where(scoped(scope, payouts, eq(payouts.id, params.payoutId), eq(payouts.status, 'requested')))
     .returning()
 
   return updated
@@ -298,11 +291,7 @@ export async function findPayoutById(
     .select()
     .from(beneficiaryAccounts)
     .where(
-      scoped(
-        scope,
-        beneficiaryAccounts,
-        eq(beneficiaryAccounts.id, payout.beneficiaryAccountId),
-      ),
+      scoped(scope, beneficiaryAccounts, eq(beneficiaryAccounts.id, payout.beneficiaryAccountId)),
     )
     .limit(1)
 
@@ -320,7 +309,7 @@ export async function findPayoutById(
 
 export async function listPayouts(
   scope: RepositoryScope,
-  filter?: PayoutFilter  ,
+  filter?: PayoutFilter,
 ): Promise<PayoutWithBeneficiary[]> {
   const conditions = []
 
@@ -354,13 +343,7 @@ export async function listPayouts(
   const beneficiaries = await scope.tx
     .select()
     .from(beneficiaryAccounts)
-    .where(
-      scoped(
-        scope,
-        beneficiaryAccounts,
-        inArray(beneficiaryAccounts.id, beneficiaryIds),
-      ),
-    )
+    .where(scoped(scope, beneficiaryAccounts, inArray(beneficiaryAccounts.id, beneficiaryIds)))
 
   const beneficiaryMap = new Map(beneficiaries.map((b) => [b.id, b]))
 
@@ -409,8 +392,14 @@ export async function getPayoutBalanceOverview(
   // The creator's money is the creator_payable account: credited with each
   // sale net of fees, tax, and commission; debited by refunds and approved
   // payouts. Requests still awaiting approval are set aside on top.
-  const creatorPayable = await ledgerRepo.findOrCreateWorkspaceAccount(scope, 'creator_payable', curr)
-  const ledgerBalance = (await ledgerRepo.getAccountBalance(scope, ledgerAccountId(creatorPayable.id))).amount
+  const creatorPayable = await ledgerRepo.findOrCreateWorkspaceAccount(
+    scope,
+    'creator_payable',
+    curr,
+  )
+  const ledgerBalance = (
+    await ledgerRepo.getAccountBalance(scope, ledgerAccountId(creatorPayable.id))
+  ).amount
   const netAvailable = ledgerBalance > pendingApproval ? ledgerBalance - pendingApproval : 0n
 
   return {

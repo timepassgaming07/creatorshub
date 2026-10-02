@@ -19,7 +19,9 @@ export function ResetPasswordForm() {
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(
-    params.get('error') ? 'This reset link has expired or was already used. Request a new one.' : null,
+    params.get('error')
+      ? 'This reset link has expired or was already used. Request a new one.'
+      : null,
   )
 
   async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -41,7 +43,12 @@ export function ResetPasswordForm() {
     const result = await authClient.resetPassword({ newPassword: password, token })
     if (result.error) {
       setLoading(false)
-      setError(authErrorMessage(result.error.code, result.error.message ?? 'Could not reset the password.'))
+      setError(
+        authErrorMessage(
+          result.error.code,
+          result.error.message ?? 'Could not reset the password.',
+        ),
+      )
       return
     }
     router.push(`/sign-in?reset=1&redirect=${encodeURIComponent(next)}`)
@@ -52,7 +59,10 @@ export function ResetPasswordForm() {
       title="Choose a new password"
       subtitle="Every other device will be signed out."
       footer={
-        <Link href="/forgot-password" className="font-medium text-content-primary underline-offset-4 hover:underline">
+        <Link
+          href="/forgot-password"
+          className="font-medium text-content-primary underline-offset-4 hover:underline"
+        >
           Request a new link
         </Link>
       }
@@ -60,7 +70,12 @@ export function ResetPasswordForm() {
       <FormError message={error} />
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-4" noValidate>
         <div>
-          <PasswordField label="New password" value={password} onChange={setPassword} autoComplete="new-password" />
+          <PasswordField
+            label="New password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+          />
           <StrengthMeter password={password} />
         </div>
         <PasswordField

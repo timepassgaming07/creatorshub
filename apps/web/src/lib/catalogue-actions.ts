@@ -38,7 +38,6 @@ import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { auditOptions } from './env'
 
-
 export type ActionError = {
   readonly code: string
   readonly title: string

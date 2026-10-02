@@ -39,7 +39,11 @@ export async function PUT(request: NextRequest): Promise<Response> {
 
   const signed = signedRequest(request, 'put')
   if (request.nextUrl.searchParams.get('op') !== 'put' || !driver.verify(signed)) {
-    return problem(403, 'Upload link not valid', 'This upload link has expired or was altered. Start the upload again.')
+    return problem(
+      403,
+      'Upload link not valid',
+      'This upload link has expired or was altered. Start the upload again.',
+    )
   }
 
   const declared = Number(signed.contentLength)
@@ -49,7 +53,11 @@ export async function PUT(request: NextRequest): Promise<Response> {
 
   const contentType = request.headers.get('content-type')?.split(';')[0]?.trim()
   if (!contentType || contentType !== signed.contentType) {
-    return problem(400, 'Unexpected file type', 'The file type does not match the upload that was requested.')
+    return problem(
+      400,
+      'Unexpected file type',
+      'The file type does not match the upload that was requested.',
+    )
   }
 
   const body = new Uint8Array(await request.arrayBuffer())
@@ -89,11 +97,16 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const signed = signedRequest(request, 'get')
   if (request.nextUrl.searchParams.get('op') !== 'get' || !driver.verify(signed)) {
-    return problem(403, 'Download link not valid', 'This link has expired. Go back to your download page and start the download again.')
+    return problem(
+      403,
+      'Download link not valid',
+      'This link has expired. Go back to your download page and start the download again.',
+    )
   }
 
   const object = await driver.getObject(signed.key)
-  if (!object) return problem(404, 'File not found', 'This file is no longer available. Contact the seller.')
+  if (!object)
+    return problem(404, 'File not found', 'This file is no longer available. Contact the seller.')
 
   const size = object.data.byteLength
   const headers: Record<string, string> = {
@@ -101,12 +114,17 @@ export async function GET(request: NextRequest): Promise<Response> {
     'Accept-Ranges': 'bytes',
     'Cache-Control': 'private, no-store',
     'X-Content-Type-Options': 'nosniff',
-    'Content-Disposition': contentDisposition(signed.filename ?? signed.key.split('/').pop() ?? 'download'),
+    'Content-Disposition': contentDisposition(
+      signed.filename ?? signed.key.split('/').pop() ?? 'download',
+    ),
   }
 
   const range = parseRange(request.headers.get('range'), size)
   if (request.headers.get('range') && !range) {
-    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${String(size)}` } })
+    return new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${String(size)}` },
+    })
   }
 
   if (range) {

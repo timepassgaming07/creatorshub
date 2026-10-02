@@ -6,15 +6,7 @@
  * 2. Token counts (prompt, completion, total) and calculated cost in micro-cents.
  * 3. Enforce multi-tenant RLS isolation.
  */
-import {
-  bigint,
-  index,
-  integer,
-  pgTable,
-  timestamp,
-  uuid,
-  varchar,
-} from 'drizzle-orm/pg-core'
+import { bigint, index, integer, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import { users, workspaces } from './identity.js'
 
@@ -37,9 +29,7 @@ export const aiUsage = pgTable(
     totalTokens: integer('total_tokens').notNull().default(0),
     costMicroCents: bigint('cost_micro_cents', { mode: 'bigint' }).notNull().default(0n),
     status: varchar('status', { length: 32 }).notNull().default('success'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('idx_ai_usage_ws_created').on(table.workspaceId, table.createdAt),

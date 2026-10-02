@@ -15,9 +15,7 @@ export type RecordedEmail = SendEmailInput & {
 }
 
 // Array.isArray narrows a readonly array to any[]; this guard keeps the type.
-function isRecipientList(
-  to: SendEmailInput['to'],
-): to is readonly (string | EmailAddress)[] {
+function isRecipientList(to: SendEmailInput['to']): to is readonly (string | EmailAddress)[] {
   return Array.isArray(to)
 }
 

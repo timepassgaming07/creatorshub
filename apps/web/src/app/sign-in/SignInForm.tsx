@@ -33,7 +33,9 @@ export function SignInForm() {
     const result = await signIn.email({ email: email.trim().toLowerCase(), password })
     if (result.error) {
       setLoading(false)
-      setError(authErrorMessage(result.error.code, result.error.message ?? 'Sign-in failed. Try again.'))
+      setError(
+        authErrorMessage(result.error.code, result.error.message ?? 'Sign-in failed. Try again.'),
+      )
       return
     }
     router.push(next)
@@ -65,14 +67,22 @@ export function SignInForm() {
       footer={
         <>
           New to CreatorHub?{' '}
-          <Link href={next === '/dashboard' ? '/sign-up' : `/sign-up?redirect=${encodeURIComponent(next)}`} className="font-medium text-content-primary underline-offset-4 hover:underline">
+          <Link
+            href={
+              next === '/dashboard' ? '/sign-up' : `/sign-up?redirect=${encodeURIComponent(next)}`
+            }
+            className="font-medium text-content-primary underline-offset-4 hover:underline"
+          >
             Create your store
           </Link>
         </>
       }
     >
       {params.get('reset') === '1' && (
-        <p role="status" className="mb-5 rounded-lg bg-positive-subtle px-3.5 py-3 text-body text-content-primary">
+        <p
+          role="status"
+          className="mb-5 rounded-lg bg-positive-subtle px-3.5 py-3 text-body text-content-primary"
+        >
           Password updated. Sign in with your new password.
         </p>
       )}
@@ -90,7 +100,12 @@ export function SignInForm() {
           }}
         />
         <div>
-          <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" />
+          <PasswordField
+            label="Password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+          />
           <div className="mt-2 text-right">
             <Link
               href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}
@@ -111,7 +126,13 @@ export function SignInForm() {
         <span className="h-px flex-1 bg-border-subtle" />
       </div>
 
-      <Button variant="secondary" fullWidth size="large" loading={passkeyLoading} onClick={() => void onPasskey()}>
+      <Button
+        variant="secondary"
+        fullWidth
+        size="large"
+        loading={passkeyLoading}
+        onClick={() => void onPasskey()}
+      >
         <Fingerprint className="size-4" aria-hidden="true" />
         Sign in with a passkey
       </Button>

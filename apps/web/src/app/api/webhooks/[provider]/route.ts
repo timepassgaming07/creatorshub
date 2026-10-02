@@ -18,7 +18,12 @@
  * is not ours, an amount that does not match) is recorded and acknowledged.
  */
 import { randomUUID } from 'node:crypto'
-import { orderId as toOrderId, requestId, workspaceContext, workspaceId } from '@creatorhub/contracts'
+import {
+  orderId as toOrderId,
+  requestId,
+  workspaceContext,
+  workspaceId,
+} from '@creatorhub/contracts'
 import { orders, webhooks } from '@creatorhub/db'
 import { WebhookSignatureVerificationError } from '@creatorhub/payments'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -53,7 +58,9 @@ export async function POST(
 
   const secret = webhookSecret(providerName)
   if (!secret) {
-    console.error(`[webhook] ${providerName.toUpperCase()}_WEBHOOK_SECRET is not set; refusing delivery.`)
+    console.error(
+      `[webhook] ${providerName.toUpperCase()}_WEBHOOK_SECRET is not set; refusing delivery.`,
+    )
     return ack({ error: 'Webhook endpoint is not configured.' }, 503)
   }
 

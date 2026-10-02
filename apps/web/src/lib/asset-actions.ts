@@ -33,7 +33,6 @@ import { getMalwareScanner, getStorageDriver, getStorageService } from './storag
 import { auditOptions } from './env'
 import { generateUuidV7 } from './uuidv7'
 
-
 export type ActionError = {
   readonly code: string
   readonly title: string

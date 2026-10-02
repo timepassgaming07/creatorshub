@@ -16,19 +16,12 @@ import {
   workspaceContext,
   workspaceId as toWorkspaceId,
 } from '@creatorhub/contracts'
-import {
-  auditLog,
-  customers,
-  fulfillment,
-  orders,
-  workspaceMembers,
-} from '@creatorhub/db'
+import { auditLog, customers, fulfillment, orders, workspaceMembers } from '@creatorhub/db'
 import { authorise } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { auditOptions } from './env'
-
 
 export type CustomerListItemDTO = {
   readonly id: string
@@ -123,7 +116,10 @@ export async function listCustomersAction(
     const scope = { tx, context }
     const member = await workspaceMembers.findMemberByUserId(scope, actorId)
     if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' },
+      }
     }
 
     const authCheck = authorise(
@@ -132,7 +128,10 @@ export async function listCustomersAction(
       'customer.view',
     )
     if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view customers.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'Permission denied to view customers.' },
+      }
     }
 
     const customerFilter = {
@@ -198,7 +197,10 @@ export async function getCustomerDetailsAction(
     const scope = { tx, context }
     const member = await workspaceMembers.findMemberByUserId(scope, actorId)
     if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' },
+      }
     }
 
     const authCheck = authorise(
@@ -207,7 +209,10 @@ export async function getCustomerDetailsAction(
       'customer.view',
     )
     if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view customer details.' } }
+      return {
+        ok: false,
+        error: { code: 'FORBIDDEN', message: 'Permission denied to view customer details.' },
+      }
     }
 
     const customerRecord = await customers.findCustomerById(scope, custId)

@@ -79,16 +79,8 @@ export const commissions = pgTable(
       table.attributionId,
     ),
     index('idx_commissions_ws_order').on(table.workspaceId, table.orderId),
-    index('idx_commissions_ws_affiliate').on(
-      table.workspaceId,
-      table.affiliateId,
-      table.status,
-    ),
-    index('idx_commissions_ws_vesting').on(
-      table.workspaceId,
-      table.status,
-      table.heldUntil,
-    ),
+    index('idx_commissions_ws_affiliate').on(table.workspaceId, table.affiliateId, table.status),
+    index('idx_commissions_ws_vesting').on(table.workspaceId, table.status, table.heldUntil),
   ],
 )
 
@@ -120,14 +112,8 @@ export const commissionClawbacks = pgTable(
       .default(sql`clock_timestamp()`),
   },
   (table) => [
-    index('idx_commission_clawbacks_ws_commission').on(
-      table.workspaceId,
-      table.commissionId,
-    ),
-    index('idx_commission_clawbacks_ws_refund').on(
-      table.workspaceId,
-      table.refundId,
-    ),
+    index('idx_commission_clawbacks_ws_commission').on(table.workspaceId, table.commissionId),
+    index('idx_commission_clawbacks_ws_refund').on(table.workspaceId, table.refundId),
   ],
 )
 

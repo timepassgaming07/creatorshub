@@ -101,15 +101,27 @@ export function NewProductForm() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(
                 [
-                  { value: 'paid', title: 'Paid', body: 'Buyers pay before they download.', icon: Tag },
-                  { value: 'free', title: 'Free', body: 'Collect an email in exchange. Great for lead magnets.', icon: Gift },
+                  {
+                    value: 'paid',
+                    title: 'Paid',
+                    body: 'Buyers pay before they download.',
+                    icon: Tag,
+                  },
+                  {
+                    value: 'free',
+                    title: 'Free',
+                    body: 'Collect an email in exchange. Great for lead magnets.',
+                    icon: Gift,
+                  },
                 ] as const
               ).map((option) => (
                 <label
                   key={option.value}
                   className={cn(
                     'flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors',
-                    pricing === option.value ? 'border-accent bg-accent-subtle/50' : 'border-border-subtle hover:border-border-default',
+                    pricing === option.value
+                      ? 'border-accent bg-accent-subtle/50'
+                      : 'border-border-subtle hover:border-border-default',
                   )}
                 >
                   <input
@@ -122,10 +134,18 @@ export function NewProductForm() {
                     }}
                     className="sr-only"
                   />
-                  <option.icon className={cn('mt-0.5 size-5 shrink-0', pricing === option.value ? 'text-accent' : 'text-content-tertiary')} aria-hidden="true" />
+                  <option.icon
+                    className={cn(
+                      'mt-0.5 size-5 shrink-0',
+                      pricing === option.value ? 'text-accent' : 'text-content-tertiary',
+                    )}
+                    aria-hidden="true"
+                  />
                   <span className="font-medium">
                     {option.title}
-                    <span className="mt-0.5 block text-caption font-normal text-content-secondary">{option.body}</span>
+                    <span className="mt-0.5 block text-caption font-normal text-content-secondary">
+                      {option.body}
+                    </span>
                   </span>
                 </label>
               ))}

@@ -231,7 +231,9 @@ describe('Order Fulfillment Service (§5.9)', () => {
       createdEntitlements.push(entitlement)
       return Promise.resolve(entitlement as never)
     })
-    vi.spyOn(mockOrdersRepo.catalogue, 'findProductById').mockResolvedValue({ title: 'Product' } as never)
+    vi.spyOn(mockOrdersRepo.catalogue, 'findProductById').mockResolvedValue({
+      title: 'Product',
+    } as never)
     vi.spyOn(mockOrdersRepo.catalogue, 'listAssetsForProduct').mockResolvedValue([
       {
         productAsset: {
@@ -575,7 +577,9 @@ describe('Order Fulfillment Service (§5.9)', () => {
       createdEntitlements.push(entitlement)
       return Promise.resolve(entitlement as never)
     })
-    vi.spyOn(mockDb.catalogue, 'findProductById').mockResolvedValue({ title: 'Free Lead Magnet Guide' } as never)
+    vi.spyOn(mockDb.catalogue, 'findProductById').mockResolvedValue({
+      title: 'Free Lead Magnet Guide',
+    } as never)
     vi.spyOn(mockDb.catalogue, 'listAssetsForProduct').mockResolvedValue([
       {
         productAsset: {

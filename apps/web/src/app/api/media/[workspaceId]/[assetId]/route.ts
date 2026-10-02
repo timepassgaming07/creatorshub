@@ -7,7 +7,12 @@
  * this route rather than redirected to a signed URL, so the browser can cache
  * them for a day without caching an expiring link.
  */
-import { assetId as toAssetId, requestId, workspaceContext, workspaceId } from '@creatorhub/contracts'
+import {
+  assetId as toAssetId,
+  requestId,
+  workspaceContext,
+  workspaceId,
+} from '@creatorhub/contracts'
 import { catalogue, storefronts } from '@creatorhub/db'
 import { isAssetDeliverable } from '@creatorhub/storage'
 import { NextResponse } from 'next/server'

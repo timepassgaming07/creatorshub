@@ -14,7 +14,8 @@ import { formatBytes, formatDate } from '@/lib/format'
 
 const ERROR_COPY: Record<string, string> = {
   EXPIRED: 'This link has expired. Ask for fresh links from your order page or the email receipt.',
-  EXHAUSTED: 'This link has been used the maximum number of times. Request fresh links from your order page.',
+  EXHAUSTED:
+    'This link has been used the maximum number of times. Request fresh links from your order page.',
   REVOKED: 'Access to this file ended because the order was refunded.',
   UNAVAILABLE: 'The file is still being checked for safety. Try again in a few minutes.',
   NOT_FOUND: 'We could not find this download.',
@@ -50,7 +51,9 @@ export function DownloadPortalView({
               <div className="flex size-12 items-center justify-center rounded-2xl bg-accent-subtle text-accent">
                 <FileDown className="size-6" aria-hidden="true" />
               </div>
-              <h1 className="mt-5 text-xl font-semibold tracking-tight text-balance">{data.productTitle}</h1>
+              <h1 className="mt-5 text-xl font-semibold tracking-tight text-balance">
+                {data.productTitle}
+              </h1>
               <p className="mt-1 text-[14px] text-content-secondary">
                 {data.originalFilename} · {formatBytes(data.byteSize)}
               </p>
@@ -71,8 +74,14 @@ export function DownloadPortalView({
               </p>
 
               {errorCode && (
-                <div role="alert" className="mt-5 flex items-start gap-2.5 rounded-xl bg-critical-subtle px-4 py-3 text-[14px]">
-                  <CircleAlert className="mt-0.5 size-4 shrink-0 text-critical" aria-hidden="true" />
+                <div
+                  role="alert"
+                  className="mt-5 flex items-start gap-2.5 rounded-xl bg-critical-subtle px-4 py-3 text-[14px]"
+                >
+                  <CircleAlert
+                    className="mt-0.5 size-4 shrink-0 text-critical"
+                    aria-hidden="true"
+                  />
                   <p>{ERROR_COPY[errorCode] ?? ERROR_COPY['ERROR']}</p>
                 </div>
               )}
@@ -117,7 +126,10 @@ export function DownloadPortalView({
 
           {data.storefrontUrl && (
             <p className="mt-6 text-center text-[13px] text-content-secondary">
-              <a href={data.storefrontUrl} className="underline underline-offset-2 hover:text-content-primary">
+              <a
+                href={data.storefrontUrl}
+                className="underline underline-offset-2 hover:text-content-primary"
+              >
                 Visit {data.workspaceName}
               </a>
             </p>

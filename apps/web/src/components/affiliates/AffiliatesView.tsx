@@ -43,7 +43,10 @@ function pct(bps: number): string {
 
 function suggestCode(name: string, email: string): string {
   const source = name.trim() ? name : (email.split('@')[0] ?? '')
-  return source.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20)
+  return source
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 20)
 }
 
 function ProgramCard({ program }: { readonly program: AffiliatesData['program'] }) {
@@ -217,7 +220,9 @@ function InviteDialog({ defaultBps }: { readonly defaultBps: number }) {
           label="Referral code"
           value={effectiveCode}
           {...(storefront
-            ? { hint: `${storefront.url.replace(/^https?:\/\//, '')}?ref=${effectiveCode || 'code'}` }
+            ? {
+                hint: `${storefront.url.replace(/^https?:\/\//, '')}?ref=${effectiveCode || 'code'}`,
+              }
             : {})}
           onChange={(e) => {
             setCodeTouched(true)

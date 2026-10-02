@@ -43,14 +43,18 @@ export function contrastRatio(a: string, b: string): number {
 
 /** Black or white, whichever reads better on the accent. */
 export function textOn(accent: string): '#ffffff' | '#111111' {
-  return contrastRatio(accent, '#ffffff') >= contrastRatio(accent, '#111111') ? '#ffffff' : '#111111'
+  return contrastRatio(accent, '#ffffff') >= contrastRatio(accent, '#111111')
+    ? '#ffffff'
+    : '#111111'
 }
 
 const DEFAULT_ACCENT = '#e2541c'
 
 export function storeAccent(theme: Partial<StorefrontTheme>): string {
   const value = theme.accentColor
-  return value && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value) ? `#${expandHex(value)}` : DEFAULT_ACCENT
+  return value && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)
+    ? `#${expandHex(value)}`
+    : DEFAULT_ACCENT
 }
 
 export function storeLayout(theme: Partial<StorefrontTheme>): StoreLayout {

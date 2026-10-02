@@ -51,7 +51,9 @@ test.describe('authentication screens', () => {
     await expect(page.locator('h1')).toHaveText(/Welcome back/i)
   })
 
-  test('workspace detail page shows not-found state or redirects when unauthenticated', async ({ page }) => {
+  test('workspace detail page shows not-found state or redirects when unauthenticated', async ({
+    page,
+  }) => {
     await page.goto('/workspaces/00000000-0000-7000-8000-000000000000')
 
     // Redirects to sign-in or returns error card

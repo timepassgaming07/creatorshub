@@ -7,12 +7,7 @@
  * 3. Multi-tenant RLS query scoping via RepositoryScope.
  */
 import { and, desc, gte, lt, sql } from 'drizzle-orm'
-import type {
-  AiPromptId,
-  AiUsageRecordDTO,
-  AiUsageSummaryDTO,
-  UserId,
-} from '@creatorhub/contracts'
+import type { AiPromptId, AiUsageRecordDTO, AiUsageSummaryDTO, UserId } from '@creatorhub/contracts'
 
 import { insertValues, scoped, type RepositoryScope } from '../repository.js'
 import { aiUsage, type AiUsageRow } from '../schema/ai.js'
@@ -107,10 +102,7 @@ export async function getMonthlyUsageSummary(
       scoped(
         scope,
         aiUsage,
-        and(
-          gte(aiUsage.createdAt, startOfMonth),
-          lt(aiUsage.createdAt, startOfNextMonth),
-        ),
+        and(gte(aiUsage.createdAt, startOfMonth), lt(aiUsage.createdAt, startOfNextMonth)),
       ),
     )
 

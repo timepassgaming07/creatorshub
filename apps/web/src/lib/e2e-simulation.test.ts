@@ -245,7 +245,6 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
     })
 
     it('atomically fulfills order with correct double-entry ledger postings from DB fee', async () => {
-
       // Mock all repository calls
       vi.spyOn(db.orders, 'findOrderById').mockResolvedValue(ORDER_RECORD)
       vi.spyOn(db.orders, 'updateOrderStatus').mockResolvedValue({
@@ -394,7 +393,9 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
         return Promise.resolve(entitlement as never)
       })
 
-      vi.spyOn(db.catalogue, 'findProductById').mockResolvedValue({ title: 'Complete Design System' } as never)
+      vi.spyOn(db.catalogue, 'findProductById').mockResolvedValue({
+        title: 'Complete Design System',
+      } as never)
       vi.spyOn(db.catalogue, 'listAssetsForProduct').mockResolvedValue([
         {
           productAsset: {
@@ -600,7 +601,6 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
 
   describe('Phase 4: Refund Flow', () => {
     it('computes correct refund platform fee reversal from DB-backed rate', async () => {
-
       const paidOrder = { ...ORDER_RECORD, status: 'paid' as const, paymentStatus: 'paid' as const }
 
       vi.spyOn(db.orders, 'findOrderById').mockResolvedValue(paidOrder)

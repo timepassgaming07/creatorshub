@@ -16,7 +16,13 @@ import type { BuyerOrderView } from '@/lib/checkout'
 import { resendBuyerLinksAction } from '@/lib/checkout-actions'
 import { formatAmount, formatDateTime } from '@/lib/format'
 
-export function OrderStatus({ order, host }: { readonly order: BuyerOrderView; readonly host: string }) {
+export function OrderStatus({
+  order,
+  host,
+}: {
+  readonly order: BuyerOrderView
+  readonly host: string
+}) {
   const router = useRouter()
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [sending, setSending] = useState(false)
@@ -53,7 +59,9 @@ export function OrderStatus({ order, host }: { readonly order: BuyerOrderView; r
       <div className="rounded-3xl border border-border-subtle bg-surface-raised p-7 shadow-elevation-2 sm:p-9">
         <div
           className={`flex size-12 items-center justify-center rounded-full ${
-            paid ? 'bg-[var(--store-accent)] text-[var(--store-accent-fg)]' : 'bg-surface-sunken text-content-secondary'
+            paid
+              ? 'bg-[var(--store-accent)] text-[var(--store-accent-fg)]'
+              : 'bg-surface-sunken text-content-secondary'
           }`}
         >
           {paid ? (
@@ -86,7 +94,9 @@ export function OrderStatus({ order, host }: { readonly order: BuyerOrderView; r
             {order.items.map((item) => (
               <li key={item.title} className="flex justify-between gap-4">
                 <span className="min-w-0 truncate">{item.title}</span>
-                <span className="shrink-0 tabular-nums">{formatAmount(item.amount, order.currency)}</span>
+                <span className="shrink-0 tabular-nums">
+                  {formatAmount(item.amount, order.currency)}
+                </span>
               </li>
             ))}
           </ul>

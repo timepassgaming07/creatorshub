@@ -675,10 +675,10 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
     "Update through scoped(). The affiliates suite runs it from workspace 2 and checks workspace 1's affiliate keeps no payout destination.",
 
   'analytics.listTrafficSources':
-    "Takes no id. The analytics suite records page views in workspace 1 and gets an empty list in workspace 2.",
+    'Takes no id. The analytics suite records page views in workspace 1 and gets an empty list in workspace 2.',
 
   'catalogue.isPublicProductImage':
-    "The catalogue suite attaches a cover image in workspace 1: true there, false when asked from workspace 2.",
+    'The catalogue suite attaches a cover image in workspace 1: true there, false when asked from workspace 2.',
 
   'commissions.markVestedCommissionsPaid':
     "The commissions isolation test settles workspace 1's affiliate from workspace 2: zero rows, and the commission stays vested.",

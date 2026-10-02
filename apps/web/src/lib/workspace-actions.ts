@@ -36,7 +36,6 @@ import { getServerSession } from './server-session'
 import { generateUuidV7 } from './uuidv7'
 import { auditOptions } from './env'
 
-
 export type ActionError = {
   readonly code: string
   readonly title: string
@@ -411,119 +410,124 @@ export async function inviteMemberAction(
 
   try {
     const db = getDatabase()
-    const result = await db.withWorkspace(context, async (tx): Promise<
-      | { success: false; error: ActionError }
-      | {
-          success: true
-          data: { memberId: string }
-          invite: { targetUserId: string; isNewUser: boolean; workspaceName: string }
-        }
-    > => {
-      const scope = { tx, context }
+    const result = await db.withWorkspace(
+      context,
+      async (
+        tx,
+      ): Promise<
+        | { success: false; error: ActionError }
+        | {
+            success: true
+            data: { memberId: string }
+            invite: { targetUserId: string; isNewUser: boolean; workspaceName: string }
+          }
+      > => {
+        const scope = { tx, context }
 
-      const actorMember = await workspaceMembers.findMemberByUserId(scope, session.userId)
-      if (!actorMember) {
+        const actorMember = await workspaceMembers.findMemberByUserId(scope, session.userId)
+        if (!actorMember) {
+          return {
+            success: false,
+            error: {
+              code: 'authorisation.wrong_workspace',
+              title: 'Not found',
+              detail: 'We could not find that.',
+              status: 404,
+            },
+          }
+        }
+
+        const membership: Membership = {
+          userId: session.userId,
+          workspaceId: targetWsId,
+          role: actorMember.role,
+        }
+
+        const authCheck = authorise(membership, targetWsId, 'member.invite')
+        if (!authCheck.ok) {
+          return {
+            success: false,
+            error: {
+              code: authCheck.error.code,
+              title: authCheck.error.title,
+              detail: authCheck.error.detail,
+              action: authCheck.error.action,
+              status: authCheck.error.code === 'authorisation.wrong_workspace' ? 404 : 403,
+            },
+          }
+        }
+
+        // Find or create user row via auth pool
+        const pool = getAuthPool()
+        let targetUser = await pool
+          .query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email])
+          .then((r) => r.rows[0])
+
+        let isNewUser = false
+        if (!targetUser) {
+          const created = await pool.query<{ id: string }>(
+            'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id',
+            [email, email.split('@')[0]],
+          )
+          targetUser = created.rows[0]
+          isNewUser = true
+        }
+
+        if (!targetUser) {
+          return {
+            success: false,
+            error: {
+              code: 'member.user_resolution_failed',
+              title: 'Could not resolve user',
+              detail: 'Could not find or create user for this email address.',
+              status: 500,
+            },
+          }
+        }
+
+        const targetUserId = userId(targetUser.id)
+
+        // Check if already a member
+        const existingMember = await workspaceMembers.findMemberByUserId(scope, targetUserId)
+        if (existingMember) {
+          return {
+            success: false,
+            error: {
+              code: 'member.already_member',
+              title: 'Already a member',
+              detail: 'This user is already a member of this workspace.',
+              status: 400,
+            },
+          }
+        }
+
+        const memberId = await workspaceMembers.addMember(scope, {
+          userId: targetUserId,
+          role: input.role,
+          invitedByUserId: session.userId,
+        })
+
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: session.userId,
+          action: 'member.invited',
+          targetType: 'user',
+          targetId: targetUserId,
+          metadata: { email, role: input.role },
+        })
+
+        const ws = await workspaces.findCurrentWorkspace(scope)
         return {
-          success: false,
-          error: {
-            code: 'authorisation.wrong_workspace',
-            title: 'Not found',
-            detail: 'We could not find that.',
-            status: 404,
+          success: true as const,
+          data: { memberId },
+          invite: {
+            targetUserId: targetUser.id,
+            isNewUser,
+            workspaceName: ws?.name ?? 'a workspace',
           },
         }
-      }
-
-      const membership: Membership = {
-        userId: session.userId,
-        workspaceId: targetWsId,
-        role: actorMember.role,
-      }
-
-      const authCheck = authorise(membership, targetWsId, 'member.invite')
-      if (!authCheck.ok) {
-        return {
-          success: false,
-          error: {
-            code: authCheck.error.code,
-            title: authCheck.error.title,
-            detail: authCheck.error.detail,
-            action: authCheck.error.action,
-            status: authCheck.error.code === 'authorisation.wrong_workspace' ? 404 : 403,
-          },
-        }
-      }
-
-      // Find or create user row via auth pool
-      const pool = getAuthPool()
-      let targetUser = await pool
-        .query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email])
-        .then((r) => r.rows[0])
-
-      let isNewUser = false
-      if (!targetUser) {
-        const created = await pool.query<{ id: string }>(
-          'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id',
-          [email, email.split('@')[0]],
-        )
-        targetUser = created.rows[0]
-        isNewUser = true
-      }
-
-      if (!targetUser) {
-        return {
-          success: false,
-          error: {
-            code: 'member.user_resolution_failed',
-            title: 'Could not resolve user',
-            detail: 'Could not find or create user for this email address.',
-            status: 500,
-          },
-        }
-      }
-
-      const targetUserId = userId(targetUser.id)
-
-      // Check if already a member
-      const existingMember = await workspaceMembers.findMemberByUserId(scope, targetUserId)
-      if (existingMember) {
-        return {
-          success: false,
-          error: {
-            code: 'member.already_member',
-            title: 'Already a member',
-            detail: 'This user is already a member of this workspace.',
-            status: 400,
-          },
-        }
-      }
-
-      const memberId = await workspaceMembers.addMember(scope, {
-        userId: targetUserId,
-        role: input.role,
-        invitedByUserId: session.userId,
-      })
-
-      await auditLog.writeAuditLog(scope, auditOptions, {
-        actorType: 'user',
-        actorId: session.userId,
-        action: 'member.invited',
-        targetType: 'user',
-        targetId: targetUserId,
-        metadata: { email, role: input.role },
-      })
-
-      const ws = await workspaces.findCurrentWorkspace(scope)
-      return {
-        success: true as const,
-        data: { memberId },
-        invite: {
-          targetUserId: targetUser.id,
-          isNewUser,
-          workspaceName: ws?.name ?? 'a workspace',
-        },
-      }
-    })
+      },
+    )
 
     if (!result.success) return result
 

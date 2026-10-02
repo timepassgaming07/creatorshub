@@ -82,9 +82,16 @@ export function useWorkspace(): WorkspaceContextValue {
 // Navigation
 // ---------------------------------------------------------------------------
 
-type NavItem = { readonly href: string; readonly label: string; readonly icon: LucideIcon; readonly exact?: boolean }
+type NavItem = {
+  readonly href: string
+  readonly label: string
+  readonly icon: LucideIcon
+  readonly exact?: boolean
+}
 
-function navFor(base: string): readonly { readonly label: string | null; readonly items: readonly NavItem[] }[] {
+function navFor(
+  base: string,
+): readonly { readonly label: string | null; readonly items: readonly NavItem[] }[] {
   return [
     { label: null, items: [{ href: base, label: 'Home', icon: Home, exact: true }] },
     {
@@ -112,7 +119,9 @@ function navFor(base: string): readonly { readonly label: string | null; readonl
 }
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const active = item.exact
+    ? pathname === item.href
+    : pathname === item.href || pathname.startsWith(`${item.href}/`)
   const Icon = item.icon
   return (
     <Link
@@ -126,7 +135,10 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
       )}
     >
       <Icon
-        className={cn('size-[17px] shrink-0', active ? 'text-accent' : 'text-content-tertiary group-hover:text-content-secondary')}
+        className={cn(
+          'size-[17px] shrink-0',
+          active ? 'text-accent' : 'text-content-tertiary group-hover:text-content-secondary',
+        )}
         aria-hidden="true"
       />
       {item.label}
@@ -138,10 +150,21 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 // Command palette
 // ---------------------------------------------------------------------------
 
-type Command = { readonly label: string; readonly hint?: string; readonly run: () => void; readonly icon: LucideIcon }
+type Command = {
+  readonly label: string
+  readonly hint?: string
+  readonly run: () => void
+  readonly icon: LucideIcon
+}
 
 // Mounted only while open, so every opening starts with an empty query.
-function CommandPalette({ onClose, commands }: { onClose: () => void; commands: readonly Command[] }) {
+function CommandPalette({
+  onClose,
+  commands,
+}: {
+  onClose: () => void
+  commands: readonly Command[]
+}) {
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -198,10 +221,14 @@ function CommandPalette({ onClose, commands }: { onClose: () => void; commands: 
             aria-label="Search commands"
             className="h-12 flex-1 bg-transparent text-body-lg text-content-primary placeholder:text-content-tertiary focus:outline-none"
           />
-          <kbd className="rounded border border-border-subtle px-1.5 py-0.5 text-[11px] text-content-tertiary">esc</kbd>
+          <kbd className="rounded border border-border-subtle px-1.5 py-0.5 text-[11px] text-content-tertiary">
+            esc
+          </kbd>
         </div>
         <ul role="listbox" className="max-h-80 overflow-y-auto p-2">
-          {filtered.length === 0 && <li className="px-3 py-6 text-center text-body text-content-tertiary">No matches</li>}
+          {filtered.length === 0 && (
+            <li className="px-3 py-6 text-center text-body text-content-tertiary">No matches</li>
+          )}
           {filtered.map((command, i) => {
             const Icon = command.icon
             return (
@@ -217,12 +244,16 @@ function CommandPalette({ onClose, commands }: { onClose: () => void; commands: 
                   }}
                   className={cn(
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-body',
-                    i === index ? 'bg-surface-sunken text-content-primary' : 'text-content-secondary',
+                    i === index
+                      ? 'bg-surface-sunken text-content-primary'
+                      : 'text-content-secondary',
                   )}
                 >
                   <Icon className="size-4 text-content-tertiary" aria-hidden="true" />
                   <span className="flex-1">{command.label}</span>
-                  {command.hint && <span className="text-caption text-content-tertiary">{command.hint}</span>}
+                  {command.hint && (
+                    <span className="text-caption text-content-tertiary">{command.hint}</span>
+                  )}
                 </button>
               </li>
             )
@@ -285,13 +316,23 @@ export function DashboardShell({
     setMenuOpen(false)
   }
 
-  const go = useCallback((href: string) => () => {
-    router.push(href)
-  }, [router])
+  const go = useCallback(
+    (href: string) => () => {
+      router.push(href)
+    },
+    [router],
+  )
 
   const commands: Command[] = [
     { label: 'New product', icon: Plus, run: go(`${base}/products/new`) },
-    ...groups.flatMap((g) => g.items.map((item) => ({ label: item.label, icon: item.icon, hint: 'Go to', run: go(item.href) }))),
+    ...groups.flatMap((g) =>
+      g.items.map((item) => ({
+        label: item.label,
+        icon: item.icon,
+        hint: 'Go to',
+        run: go(item.href),
+      })),
+    ),
     { label: 'Files', icon: FolderOpen, hint: 'Go to', run: go(`${base}/files`) },
     { label: 'Settings', icon: Settings, hint: 'Go to', run: go(`${base}/settings`) },
     ...(storefront
@@ -300,7 +341,13 @@ export function DashboardShell({
             label: 'Open my store',
             icon: ExternalLink,
             run: () => {
-              window.open(storefront.status === 'published' ? storefront.url : `${storefront.url}?preview=${workspace.id}`, '_blank', 'noopener')
+              window.open(
+                storefront.status === 'published'
+                  ? storefront.url
+                  : `${storefront.url}?preview=${workspace.id}`,
+                '_blank',
+                'noopener',
+              )
             },
           },
         ]
@@ -322,10 +369,15 @@ export function DashboardShell({
         >
           <LogoMark className="size-8" />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-body font-semibold text-content-primary">{workspace.name}</span>
+            <span className="block truncate text-body font-semibold text-content-primary">
+              {workspace.name}
+            </span>
             <span className="flex items-center gap-1.5 text-[12px] text-content-tertiary">
               <span
-                className={cn('size-1.5 rounded-full', storefront?.status === 'published' ? 'bg-positive' : 'bg-content-tertiary')}
+                className={cn(
+                  'size-1.5 rounded-full',
+                  storefront?.status === 'published' ? 'bg-positive' : 'bg-content-tertiary',
+                )}
                 aria-hidden="true"
               />
               {storefront?.status === 'published' ? 'Store live' : 'Store in draft'}
@@ -365,11 +417,21 @@ export function DashboardShell({
       </nav>
 
       <div className="space-y-0.5 px-3 pb-2">
-        <NavLink item={{ href: `${base}/files`, label: 'Files', icon: FolderOpen }} pathname={pathname} />
-        <NavLink item={{ href: `${base}/settings`, label: 'Settings', icon: Settings }} pathname={pathname} />
+        <NavLink
+          item={{ href: `${base}/files`, label: 'Files', icon: FolderOpen }}
+          pathname={pathname}
+        />
+        <NavLink
+          item={{ href: `${base}/settings`, label: 'Settings', icon: Settings }}
+          pathname={pathname}
+        />
         {storefront && (
           <a
-            href={storefront.status === 'published' ? storefront.url : `${storefront.url}?preview=${workspace.id}`}
+            href={
+              storefront.status === 'published'
+                ? storefront.url
+                : `${storefront.url}?preview=${workspace.id}`
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-9 items-center gap-3 rounded-lg px-2.5 text-body font-medium text-content-secondary transition-colors hover:bg-surface-raised/60 hover:text-content-primary"
@@ -394,7 +456,9 @@ export function DashboardShell({
             {user.name.trim().charAt(0).toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-body font-medium text-content-primary">{user.name}</span>
+            <span className="block truncate text-body font-medium text-content-primary">
+              {user.name}
+            </span>
             <span className="block truncate text-[12px] text-content-tertiary">{user.email}</span>
           </span>
           <ChevronsUpDown className="size-4 text-content-tertiary" aria-hidden="true" />

@@ -56,7 +56,6 @@ import { notificationRecipients } from './delivery'
 import { getEmailService } from './email'
 import { appUrl, auditOptions, envValue } from './env'
 
-
 export type PayoutActionResult<T> =
   | { readonly ok: true; readonly data: T }
   | {
@@ -110,11 +109,7 @@ function mapPayoutDTO(p: PayoutWithBeneficiary): PayoutDTO {
 
 async function authenticateAndAuthorise(
   rawWorkspaceId: string,
-  permission:
-    | 'payout.view'
-    | 'payout.request'
-    | 'payout.approve'
-    | 'payout.manage_beneficiaries',
+  permission: 'payout.view' | 'payout.request' | 'payout.approve' | 'payout.manage_beneficiaries',
 ) {
   const session = await getServerSession()
   if (!session?.user.id) {
@@ -180,7 +175,13 @@ export async function createBeneficiaryAccountAction(
 ): Promise<PayoutActionResult<BeneficiaryAccountDTO>> {
   const parsed = createBeneficiaryAccountSchema.safeParse(rawInput)
   if (!parsed.success) {
-    return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid bank account details.' } }
+    return {
+      ok: false,
+      error: {
+        code: 'ERROR',
+        message: parsed.error.issues[0]?.message ?? 'Invalid bank account details.',
+      },
+    }
   }
 
   const auth = await authenticateAndAuthorise(rawWorkspaceId, 'payout.manage_beneficiaries')
@@ -219,22 +220,18 @@ export async function createBeneficiaryAccountAction(
           isDefault: input.isDefault,
         })
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'beneficiary_account.created',
-            targetType: 'beneficiary_account',
-            targetId: account.id,
-            metadata: {
-              accountType: account.accountType,
-              maskedAccountNumber: account.maskedAccountNumber,
-              isDefault: account.isDefault,
-            },
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'beneficiary_account.created',
+          targetType: 'beneficiary_account',
+          targetId: account.id,
+          metadata: {
+            accountType: account.accountType,
+            maskedAccountNumber: account.maskedAccountNumber,
+            isDefault: account.isDefault,
           },
-        )
+        })
 
         const recipients = await notificationRecipients(scope)
         const ws = await workspaces.findCurrentWorkspace(scope)
@@ -261,7 +258,10 @@ export async function createBeneficiaryAccountAction(
         url: `${appUrl()}/workspaces/${workspaceId}/payouts`,
       })
       .catch((error: unknown) => {
-        console.error('[payouts] beneficiary notice failed', error instanceof Error ? error.message : error)
+        console.error(
+          '[payouts] beneficiary notice failed',
+          error instanceof Error ? error.message : error,
+        )
       })
 
     return { ok: true, data: mapBeneficiaryDTO(created.account) }
@@ -339,18 +339,14 @@ export async function setDefaultBeneficiaryAccountAction(
         const acc = await beneficiaryAccountsRepo.setDefaultBeneficiaryAccount(scope, accountId)
         if (!acc) throw new Error('Beneficiary account not found.')
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'beneficiary_account.default_updated',
-            targetType: 'beneficiary_account',
-            targetId: acc.id,
-            metadata: { accountHolderName: acc.accountHolderName },
-          },
-        )
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'beneficiary_account.default_updated',
+          targetType: 'beneficiary_account',
+          targetId: acc.id,
+          metadata: { accountHolderName: acc.accountHolderName },
+        })
 
         return acc
       },
@@ -393,17 +389,13 @@ export async function deleteBeneficiaryAccountAction(
         const success = await beneficiaryAccountsRepo.deleteBeneficiaryAccount(scope, accountId)
         if (!success) throw new Error('Beneficiary account not found or could not be removed.')
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'beneficiary_account.deleted',
-            targetType: 'beneficiary_account',
-            targetId: accountId,
-          },
-        )
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'beneficiary_account.deleted',
+          targetType: 'beneficiary_account',
+          targetId: accountId,
+        })
 
         return success
       },
@@ -422,7 +414,13 @@ export async function requestPayoutAction(
 ): Promise<PayoutActionResult<PayoutDTO>> {
   const parsed = requestPayoutSchema.safeParse(rawInput)
   if (!parsed.success) {
-    return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid payout request.' } }
+    return {
+      ok: false,
+      error: {
+        code: 'ERROR',
+        message: parsed.error.issues[0]?.message ?? 'Invalid payout request.',
+      },
+    }
   }
 
   const auth = await authenticateAndAuthorise(rawWorkspaceId, 'payout.request')
@@ -473,7 +471,10 @@ export async function requestPayoutAction(
 
         // 2. Validate available balance
         const balanceOverview = await payoutsRepo.getPayoutBalanceOverview(scope, input.currency)
-        const availableBalance = money(BigInt(balanceOverview.availableBalanceMinor), input.currency)
+        const availableBalance = money(
+          BigInt(balanceOverview.availableBalanceMinor),
+          input.currency,
+        )
         const requestMoney = money(amountMinor, input.currency)
 
         const validation = validatePayoutAmount({
@@ -504,23 +505,19 @@ export async function requestPayoutAction(
           notes: input.notes,
         })
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'payout.requested',
-            targetType: 'payout',
-            targetId: payout.id,
-            metadata: {
-              amount: payout.amount.toString(),
-              currency: payout.currency,
-              beneficiaryAccountId: beneficiary.id,
-              safetyReviewRequired: cooldownCheck.requiresSafetyReview,
-            },
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'payout.requested',
+          targetType: 'payout',
+          targetId: payout.id,
+          metadata: {
+            amount: payout.amount.toString(),
+            currency: payout.currency,
+            beneficiaryAccountId: beneficiary.id,
+            safetyReviewRequired: cooldownCheck.requiresSafetyReview,
           },
-        )
+        })
 
         return { ...payout, beneficiary }
       },
@@ -539,7 +536,13 @@ export async function approvePayoutAction(
 ): Promise<PayoutActionResult<PayoutDTO>> {
   const parsed = approvePayoutSchema.safeParse(rawInput)
   if (!parsed.success) {
-    return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid approval parameters.' } }
+    return {
+      ok: false,
+      error: {
+        code: 'ERROR',
+        message: parsed.error.issues[0]?.message ?? 'Invalid approval parameters.',
+      },
+    }
   }
 
   const auth = await authenticateAndAuthorise(rawWorkspaceId, 'payout.approve')
@@ -596,23 +599,19 @@ export async function approvePayoutAction(
           throw new Error('Could not approve payout. It may already be approved or processed.')
         }
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'payout.approved',
-            targetType: 'payout',
-            targetId: updated.id,
-            metadata: {
-              amount: updated.amount.toString(),
-              currency: updated.currency,
-              requestedBy: updated.requestedBy,
-              approvedBy: updated.approvedBy,
-            },
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'payout.approved',
+          targetType: 'payout',
+          targetId: updated.id,
+          metadata: {
+            amount: updated.amount.toString(),
+            currency: updated.currency,
+            requestedBy: updated.requestedBy,
+            approvedBy: updated.approvedBy,
           },
-        )
+        })
 
         return { ...updated, beneficiary: existing.beneficiary }
       },
@@ -634,7 +633,10 @@ export async function approvePayoutAction(
           url: `${appUrl()}/workspaces/${workspaceId}/payouts`,
         })
         .catch((error: unknown) => {
-          console.error('[payouts] operator alert failed', error instanceof Error ? error.message : error)
+          console.error(
+            '[payouts] operator alert failed',
+            error instanceof Error ? error.message : error,
+          )
         })
     }
 
@@ -651,7 +653,13 @@ export async function rejectPayoutAction(
 ): Promise<PayoutActionResult<PayoutDTO>> {
   const parsed = rejectPayoutSchema.safeParse(rawInput)
   if (!parsed.success) {
-    return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid rejection parameters.' } }
+    return {
+      ok: false,
+      error: {
+        code: 'ERROR',
+        message: parsed.error.issues[0]?.message ?? 'Invalid rejection parameters.',
+      },
+    }
   }
 
   const auth = await authenticateAndAuthorise(rawWorkspaceId, 'payout.approve')
@@ -687,18 +695,14 @@ export async function rejectPayoutAction(
           throw new Error('Payout request not found or not in requested state.')
         }
 
-        await auditLog.writeAuditLog(
-          scope,
-          auditOptions,
-          {
-            actorType: 'user',
-            actorId: actorUserId,
-            action: 'payout.rejected',
-            targetType: 'payout',
-            targetId: updated.id,
-            metadata: { reason: input.reason },
-          },
-        )
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: actorUserId,
+          action: 'payout.rejected',
+          targetType: 'payout',
+          targetId: updated.id,
+          metadata: { reason: input.reason },
+        })
 
         return updated
       },
@@ -840,9 +844,10 @@ export async function exportPayoutsCsvAction(
       headers.join(','),
       ...rows.map((p) => {
         const formattedAmount = (Number(p.amount) / 100).toFixed(2)
-        const accountStr = p.beneficiary?.accountType === 'vpa'
-          ? (p.beneficiary.vpa ?? '')
-          : (p.beneficiary?.maskedAccountNumber ?? '')
+        const accountStr =
+          p.beneficiary?.accountType === 'vpa'
+            ? (p.beneficiary.vpa ?? '')
+            : (p.beneficiary?.maskedAccountNumber ?? '')
         const ifscStr = p.beneficiary?.ifscCode ?? ''
 
         return [

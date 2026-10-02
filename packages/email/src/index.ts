@@ -20,12 +20,7 @@ export {
   type RenderActionEmailInput,
   type RenderedActionEmail,
 } from './templates/action.js'
-export type {
-  EmailAddress,
-  EmailProvider,
-  SendEmailInput,
-  SendEmailResult,
-} from './port.js'
+export type { EmailAddress, EmailProvider, SendEmailInput, SendEmailResult } from './port.js'
 export {
   formatMinorCurrency,
   type FormatCurrencyOptions,

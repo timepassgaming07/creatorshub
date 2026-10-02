@@ -3,10 +3,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  exportAnalyticsCsvAction,
-  getWorkspaceAnalyticsAction,
-} from './analytics-actions'
+import { exportAnalyticsCsvAction, getWorkspaceAnalyticsAction } from './analytics-actions'
 
 vi.mock('./server-session', () => ({
   getServerSession: vi.fn(),

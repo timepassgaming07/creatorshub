@@ -47,7 +47,11 @@ export function PasswordField({
           aria-label={visible ? 'Hide password' : 'Show password'}
           className="flex size-7 items-center justify-center rounded text-content-tertiary hover:text-content-primary"
         >
-          {visible ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+          {visible ? (
+            <EyeOff className="size-4" aria-hidden="true" />
+          ) : (
+            <Eye className="size-4" aria-hidden="true" />
+          )}
         </button>
       }
     />
@@ -75,7 +79,10 @@ export function StrengthMeter({ password }: { readonly password: string }) {
     <div className="mt-2" aria-live="polite">
       <div className="flex gap-1">
         {[1, 2, 3, 4].map((i) => (
-          <span key={i} className={`h-1 flex-1 rounded-full ${i <= score ? (colors[score] ?? '') : 'bg-border-subtle'}`} />
+          <span
+            key={i}
+            className={`h-1 flex-1 rounded-full ${i <= score ? (colors[score] ?? '') : 'bg-border-subtle'}`}
+          />
         ))}
       </div>
       <p className="mt-1.5 text-caption text-content-tertiary">{label}</p>

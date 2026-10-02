@@ -432,10 +432,7 @@ export type {
   CreateCommissionInput,
 } from './commissions.js'
 
-export {
-  ANALYTICS_TIMEFRAMES,
-  analyticsTimeframeSchema,
-} from './analytics.js'
+export { ANALYTICS_TIMEFRAMES, analyticsTimeframeSchema } from './analytics.js'
 
 export type {
   AffiliatePerformanceDTO,

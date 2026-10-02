@@ -27,13 +27,7 @@ import { currencySchema, moneyAmountSchema } from './catalogue.js'
 // Enums
 // ---------------------------------------------------------------------------
 
-export const COMMISSION_STATUSES = [
-  'pending',
-  'held',
-  'vested',
-  'paid',
-  'clawed_back',
-] as const
+export const COMMISSION_STATUSES = ['pending', 'held', 'vested', 'paid', 'clawed_back'] as const
 export type CommissionStatus = (typeof COMMISSION_STATUSES)[number]
 export const commissionStatusSchema = z.enum(COMMISSION_STATUSES)
 

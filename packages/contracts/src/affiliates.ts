@@ -145,7 +145,10 @@ export const createAffiliateLinkSchema = z.object({
     .string()
     .min(3, 'Affiliate code must be at least 3 characters.')
     .max(32, 'Affiliate code cannot exceed 32 characters.')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Affiliate code can only contain alphanumeric characters, dashes, and underscores.')
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'Affiliate code can only contain alphanumeric characters, dashes, and underscores.',
+    )
     .toLowerCase()
     .trim(),
   destinationUrl: z.url('Invalid destination URL.').optional(),

@@ -26,7 +26,11 @@ describe('LocalStorageDriver', () => {
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'ch-storage-'))
-    driver = new LocalStorageDriver({ rootDir: root, baseUrl: 'https://app.test/', signingSecret: SECRET })
+    driver = new LocalStorageDriver({
+      rootDir: root,
+      baseUrl: 'https://app.test/',
+      signingSecret: SECRET,
+    })
   })
 
   afterEach(async () => {
@@ -34,7 +38,9 @@ describe('LocalStorageDriver', () => {
   })
 
   it('round-trips an object with its content type', async () => {
-    await driver.putObject('ws/a/file.pdf', new Uint8Array([1, 2, 3]), { contentType: 'application/pdf' })
+    await driver.putObject('ws/a/file.pdf', new Uint8Array([1, 2, 3]), {
+      contentType: 'application/pdf',
+    })
     const obj = await driver.getObject('ws/a/file.pdf')
     expect(obj?.metadata.contentType).toBe('application/pdf')
     expect(obj?.metadata.byteSize).toBe(3n)
@@ -58,15 +64,18 @@ describe('LocalStorageDriver', () => {
   })
 
   it('rejects expired URLs', async () => {
-    const { downloadUrl } = await driver.generateDownloadUrl({ key: 'ws/a/f.pdf', expiresInSeconds: 60 })
+    const { downloadUrl } = await driver.generateDownloadUrl({
+      key: 'ws/a/f.pdf',
+      expiresInSeconds: 60,
+    })
     const request = parse(downloadUrl)
     expect(driver.verify(request, new Date(Date.now() + 120_000))).toBe(false)
   })
 
   it('refuses keys that could escape the root directory', async () => {
-    await expect(driver.putObject('../etc/passwd', 'x', { contentType: 'text/plain' })).rejects.toThrow(
-      InvalidStorageKeyError,
-    )
+    await expect(
+      driver.putObject('../etc/passwd', 'x', { contentType: 'text/plain' }),
+    ).rejects.toThrow(InvalidStorageKeyError)
     await expect(
       driver.generateUploadUrl({ key: 'ws/../../x', contentType: 'text/plain', contentLength: 1n }),
     ).rejects.toThrow(InvalidStorageKeyError)
@@ -75,7 +84,8 @@ describe('LocalStorageDriver', () => {
 
   it('refuses a short signing secret', () => {
     expect(
-      () => new LocalStorageDriver({ rootDir: root, baseUrl: 'https://a.b', signingSecret: 'short' }),
+      () =>
+        new LocalStorageDriver({ rootDir: root, baseUrl: 'https://a.b', signingSecret: 'short' }),
     ).toThrow()
   })
 })

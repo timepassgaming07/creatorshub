@@ -62,7 +62,9 @@ export function AuthShell({
             <h1 className="text-[28px] leading-tight font-semibold tracking-tight">{title}</h1>
             {subtitle && <p className="mt-2 text-body-lg text-content-secondary">{subtitle}</p>}
             <div className="mt-8">{children}</div>
-            {footer && <div className="mt-8 text-center text-body text-content-secondary">{footer}</div>}
+            {footer && (
+              <div className="mt-8 text-center text-body text-content-secondary">{footer}</div>
+            )}
           </div>
         </main>
       </div>

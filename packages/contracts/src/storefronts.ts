@@ -110,16 +110,18 @@ export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
  * and `data:` URLs, which would run script on the storefront's origin.
  */
 function linkUrl(protocols: readonly string[]) {
-  return z
-    .string()
-    .trim()
-    .max(500)
-    // pipe, so the URL check sees the trimmed value
-    .pipe(z.url('Must be a valid URL.'))
-    .refine(
-      (value) => protocols.some((protocol) => value.toLowerCase().startsWith(protocol)),
-      'Links must start with https://.',
-    )
+  return (
+    z
+      .string()
+      .trim()
+      .max(500)
+      // pipe, so the URL check sees the trimmed value
+      .pipe(z.url('Must be a valid URL.'))
+      .refine(
+        (value) => protocols.some((protocol) => value.toLowerCase().startsWith(protocol)),
+        'Links must start with https://.',
+      )
+  )
 }
 
 export const socialLinkSchema = z.object({

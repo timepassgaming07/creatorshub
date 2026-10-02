@@ -29,7 +29,9 @@ export function getEmailProvider(): EmailProvider {
   } else if (allowsTestAdapters()) {
     provider = new LogEmailProvider()
   } else {
-    throw new ConfigurationError('Set RESEND_API_KEY so receipts and password resets can be delivered.')
+    throw new ConfigurationError(
+      'Set RESEND_API_KEY so receipts and password resets can be delivered.',
+    )
   }
 
   globalForEmail.emailProvider = provider

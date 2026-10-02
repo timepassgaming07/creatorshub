@@ -8,11 +8,7 @@
  */
 import type { EmailProvider, SendEmailResult } from './port.js'
 import { renderActionEmail } from './templates/action.js'
-import {
-  type DownloadLinkItem,
-  type ReceiptItem,
-  renderReceiptEmail,
-} from './templates/receipt.js'
+import { type DownloadLinkItem, type ReceiptItem, renderReceiptEmail } from './templates/receipt.js'
 
 export type FormatCurrencyOptions = {
   readonly amountMinor: bigint | number | string
@@ -182,7 +178,8 @@ export class TransactionalEmailService {
         'If it was not you, ignore this email. Your password stays as it is.',
       ],
       action: { label: 'Choose a new password', url: input.url },
-      footnote: 'This link expires in one hour and works once. Every other signed-in device is signed out when you change your password.',
+      footnote:
+        'This link expires in one hour and works once. Every other signed-in device is signed out when you change your password.',
     })
     return this.provider.send({
       to: input.to,

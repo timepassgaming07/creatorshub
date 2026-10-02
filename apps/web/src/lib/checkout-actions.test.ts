@@ -24,7 +24,11 @@ vi.mock('next/headers', () => ({
 }))
 
 import { formatReferralCookie } from './referral'
-import { confirmPaymentAction, getCheckoutQuoteAction, startCheckoutAction } from './checkout-actions'
+import {
+  confirmPaymentAction,
+  getCheckoutQuoteAction,
+  startCheckoutAction,
+} from './checkout-actions'
 
 const PRODUCT = '018f9e2b-7c5e-7a2e-8c3b-000000000005'
 const ORDER = '018f9e2b-7c5e-7a2e-8c3b-000000000010'
@@ -46,7 +50,10 @@ describe('checkout actions', () => {
     await getCheckoutQuoteAction({ ...base, price: 1, amount: 1, totalAmount: 1 } as never)
     const passed = checkout.quoteCheckout.mock.calls[0]?.[0] as Record<string, unknown>
     expect(JSON.stringify(passed)).not.toMatch(/price|amount/i)
-    expect(passed).toMatchObject({ store: { host: 'priya' }, buyer: { country: 'IN', stateCode: '29' } })
+    expect(passed).toMatchObject({
+      store: { host: 'priya' },
+      buyer: { country: 'IN', stateCode: '29' },
+    })
   })
 
   it('rejects malformed input before checkout runs', async () => {
@@ -70,12 +77,17 @@ describe('checkout actions', () => {
     cookieValue = formatReferralCookie('priya', 'rohan', new Date('2026-10-01T10:00:00Z'))
     await startCheckoutAction({ ...base, email: 'Ravi@Example.com', name: 'Ravi' })
     expect(checkout.startCheckout).toHaveBeenLastCalledWith(
-      expect.objectContaining({ email: 'ravi@example.com', referral: { code: 'rohan', clickedAt: '2026-10-01T10:00:00.000Z' } }),
+      expect.objectContaining({
+        email: 'ravi@example.com',
+        referral: { code: 'rohan', clickedAt: '2026-10-01T10:00:00.000Z' },
+      }),
     )
 
     cookieValue = formatReferralCookie('another-store', 'rohan', new Date())
     await startCheckoutAction({ ...base, email: 'ravi@example.com', name: 'Ravi' })
-    expect(checkout.startCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ referral: null }))
+    expect(checkout.startCheckout).toHaveBeenLastCalledWith(
+      expect.objectContaining({ referral: null }),
+    )
   })
 
   it('says nothing was charged when checkout fails, without internal detail', async () => {
@@ -87,7 +99,12 @@ describe('checkout actions', () => {
   })
 
   it('needs a payment id and signature to confirm', async () => {
-    const result = await confirmPaymentAction({ host: 'priya', orderId: ORDER, providerPaymentId: '', signature: '' })
+    const result = await confirmPaymentAction({
+      host: 'priya',
+      orderId: ORDER,
+      providerPaymentId: '',
+      signature: '',
+    })
     expect(result).toMatchObject({ ok: false, code: 'VALIDATION_ERROR' })
     expect(checkout.confirmPayment).not.toHaveBeenCalled()
   })

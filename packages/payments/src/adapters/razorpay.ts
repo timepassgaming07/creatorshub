@@ -261,9 +261,7 @@ export class RazorpayPaymentProvider implements PaymentProvider {
     let payment = await this.fetchPayment(input.providerPaymentId)
 
     if (payment.order_id && payment.order_id !== input.sessionId) {
-      throw new WebhookSignatureVerificationError(
-        'Razorpay payment belongs to a different order.',
-      )
+      throw new WebhookSignatureVerificationError('Razorpay payment belongs to a different order.')
     }
 
     if (payment.status === 'authorized') {
@@ -422,7 +420,10 @@ export class RazorpayPaymentProvider implements PaymentProvider {
         providerEventId: event.id,
         providerPaymentId: asString(payment['id']),
         orderId: orderId(internalOrderId),
-        amount: money(asBigInt(payment['amount']), currency(asString(payment['currency']) || 'INR')),
+        amount: money(
+          asBigInt(payment['amount']),
+          currency(asString(payment['currency']) || 'INR'),
+        ),
         method: asString(payment['method']) || 'unknown',
         occurredAt: event.createdAt,
       }
@@ -436,7 +437,10 @@ export class RazorpayPaymentProvider implements PaymentProvider {
         providerEventId: event.id,
         providerPaymentId: asString(payment['id']),
         orderId: orderId(internalOrderId),
-        amount: money(asBigInt(payment['amount']), currency(asString(payment['currency']) || 'INR')),
+        amount: money(
+          asBigInt(payment['amount']),
+          currency(asString(payment['currency']) || 'INR'),
+        ),
         reason: asString(payment['error_description']) || 'Payment failed',
         occurredAt: event.createdAt,
       }

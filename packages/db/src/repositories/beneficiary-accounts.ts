@@ -6,11 +6,7 @@
  * 2. Set default disbursement accounts.
  * 3. Verify accounts and mask sensitive account numbers.
  */
-import type {
-  BeneficiaryAccountId,
-  BeneficiaryAccountType,
-  PayeeType,
-} from '@creatorhub/contracts'
+import type { BeneficiaryAccountId, BeneficiaryAccountType, PayeeType } from '@creatorhub/contracts'
 import { desc, eq } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'

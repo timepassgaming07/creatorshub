@@ -8,11 +8,7 @@
  * 4. Resending receipt triggers email delivery.
  */
 import { orderId, userId, workspaceId } from '@creatorhub/contracts'
-import {
-  auditLog,
-  orders,
-  workspaceMembers,
-} from '@creatorhub/db'
+import { auditLog, orders, workspaceMembers } from '@creatorhub/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSession } from './server-session'
 
@@ -37,10 +33,7 @@ vi.mock('./email', () => ({
   }),
 }))
 
-import {
-  exportOrdersCsvAction,
-  listOrdersAction,
-} from './order-actions'
+import { exportOrdersCsvAction, listOrdersAction } from './order-actions'
 
 describe('Order Management Server Actions (Slice 7)', () => {
   const wsId = workspaceId('018f9e2b-7c5e-7a2e-8c3b-000000000001')

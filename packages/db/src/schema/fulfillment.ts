@@ -58,9 +58,7 @@ export const entitlements = pgTable(
 
     status: entitlementStatus('status').notNull().default('active'),
 
-    grantedAt: timestamp('granted_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow(),
+    grantedAt: timestamp('granted_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 
     revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
 
@@ -69,13 +67,9 @@ export const entitlements = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
 
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (table) => [
     index('idx_entitlements_order').on(table.workspaceId, table.orderId),
@@ -113,13 +107,9 @@ export const downloadGrants = pgTable(
 
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
 
-    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 
-    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
-      .notNull()
-      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (table) => [
     index('idx_download_grants_entitlement').on(table.workspaceId, table.entitlementId),
@@ -152,7 +142,5 @@ export const downloadEvents = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index('idx_download_events_grant').on(table.workspaceId, table.downloadGrantId),
-  ],
+  (table) => [index('idx_download_events_grant').on(table.workspaceId, table.downloadGrantId)],
 )

@@ -156,7 +156,12 @@ describe('Storefront Repository (Item 4.1)', () => {
     // Nor can it attach a domain to Workspace 1's storefront
     await expect(
       inScope(ws2Id, async (scope) => {
-        return storefrontsRepo.setCustomDomain(scope, storefrontId(s1.id), 'hijack.example', 'token')
+        return storefrontsRepo.setCustomDomain(
+          scope,
+          storefrontId(s1.id),
+          'hijack.example',
+          'token',
+        )
       }),
     ).rejects.toThrow(/not found or not accessible/i)
   })
@@ -329,7 +334,12 @@ describe('Storefront Repository (Item 4.1)', () => {
     // Before that, anyone could point a domain they type in at their store.
     expect(await db.resolveStorefrontByHostname('public-domain.com')).toBeNull()
     await inScope(ws1Id, (scope) =>
-      storefrontsRepo.updateCustomDomainStatus(scope, storefrontId(published.id), 'verified', new Date()),
+      storefrontsRepo.updateCustomDomainStatus(
+        scope,
+        storefrontId(published.id),
+        'verified',
+        new Date(),
+      ),
     )
 
     // Public resolution by custom domain

@@ -31,14 +31,18 @@ export function CreateStoreForm({
   readonly addressSuffix: string | null
 }) {
   const router = useRouter()
-  const [name, setName] = useState(creatorName ? `${creatorName.split(' ')[0] ?? creatorName}'s Studio` : '')
+  const [name, setName] = useState(
+    creatorName ? `${creatorName.split(' ')[0] ?? creatorName}'s Studio` : '',
+  )
   const [slug, setSlug] = useState(creatorName ? toSlug(creatorName) : '')
   const [slugTouched, setSlugTouched] = useState(false)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const address = addressSuffix ? `${slug || 'your-name'}${addressSuffix}` : `/s/${slug || 'your-name'}`
+  const address = addressSuffix
+    ? `${slug || 'your-name'}${addressSuffix}`
+    : `/s/${slug || 'your-name'}`
 
   async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -86,7 +90,9 @@ export function CreateStoreForm({
           required
           value={slug}
           hint="Lowercase letters, numbers, and hyphens."
-          {...(addressSuffix ? { suffix: <span className="text-content-tertiary">{addressSuffix}</span> } : {})}
+          {...(addressSuffix
+            ? { suffix: <span className="text-content-tertiary">{addressSuffix}</span> }
+            : {})}
           onChange={(e) => {
             setSlugTouched(true)
             setSlug(toSlug(e.target.value))
@@ -95,11 +101,23 @@ export function CreateStoreForm({
         <div className="flex items-center gap-2.5 rounded-lg border border-border-subtle bg-surface-sunken px-3.5 py-3 text-body">
           <Globe className="size-4 shrink-0 text-content-tertiary" aria-hidden="true" />
           <span className="truncate text-content-secondary">
-            Your store will live at <span className="font-medium text-content-primary">{address}</span>
+            Your store will live at{' '}
+            <span className="font-medium text-content-primary">{address}</span>
           </span>
         </div>
-        <Select label="Currency you price in" options={CURRENCIES} value={currency} onValueChange={setCurrency} />
-        <Button type="submit" fullWidth size="large" loading={loading} loadingLabel="Creating your store">
+        <Select
+          label="Currency you price in"
+          options={CURRENCIES}
+          value={currency}
+          onValueChange={setCurrency}
+        />
+        <Button
+          type="submit"
+          fullWidth
+          size="large"
+          loading={loading}
+          loadingLabel="Creating your store"
+        >
           Create store
         </Button>
       </form>

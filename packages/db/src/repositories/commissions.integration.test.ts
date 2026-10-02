@@ -339,7 +339,10 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
       expect(clawbackRes.updatedCommission.status).toBe('held') // Still has 10000n remaining
 
       // Check financial breakdown
-      const breakdown = await commissionsRepo.getAffiliateLedgerBreakdown(scope, affiliateId(aff.id))
+      const breakdown = await commissionsRepo.getAffiliateLedgerBreakdown(
+        scope,
+        affiliateId(aff.id),
+      )
       expect(breakdown.heldMinor).toBe(10000n)
       expect(breakdown.clawedBackMinor).toBe(10000n)
     })
@@ -372,7 +375,16 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
         discountAmount: 0n,
         taxAmount: 0n,
         totalAmount: 10000n,
-        items: [{ productId: product.id, productTitle: 'P1', quantity: 1, unitAmount: 10000n, subtotalAmount: 10000n, totalAmount: 10000n }],
+        items: [
+          {
+            productId: product.id,
+            productTitle: 'P1',
+            quantity: 1,
+            unitAmount: 10000n,
+            subtotalAmount: 10000n,
+            totalAmount: 10000n,
+          },
+        ],
       })
       const attr = await affiliatesRepo.createAttribution(scope, {
         orderId: order.order.id,
@@ -400,13 +412,19 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
 
     // Workspace 2 attempts to read Workspace 1's commission
     await inScope(ws2Id, actor1, async (scope) => {
-      const commFromWs2 = await commissionsRepo.findCommissionById(scope, commissionId(ws1CommissionId))
+      const commFromWs2 = await commissionsRepo.findCommissionById(
+        scope,
+        commissionId(ws1CommissionId),
+      )
       expect(commFromWs2).toBeNull()
 
       const listFromWs2 = await commissionsRepo.listWorkspaceCommissions(scope)
       expect(listFromWs2.items).toHaveLength(0)
 
-      const settled = await commissionsRepo.markVestedCommissionsPaid(scope, affiliateId(ws1AffiliateId))
+      const settled = await commissionsRepo.markVestedCommissionsPaid(
+        scope,
+        affiliateId(ws1AffiliateId),
+      )
       expect(settled.count).toBe(0)
     })
 

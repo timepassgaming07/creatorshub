@@ -12,7 +12,10 @@ function fakeResend(status = 200) {
         : new Response('{"message":"invalid from"}', { status }),
     ),
   )
-  return { fetcher, provider: new ResendEmailProvider({ apiKey: 're_test', fetcher: fetcher as never }) }
+  return {
+    fetcher,
+    provider: new ResendEmailProvider({ apiKey: 're_test', fetcher: fetcher as never }),
+  }
 }
 
 describe('ResendEmailProvider', () => {

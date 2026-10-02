@@ -53,9 +53,7 @@ export class MemoryAiProvider implements AiProvider {
     })
   }
 
-  async generateText(
-    options: AiGenerateTextOptions,
-  ): Promise<Result<AiTextResponse, AiError>> {
+  async generateText(options: AiGenerateTextOptions): Promise<Result<AiTextResponse, AiError>> {
     await Promise.resolve()
     const text = `High quality AI response generated for prompt: ${options.userPrompt.slice(0, 100)}...`
     const promptTokens = Math.max(30, Math.round(options.userPrompt.length / 4))
@@ -76,8 +74,10 @@ export class MemoryAiProvider implements AiProvider {
 
   private generateSampleDataForPrompt(promptId: string, userPrompt: string): unknown {
     if (promptId === 'product_copy_v1') {
-      const isDesign = userPrompt.toLowerCase().includes('design') || userPrompt.toLowerCase().includes('figma')
-      const isCourse = userPrompt.toLowerCase().includes('course') || userPrompt.toLowerCase().includes('video')
+      const isDesign =
+        userPrompt.toLowerCase().includes('design') || userPrompt.toLowerCase().includes('figma')
+      const isCourse =
+        userPrompt.toLowerCase().includes('course') || userPrompt.toLowerCase().includes('video')
 
       const title = isDesign
         ? 'Ultimate Design System Pro Kit'
@@ -87,7 +87,8 @@ export class MemoryAiProvider implements AiProvider {
 
       const sample: ProductCopyOutput = {
         title,
-        tagline: 'The battle-tested toolkit designed to help you build, launch, and monetize in record time.',
+        tagline:
+          'The battle-tested toolkit designed to help you build, launch, and monetize in record time.',
         descriptionMarkdown: `### Elevate Your Craft with Production-Grade Assets
 
 Stop reinventing the wheel. This comprehensive resource delivers meticulously crafted templates, workflows, and actionable architectures used by industry-leading creators.
@@ -105,7 +106,8 @@ Stop reinventing the wheel. This comprehensive resource delivers meticulously cr
           'Clean, modular, and easy to customize for any brand',
           'Direct access to downloadable resources with 1-click updates',
         ],
-        targetAudience: 'Independent creators, developers, designers, and digital entrepreneurs who value craft and velocity.',
+        targetAudience:
+          'Independent creators, developers, designers, and digital entrepreneurs who value craft and velocity.',
         suggestedPriceInr: 2499,
       }
       return sample
@@ -114,7 +116,8 @@ Stop reinventing the wheel. This comprehensive resource delivers meticulously cr
     if (promptId === 'storefront_copy_v1') {
       const sample: StorefrontCopyOutput = {
         heroHeadline: 'Premium Tools & Resources for Modern Creators',
-        heroSubhead: 'Curated digital products, verified templates, and architectural masterclasses to level up your workflow.',
+        heroSubhead:
+          'Curated digital products, verified templates, and architectural masterclasses to level up your workflow.',
         badgeText: '★ Creator Hub Verified',
         ctaPrimaryText: 'Explore Products',
         ctaSecondaryText: 'View Best Sellers',
@@ -139,18 +142,28 @@ Stop reinventing the wheel. This comprehensive resource delivers meticulously cr
     if (promptId === 'seo_metadata_v1') {
       const sample: SeoMetadataOutput = {
         seoTitle: 'Premium Creator Store & Digital Templates | Official Store',
-        metaDescription: 'Discover verified digital courses, design toolkits, and software templates. Instant download and lifetime access.',
-        keywords: ['creator templates', 'digital downloads', 'production code', 'design assets', 'courses'],
+        metaDescription:
+          'Discover verified digital courses, design toolkits, and software templates. Instant download and lifetime access.',
+        keywords: [
+          'creator templates',
+          'digital downloads',
+          'production code',
+          'design assets',
+          'courses',
+        ],
         ogTitle: 'Official Creator Store — Premium Digital Resources',
-        ogDescription: 'Instant access to verified digital products, templates, and courses crafted for creators and builders.',
+        ogDescription:
+          'Instant access to verified digital products, templates, and courses crafted for creators and builders.',
       }
       return sample
     }
 
     if (promptId === 'analytics_insights_v1') {
       const sample: AnalyticsInsightsOutput = {
-        executiveSummary: 'Your digital storefront demonstrated strong positive momentum with healthy conversion rates and minimal refund requests.',
-        keyDriver: 'High traffic velocity and promoter referral conversions from your top affiliate link.',
+        executiveSummary:
+          'Your digital storefront demonstrated strong positive momentum with healthy conversion rates and minimal refund requests.',
+        keyDriver:
+          'High traffic velocity and promoter referral conversions from your top affiliate link.',
         growthActions: [
           'Launch a limited-time coupon discount to convert the remaining 75% of checkout-initiated drop-offs.',
           'Double down on your top-performing product by bundling it with an introductory preset pack.',

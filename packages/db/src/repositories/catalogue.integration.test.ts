@@ -314,10 +314,14 @@ describe('Catalogue Repository (Item 3.1)', () => {
       return image
     })
     expect(
-      await inScope(ws1Id, u1Id, (scope) => catalogueRepo.isPublicProductImage(scope, assetId(cover.id))),
+      await inScope(ws1Id, u1Id, (scope) =>
+        catalogueRepo.isPublicProductImage(scope, assetId(cover.id)),
+      ),
     ).toBe(true)
     expect(
-      await inScope(ws2Id, u2Id, (scope) => catalogueRepo.isPublicProductImage(scope, assetId(cover.id))),
+      await inScope(ws2Id, u2Id, (scope) =>
+        catalogueRepo.isPublicProductImage(scope, assetId(cover.id)),
+      ),
     ).toBe(false)
 
     // 4. Tenant isolation check: Workspace 2 cannot see Workspace 1's product, asset, or attachments

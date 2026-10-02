@@ -24,7 +24,9 @@ function niceMax(max: number): number {
 }
 
 function shortDate(iso: string): string {
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(`${iso}T00:00:00`))
+  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(
+    new Date(`${iso}T00:00:00`),
+  )
 }
 
 export function AreaChart({
@@ -75,7 +77,9 @@ export function AreaChart({
   if (data.length === 0) return null
 
   const baseline = (HEIGHT - PAD.bottom).toFixed(1)
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const line = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(' ')
   const area = `${line} L${(points[points.length - 1]?.x ?? 0).toFixed(1)},${baseline} L${(points[0]?.x ?? 0).toFixed(1)},${baseline} Z`
   const last = points[points.length - 1]
   const hovered = active !== null ? points[active] : null
@@ -131,8 +135,20 @@ export function AreaChart({
           const y = PAD.top + (HEIGHT - PAD.top - PAD.bottom) * (1 - t / max)
           return (
             <g key={t}>
-              <line x1={PAD.left} x2={width - PAD.right} y1={y} y2={y} stroke="var(--border-subtle)" strokeWidth="1" />
-              <text x={PAD.left - 10} y={y + 4} textAnchor="end" className="fill-content-tertiary text-[11px] tabular-nums">
+              <line
+                x1={PAD.left}
+                x2={width - PAD.right}
+                y1={y}
+                y2={y}
+                stroke="var(--border-subtle)"
+                strokeWidth="1"
+              />
+              <text
+                x={PAD.left - 10}
+                y={y + 4}
+                textAnchor="end"
+                className="fill-content-tertiary text-[11px] tabular-nums"
+              >
                 {formatAxis(t)}
               </text>
             </g>
@@ -140,24 +156,59 @@ export function AreaChart({
         })}
 
         {points.map((p, i) =>
-          (i % labelEvery === 0 && points.length - 1 - i >= labelEvery / 2) || i === points.length - 1 ? (
-            <text key={p.date} x={p.x} y={HEIGHT - 8} textAnchor="middle" className="fill-content-tertiary text-[11px]">
+          (i % labelEvery === 0 && points.length - 1 - i >= labelEvery / 2) ||
+          i === points.length - 1 ? (
+            <text
+              key={p.date}
+              x={p.x}
+              y={HEIGHT - 8}
+              textAnchor="middle"
+              className="fill-content-tertiary text-[11px]"
+            >
               {shortDate(p.date)}
             </text>
           ) : null,
         )}
 
         <path d={area} fill={`url(#${id}-fill)`} />
-        <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        <path
+          d={line}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
 
         {last && !hovered && (
-          <circle cx={last.x} cy={last.y} r="4" fill="var(--accent)" stroke="var(--surface-raised)" strokeWidth="2" />
+          <circle
+            cx={last.x}
+            cy={last.y}
+            r="4"
+            fill="var(--accent)"
+            stroke="var(--surface-raised)"
+            strokeWidth="2"
+          />
         )}
 
         {hovered && (
           <g>
-            <line x1={hovered.x} x2={hovered.x} y1={PAD.top} y2={baseline} stroke="var(--border-default)" strokeWidth="1" />
-            <circle cx={hovered.x} cy={hovered.y} r="4.5" fill="var(--accent)" stroke="var(--surface-raised)" strokeWidth="2" />
+            <line
+              x1={hovered.x}
+              x2={hovered.x}
+              y1={PAD.top}
+              y2={baseline}
+              stroke="var(--border-default)"
+              strokeWidth="1"
+            />
+            <circle
+              cx={hovered.x}
+              cy={hovered.y}
+              r="4.5"
+              fill="var(--accent)"
+              stroke="var(--surface-raised)"
+              strokeWidth="2"
+            />
           </g>
         )}
       </svg>
@@ -170,7 +221,9 @@ export function AreaChart({
             left: Math.min(Math.max(hovered.x - 72, 0), width - 160),
           }}
         >
-          <p className="text-body font-semibold text-content-primary tabular-nums">{formatValue(hovered.value)}</p>
+          <p className="text-body font-semibold text-content-primary tabular-nums">
+            {formatValue(hovered.value)}
+          </p>
           <p className="mt-0.5 flex items-center gap-2 text-caption text-content-secondary">
             <span className="h-0.5 w-3 rounded-full bg-accent" aria-hidden="true" />
             {shortDate(hovered.date)}

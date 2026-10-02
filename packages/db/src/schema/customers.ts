@@ -55,7 +55,9 @@ export const customers = pgTable(
       .default(sql`'{}'::jsonb`)
       .$type<Record<string, unknown>>(),
 
-    totalSpend: bigint('total_spend', { mode: 'bigint' }).notNull().default(sql`0`),
+    totalSpend: bigint('total_spend', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
 
     ordersCount: integer('orders_count').notNull().default(0),
 

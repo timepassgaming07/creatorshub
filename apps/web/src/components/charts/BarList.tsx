@@ -13,7 +13,13 @@ export type BarListItem = {
   readonly sublabel?: string
 }
 
-export function BarList({ items, emptyLabel = 'No data yet' }: { readonly items: readonly BarListItem[]; readonly emptyLabel?: string }) {
+export function BarList({
+  items,
+  emptyLabel = 'No data yet',
+}: {
+  readonly items: readonly BarListItem[]
+  readonly emptyLabel?: string
+}) {
   if (items.length === 0) {
     return <p className="py-8 text-center text-body text-content-tertiary">{emptyLabel}</p>
   }
@@ -25,9 +31,13 @@ export function BarList({ items, emptyLabel = 'No data yet' }: { readonly items:
           <div className="mb-1.5 flex items-baseline justify-between gap-4 text-body">
             <span className="min-w-0 truncate text-content-primary">
               {item.label}
-              {item.sublabel && <span className="ml-2 text-caption text-content-tertiary">{item.sublabel}</span>}
+              {item.sublabel && (
+                <span className="ml-2 text-caption text-content-tertiary">{item.sublabel}</span>
+              )}
             </span>
-            <span className="shrink-0 font-medium text-content-primary tabular-nums">{item.display}</span>
+            <span className="shrink-0 font-medium text-content-primary tabular-nums">
+              {item.display}
+            </span>
           </div>
           <div className="h-2 rounded-full bg-surface-sunken">
             <div

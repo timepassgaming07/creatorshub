@@ -104,7 +104,11 @@ export function Plasma({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' })
+    const gl = canvas.getContext('webgl', {
+      antialias: false,
+      alpha: false,
+      powerPreference: 'low-power',
+    })
     if (!gl) {
       setFallback(true)
       return
@@ -187,7 +191,8 @@ export function Plasma({
     visibility.observe(canvas)
 
     const onVisibilityChange = () => {
-      if (!document.hidden && visible && !reduceMotion && frame === 0) frame = requestAnimationFrame(loop)
+      if (!document.hidden && visible && !reduceMotion && frame === 0)
+        frame = requestAnimationFrame(loop)
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
 
@@ -196,7 +201,8 @@ export function Plasma({
       pointer.tx = (event.clientX - rect.left) / rect.width
       pointer.ty = 1 - (event.clientY - rect.top) / rect.height
     }
-    if (interactive && !reduceMotion) window.addEventListener('pointermove', onPointer, { passive: true })
+    if (interactive && !reduceMotion)
+      window.addEventListener('pointermove', onPointer, { passive: true })
 
     resize()
     if (reduceMotion) draw(performance.now())

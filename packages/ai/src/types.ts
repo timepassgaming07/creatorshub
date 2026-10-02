@@ -50,13 +50,9 @@ export type AiProvider = {
   readonly providerType: AiProviderType
   readonly defaultModel: string
 
-  generateStructured<T>(
-    options: AiGenerateOptions<T>,
-  ): Promise<Result<AiResponse<T>, AiError>>
+  generateStructured<T>(options: AiGenerateOptions<T>): Promise<Result<AiResponse<T>, AiError>>
 
-  generateText(
-    options: AiGenerateTextOptions,
-  ): Promise<Result<AiTextResponse, AiError>>
+  generateText(options: AiGenerateTextOptions): Promise<Result<AiTextResponse, AiError>>
 }
 
 export type AiGatewayConfig = {

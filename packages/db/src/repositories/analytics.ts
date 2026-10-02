@@ -104,79 +104,96 @@ export async function getWorkspaceAnalyticsSummary(
   const timeframe = options.timeframe ?? '30d'
   const startDate = resolveTimeframeStartDate(timeframe)
   const sold = and(inArray(orders.status, [...SOLD_STATUSES]), gte(orders.createdAt, startDate))
-  const day = (column: unknown) => sql<string>`to_char(date_trunc('day', ${column} at time zone 'UTC'), 'YYYY-MM-DD')`
+  const day = (column: unknown) =>
+    sql<string>`to_char(date_trunc('day', ${column} at time zone 'UTC'), 'YYYY-MM-DD')`
 
-  const [[orderAgg], [refundAgg], [commAgg], [feeAgg], [telemetry], [ws], orderDays, refundDays, visitorDays] =
-    await Promise.all([
-      scope.tx
-        .select({
-          gross: sql<string>`coalesce(sum(${orders.totalAmount}), 0)::text`,
-          tax: sql<string>`coalesce(sum(${orders.taxAmount}), 0)::text`,
-          count: sql<number>`count(*)::int`,
-          first: sql<Date | null>`min(${orders.createdAt})`,
-        })
-        .from(orders)
-        .where(scoped(scope, orders, sold)),
-      scope.tx
-        .select({ total: sql<string>`coalesce(sum(${refunds.amount}), 0)::text` })
-        .from(refunds)
-        .where(scoped(scope, refunds, eq(refunds.status, 'succeeded'), gte(refunds.createdAt, startDate))),
-      scope.tx
-        .select({ total: sql<string>`coalesce(sum(${commissions.netAmount}), 0)::text` })
-        .from(commissions)
-        .where(scoped(scope, commissions, gte(commissions.createdAt, startDate))),
-      scope.tx
-        .select({
-          total: sql<string>`coalesce(sum(case when ${ledgerEntries.direction} = 'credit' then ${ledgerEntries.amount} else -${ledgerEntries.amount} end), 0)::text`,
-        })
-        .from(ledgerEntries)
-        .innerJoin(ledgerAccounts, eq(ledgerAccounts.id, ledgerEntries.accountId))
-        .where(
-          scoped(
-            scope,
-            ledgerEntries,
-            eq(ledgerAccounts.kind, 'platform_revenue'),
-            gte(ledgerEntries.createdAt, startDate),
-          ),
+  const [
+    [orderAgg],
+    [refundAgg],
+    [commAgg],
+    [feeAgg],
+    [telemetry],
+    [ws],
+    orderDays,
+    refundDays,
+    visitorDays,
+  ] = await Promise.all([
+    scope.tx
+      .select({
+        gross: sql<string>`coalesce(sum(${orders.totalAmount}), 0)::text`,
+        tax: sql<string>`coalesce(sum(${orders.taxAmount}), 0)::text`,
+        count: sql<number>`count(*)::int`,
+        first: sql<Date | null>`min(${orders.createdAt})`,
+      })
+      .from(orders)
+      .where(scoped(scope, orders, sold)),
+    scope.tx
+      .select({ total: sql<string>`coalesce(sum(${refunds.amount}), 0)::text` })
+      .from(refunds)
+      .where(
+        scoped(scope, refunds, eq(refunds.status, 'succeeded'), gte(refunds.createdAt, startDate)),
+      ),
+    scope.tx
+      .select({ total: sql<string>`coalesce(sum(${commissions.netAmount}), 0)::text` })
+      .from(commissions)
+      .where(scoped(scope, commissions, gte(commissions.createdAt, startDate))),
+    scope.tx
+      .select({
+        total: sql<string>`coalesce(sum(case when ${ledgerEntries.direction} = 'credit' then ${ledgerEntries.amount} else -${ledgerEntries.amount} end), 0)::text`,
+      })
+      .from(ledgerEntries)
+      .innerJoin(ledgerAccounts, eq(ledgerAccounts.id, ledgerEntries.accountId))
+      .where(
+        scoped(
+          scope,
+          ledgerEntries,
+          eq(ledgerAccounts.kind, 'platform_revenue'),
+          gte(ledgerEntries.createdAt, startDate),
         ),
-      scope.tx
-        .select({
-          visitors: sql<number>`count(distinct ${storefrontEvents.visitorSessionId})::int`,
-          pageviews: sql<number>`count(case when ${storefrontEvents.eventType} = 'page_view' then 1 end)::int`,
-          productViewers: sql<number>`count(distinct case when ${storefrontEvents.eventType} = 'product_view' then ${storefrontEvents.visitorSessionId} end)::int`,
-          checkoutStarters: sql<number>`count(distinct case when ${storefrontEvents.eventType} = 'checkout_started' then ${storefrontEvents.visitorSessionId} end)::int`,
-          first: sql<Date | null>`min(${storefrontEvents.createdAt})`,
-        })
-        .from(storefrontEvents)
-        .where(scoped(scope, storefrontEvents, gte(storefrontEvents.createdAt, startDate))),
-      scope.tx
-        .select({ currency: workspaces.defaultCurrency })
-        .from(workspaces)
-        .where(eq(workspaces.id, scope.context.workspaceId))
-        .limit(1),
-      scope.tx
-        .select({
-          date: day(orders.createdAt),
-          gross: sql<string>`coalesce(sum(${orders.totalAmount}), 0)::text`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(orders)
-        .where(scoped(scope, orders, sold))
-        .groupBy(day(orders.createdAt)),
-      scope.tx
-        .select({ date: day(refunds.createdAt), total: sql<string>`coalesce(sum(${refunds.amount}), 0)::text` })
-        .from(refunds)
-        .where(scoped(scope, refunds, eq(refunds.status, 'succeeded'), gte(refunds.createdAt, startDate)))
-        .groupBy(day(refunds.createdAt)),
-      scope.tx
-        .select({
-          date: day(storefrontEvents.createdAt),
-          visitors: sql<number>`count(distinct ${storefrontEvents.visitorSessionId})::int`,
-        })
-        .from(storefrontEvents)
-        .where(scoped(scope, storefrontEvents, gte(storefrontEvents.createdAt, startDate)))
-        .groupBy(day(storefrontEvents.createdAt)),
-    ])
+      ),
+    scope.tx
+      .select({
+        visitors: sql<number>`count(distinct ${storefrontEvents.visitorSessionId})::int`,
+        pageviews: sql<number>`count(case when ${storefrontEvents.eventType} = 'page_view' then 1 end)::int`,
+        productViewers: sql<number>`count(distinct case when ${storefrontEvents.eventType} = 'product_view' then ${storefrontEvents.visitorSessionId} end)::int`,
+        checkoutStarters: sql<number>`count(distinct case when ${storefrontEvents.eventType} = 'checkout_started' then ${storefrontEvents.visitorSessionId} end)::int`,
+        first: sql<Date | null>`min(${storefrontEvents.createdAt})`,
+      })
+      .from(storefrontEvents)
+      .where(scoped(scope, storefrontEvents, gte(storefrontEvents.createdAt, startDate))),
+    scope.tx
+      .select({ currency: workspaces.defaultCurrency })
+      .from(workspaces)
+      .where(eq(workspaces.id, scope.context.workspaceId))
+      .limit(1),
+    scope.tx
+      .select({
+        date: day(orders.createdAt),
+        gross: sql<string>`coalesce(sum(${orders.totalAmount}), 0)::text`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(orders)
+      .where(scoped(scope, orders, sold))
+      .groupBy(day(orders.createdAt)),
+    scope.tx
+      .select({
+        date: day(refunds.createdAt),
+        total: sql<string>`coalesce(sum(${refunds.amount}), 0)::text`,
+      })
+      .from(refunds)
+      .where(
+        scoped(scope, refunds, eq(refunds.status, 'succeeded'), gte(refunds.createdAt, startDate)),
+      )
+      .groupBy(day(refunds.createdAt)),
+    scope.tx
+      .select({
+        date: day(storefrontEvents.createdAt),
+        visitors: sql<number>`count(distinct ${storefrontEvents.visitorSessionId})::int`,
+      })
+      .from(storefrontEvents)
+      .where(scoped(scope, storefrontEvents, gte(storefrontEvents.createdAt, startDate)))
+      .groupBy(day(storefrontEvents.createdAt)),
+  ])
 
   const grossRevenueMinor = BigInt(orderAgg?.gross ?? '0')
   const taxCollectedMinor = BigInt(orderAgg?.tax ?? '0')
@@ -252,7 +269,10 @@ export async function getWorkspaceAnalyticsSummary(
     averageOrderValueMinor: calculateAverageOrderValue(grossRevenueMinor, ordersCount).toString(),
     uniqueVisitorsCount,
     storefrontPageviewsCount: telemetry?.pageviews ?? 0,
-    conversionRateBps: Math.min(10000, calculateConversionRateBps(uniqueVisitorsCount, ordersCount)),
+    conversionRateBps: Math.min(
+      10000,
+      calculateConversionRateBps(uniqueVisitorsCount, ordersCount),
+    ),
     timeSeries,
     funnel,
   }
@@ -282,7 +302,12 @@ export async function listProductPerformance(
   const itemValue = sql`(${orderItems.subtotalAmount} - ${orderItems.discountAmount})`
   const [catalogue, sales, views] = await Promise.all([
     scope.tx
-      .select({ id: products.id, title: products.title, slug: products.slug, status: products.status })
+      .select({
+        id: products.id,
+        title: products.title,
+        slug: products.slug,
+        status: products.status,
+      })
       .from(products)
       .where(scoped(scope, products)),
     scope.tx
@@ -342,8 +367,10 @@ export async function listProductPerformance(
         grossRevenueMinor: gross.toString(),
         netRevenueMinor: calculateNetSales(gross, refunded).toString(),
         refundsCount: row?.refundedOrders ?? 0,
-        refundRateBps: row && row.orders > 0 ? Math.round((row.refundedOrders * 10000) / row.orders) : 0,
-        conversionRateBps: viewers > 0 ? Math.min(10000, Math.round(((row?.orders ?? 0) * 10000) / viewers)) : 0,
+        refundRateBps:
+          row && row.orders > 0 ? Math.round((row.refundedOrders * 10000) / row.orders) : 0,
+        conversionRateBps:
+          viewers > 0 ? Math.min(10000, Math.round(((row?.orders ?? 0) * 10000) / viewers)) : 0,
       }
     })
     .sort((a, b) => {

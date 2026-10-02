@@ -20,17 +20,12 @@ import {
   type AnalyticsTimeframe,
   type ProductPerformanceDTO,
 } from '@creatorhub/contracts'
-import {
-  analytics,
-  auditLog,
-  workspaceMembers,
-} from '@creatorhub/db'
+import { analytics, auditLog, workspaceMembers } from '@creatorhub/db'
 import { authorise } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { auditOptions } from './env'
-
 
 export type AnalyticsActionResult<T> =
   | { readonly ok: true; readonly data: T }
@@ -286,7 +281,13 @@ export async function exportAnalyticsCsvAction(
 
       const summary = await analytics.getWorkspaceAnalyticsSummary(scope, { timeframe })
 
-      const headers = ['Date', 'Gross Revenue (INR)', 'Net Revenue (INR)', 'Orders Count', 'Visitors Count']
+      const headers = [
+        'Date',
+        'Gross Revenue (INR)',
+        'Net Revenue (INR)',
+        'Orders Count',
+        'Visitors Count',
+      ]
       const rows = summary.timeSeries.map((d) => [
         d.date,
         (Number(d.grossRevenueMinor) / 100).toFixed(2),

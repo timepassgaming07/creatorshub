@@ -558,8 +558,7 @@ export async function loadAffiliates(rawWorkspaceId: string): Promise<Affiliates
         held: agg.held.toString(),
         payable: agg.payable.toString(),
         paid: agg.paid.toString(),
-        hasPayoutAccount:
-          Object.keys(a.payoutAccount).length > 0,
+        hasPayoutAccount: Object.keys(a.payoutAccount).length > 0,
       }
     })
 
@@ -704,7 +703,10 @@ export type AnalyticsData = {
   readonly sources: readonly { readonly source: string; readonly visits: number }[]
 }
 
-export async function loadAnalytics(rawWorkspaceId: string, timeframe: AnalyticsTimeframe): Promise<AnalyticsData> {
+export async function loadAnalytics(
+  rawWorkspaceId: string,
+  timeframe: AnalyticsTimeframe,
+): Promise<AnalyticsData> {
   return asMember(rawWorkspaceId, 'analytics.view', async (scope) => {
     const [summary, products, affiliatePerf, sources, store] = await Promise.all([
       analytics.getWorkspaceAnalyticsSummary(scope, { timeframe }),
@@ -714,8 +716,12 @@ export async function loadAnalytics(rawWorkspaceId: string, timeframe: Analytics
       storefronts.findStorefrontByWorkspaceId(scope),
     ])
     // Moving between pages of your own store is not a traffic source.
-    const own = [platformRootDomain(), 'localhost', store?.customDomain ?? ''].filter(Boolean).map((h) => h.toLowerCase())
-    const external = sources.filter((s) => !own.some((h) => s.source === h || s.source.endsWith(`.${h}`)))
+    const own = [platformRootDomain(), 'localhost', store?.customDomain ?? '']
+      .filter(Boolean)
+      .map((h) => h.toLowerCase())
+    const external = sources.filter(
+      (s) => !own.some((h) => s.source === h || s.source.endsWith(`.${h}`)),
+    )
     return {
       timeframe,
       summary,

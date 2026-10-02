@@ -9,14 +9,9 @@ export {
   AiSchemaValidationError,
 } from './errors.js'
 
-export {
-  AiGateway,
-  createAiGateway,
-} from './gateway.js'
+export { AiGateway, createAiGateway } from './gateway.js'
 
-export {
-  MemoryAiProvider,
-} from './providers/memory.js'
+export { MemoryAiProvider } from './providers/memory.js'
 
 export { AnthropicAiProvider, DEFAULT_ANTHROPIC_MODEL } from './providers/anthropic.js'
 

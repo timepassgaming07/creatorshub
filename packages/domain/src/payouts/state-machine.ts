@@ -80,7 +80,8 @@ export function validateMakerCheckerApproval(params: {
         domainError({
           code: 'CONFLICT_OF_INTEREST',
           title: 'Two-person approval rule violation',
-          detail: 'The creator or admin who requested this payout cannot approve their own request in a multi-member workspace.',
+          detail:
+            'The creator or admin who requested this payout cannot approve their own request in a multi-member workspace.',
           action: 'Have another workspace owner or admin review and approve this payout.',
         }),
       )
@@ -97,7 +98,8 @@ export function validateMakerCheckerApproval(params: {
           code: 'APPROVAL_THRESHOLD_EXCEEDED',
           title: 'Self-approval threshold exceeded',
           detail: `Payout amount exceeds the single-owner self-approval limit of ${threshold.amount.toString()} paise.`,
-          action: 'Contact platform compliance or add a designated secondary administrator for large disbursements.',
+          action:
+            'Contact platform compliance or add a designated secondary administrator for large disbursements.',
         }),
       )
     }

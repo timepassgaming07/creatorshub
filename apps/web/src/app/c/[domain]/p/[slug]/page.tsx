@@ -17,6 +17,12 @@ export default async function Page({ params, searchParams }: Props) {
   const { domain, slug } = await params
   const { preview, ref } = await searchParams
   return (
-    <ProductRoute prefix="c" host={decodeURIComponent(domain)} slug={slug} preview={preview} referral={ref} />
+    <ProductRoute
+      prefix="c"
+      host={decodeURIComponent(domain)}
+      slug={slug}
+      preview={preview}
+      referral={ref}
+    />
   )
 }

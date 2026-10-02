@@ -16,11 +16,24 @@ import {
 } from 'lucide-react'
 import { Button, Input, Select, useToast } from '@creatorhub/ui'
 
-import { Badge, Card, CardHeader, CopyButton, Notice, PageHeader, Switch, Textarea } from '@/components/ds'
+import {
+  Badge,
+  Card,
+  CardHeader,
+  CopyButton,
+  Notice,
+  PageHeader,
+  Switch,
+  Textarea,
+} from '@/components/ds'
 import { ProductCopyAssist } from '@/components/ai/Copilot'
 import { useWorkspace } from '@/components/layout/DashboardShell'
 import { detachProductAssetAction } from '@/lib/asset-actions'
-import { createVariantAction, publishProductAction, updateProductAction } from '@/lib/catalogue-actions'
+import {
+  createVariantAction,
+  publishProductAction,
+  updateProductAction,
+} from '@/lib/catalogue-actions'
 import type { ProductEditorData, ProductFile } from '@/lib/dashboard-data'
 import { formatAmount, formatBytes, minorToInput, parsePriceToMinor } from '@/lib/format'
 
@@ -38,7 +51,13 @@ function scanBadge(file: ProductFile) {
   return <Badge tone="caution">Checking</Badge>
 }
 
-export function ProductEditor({ data, justCreated }: { readonly data: ProductEditorData; readonly justCreated: boolean }) {
+export function ProductEditor({
+  data,
+  justCreated,
+}: {
+  readonly data: ProductEditorData
+  readonly justCreated: boolean
+}) {
   const router = useRouter()
   const toast = useToast()
   const { workspace, basePath } = useWorkspace()
@@ -49,8 +68,12 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
   const [description, setDescription] = useState(product.description ?? '')
   const [slug, setSlug] = useState(product.slug)
   const [isFree, setIsFree] = useState(BigInt(product.price) === 0n)
-  const [price, setPrice] = useState(BigInt(product.price) === 0n ? '' : minorToInput(product.price))
-  const [compareAt, setCompareAt] = useState(product.compareAtPrice ? minorToInput(product.compareAtPrice) : '')
+  const [price, setPrice] = useState(
+    BigInt(product.price) === 0n ? '' : minorToInput(product.price),
+  )
+  const [compareAt, setCompareAt] = useState(
+    product.compareAtPrice ? minorToInput(product.compareAtPrice) : '',
+  )
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -85,7 +108,8 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
   async function save() {
     const next: Record<string, string> = {}
     if (title.trim().length < 2) next['title'] = 'Give the product a name.'
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) next['slug'] = 'Use lowercase letters, numbers, and single hyphens.'
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
+      next['slug'] = 'Use lowercase letters, numbers, and single hyphens.'
     const minor = isFree ? 0n : parsePriceToMinor(price)
     if (minor === null || (!isFree && minor < 100n)) next['price'] = `Enter at least ${symbol}1.`
     const compareMinor = compareAt.trim() ? parsePriceToMinor(compareAt) : null
@@ -120,11 +144,20 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
         : await updateProductAction(workspace.id, product.id, { status })
     setPublishing(false)
     if (!result.success) {
-      toast.show({ title: result.error.title, description: result.error.detail, variant: 'critical' })
+      toast.show({
+        title: result.error.title,
+        description: result.error.detail,
+        variant: 'critical',
+      })
       return
     }
     toast.show({
-      title: status === 'published' ? 'Product is live' : status === 'archived' ? 'Archived' : 'Moved to drafts',
+      title:
+        status === 'published'
+          ? 'Product is live'
+          : status === 'archived'
+            ? 'Archived'
+            : 'Moved to drafts',
       variant: 'success',
     })
     refresh()
@@ -144,7 +177,11 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
   async function removeFile(file: ProductFile) {
     const result = await detachProductAssetAction(workspace.id, product.id, file.assetId)
     if (!result.success) {
-      toast.show({ title: 'Could not remove', description: result.error.detail, variant: 'critical' })
+      toast.show({
+        title: 'Could not remove',
+        description: result.error.detail,
+        variant: 'critical',
+      })
       return
     }
     refresh()
@@ -153,7 +190,11 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
   async function addVariant() {
     const minor = variantPrice.trim() ? parsePriceToMinor(variantPrice) : null
     if (!variantTitle.trim() || (variantPrice.trim() && minor === null)) {
-      toast.show({ title: 'Check the option', description: 'Give it a name and a valid price.', variant: 'critical' })
+      toast.show({
+        title: 'Check the option',
+        description: 'Give it a name and a valid price.',
+        variant: 'critical',
+      })
       return
     }
     setAddingVariant(true)
@@ -164,7 +205,11 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
     })
     setAddingVariant(false)
     if (!result.success) {
-      toast.show({ title: 'Could not add option', description: result.error.detail, variant: 'critical' })
+      toast.show({
+        title: 'Could not add option',
+        description: result.error.detail,
+        variant: 'critical',
+      })
       return
     }
     setVariantTitle('')
@@ -174,9 +219,13 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
 
   const statusBadge =
     product.status === 'published' ? (
-      <Badge tone="positive" dot>Published</Badge>
+      <Badge tone="positive" dot>
+        Published
+      </Badge>
     ) : product.status === 'archived' ? (
-      <Badge tone="caution" dot>Archived</Badge>
+      <Badge tone="caution" dot>
+        Archived
+      </Badge>
     ) : (
       <Badge dot>Draft</Badge>
     )
@@ -201,7 +250,8 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
 
       {justCreated && deliverables.length === 0 && (
         <Notice tone="accent" title="Next: upload the file buyers receive" className="mb-6">
-          Then add a cover image and publish. Buyers get a download link by email the moment they pay.
+          Then add a cover image and publish. Buyers get a download link by email the moment they
+          pay.
         </Notice>
       )}
 
@@ -246,7 +296,9 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
                 onChange={(e) => {
                   setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
                 }}
-                {...(errors['slug'] ? { error: errors['slug'] } : { hint: 'Changing this breaks links you have already shared.' })}
+                {...(errors['slug']
+                  ? { error: errors['slug'] }
+                  : { hint: 'Changing this breaks links you have already shared.' })}
               />
             </div>
           </Card>
@@ -280,7 +332,9 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
                     onChange={(e) => {
                       setCompareAt(e.target.value)
                     }}
-                    {...(errors['compareAt'] ? { error: errors['compareAt'] } : { hint: 'Optional. Shown struck through.' })}
+                    {...(errors['compareAt']
+                      ? { error: errors['compareAt'] }
+                      : { hint: 'Optional. Shown struck through.' })}
                   />
                 </div>
               )}
@@ -296,10 +350,15 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
               <ul className="mb-4 divide-y divide-border-subtle rounded-lg border border-border-subtle">
                 {deliverables.map((file) => (
                   <li key={file.assetId} className="flex items-center gap-3 px-3.5 py-3">
-                    <FileText className="size-4 shrink-0 text-content-tertiary" aria-hidden="true" />
+                    <FileText
+                      className="size-4 shrink-0 text-content-tertiary"
+                      aria-hidden="true"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-body font-medium">{file.filename}</span>
-                      <span className="text-caption text-content-tertiary">{formatBytes(file.byteSize)}</span>
+                      <span className="text-caption text-content-tertiary">
+                        {formatBytes(file.byteSize)}
+                      </span>
                     </span>
                     {scanBadge(file)}
                     <button
@@ -326,14 +385,21 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
           </Card>
 
           <Card>
-            <CardHeader title="Images" description="A cover makes your product stand out on your store and in shares." />
+            <CardHeader
+              title="Images"
+              description="A cover makes your product stand out on your store and in shares."
+            />
             <div className="grid gap-5 sm:grid-cols-[200px_1fr]">
               <div>
                 <p className="mb-2 text-caption font-medium text-content-secondary">Cover</p>
                 {cover?.previewUrl ? (
                   <div className="group relative overflow-hidden rounded-xl border border-border-subtle">
                     {/* eslint-disable-next-line @next/next/no-img-element -- media route */}
-                    <img src={cover.previewUrl} alt="Cover" className="aspect-[4/3] w-full object-cover" />
+                    <img
+                      src={cover.previewUrl}
+                      alt="Cover"
+                      className="aspect-[4/3] w-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => void removeFile(cover)}
@@ -362,10 +428,17 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
                 {gallery.length > 0 && (
                   <div className="mb-3 grid grid-cols-3 gap-2">
                     {gallery.map((img) => (
-                      <div key={img.assetId} className="group relative overflow-hidden rounded-lg border border-border-subtle">
+                      <div
+                        key={img.assetId}
+                        className="group relative overflow-hidden rounded-lg border border-border-subtle"
+                      >
                         {img.previewUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element -- media route
-                          <img src={img.previewUrl} alt="" className="aspect-square w-full object-cover" />
+                          <img
+                            src={img.previewUrl}
+                            alt=""
+                            className="aspect-square w-full object-cover"
+                          />
                         ) : (
                           <ImageIcon className="m-auto size-5" aria-hidden="true" />
                         )}
@@ -446,7 +519,12 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
             {product.status === 'published' ? (
               <div className="space-y-3">
                 <p className="text-body text-content-secondary">This product is on sale.</p>
-                <Button variant="secondary" fullWidth loading={publishing} onClick={() => void setStatus('draft')}>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  loading={publishing}
+                  onClick={() => void setStatus('draft')}
+                >
                   <Undo2 className="size-4" aria-hidden="true" />
                   Unpublish
                 </Button>
@@ -454,9 +532,16 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
             ) : (
               <div className="space-y-3">
                 {!hasReadyFile && (
-                  <p className="text-caption text-content-secondary">Upload the file buyers receive to publish.</p>
+                  <p className="text-caption text-content-secondary">
+                    Upload the file buyers receive to publish.
+                  </p>
                 )}
-                <Button fullWidth loading={publishing} disabled={!hasReadyFile} onClick={() => void setStatus('published')}>
+                <Button
+                  fullWidth
+                  loading={publishing}
+                  disabled={!hasReadyFile}
+                  onClick={() => void setStatus('published')}
+                >
                   <Rocket className="size-4" aria-hidden="true" />
                   Publish
                 </Button>
@@ -469,7 +554,12 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
               </div>
             )}
             <div className="mt-5 border-t border-border-subtle pt-5">
-              <Select label="Visibility" options={VISIBILITY} value={product.visibility} onValueChange={(v) => void setVisibility(v)} />
+              <Select
+                label="Visibility"
+                options={VISIBILITY}
+                value={product.visibility}
+                onValueChange={(v) => void setVisibility(v)}
+              />
             </div>
           </Card>
 
@@ -479,7 +569,10 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
               <p className="mb-3 truncate rounded-md bg-surface-sunken px-3 py-2 font-mono text-[12px] text-content-secondary">
                 {data.storeUrl}/p/{product.slug}
               </p>
-              <CopyButton value={`${data.storeUrl ?? ''}/p/${product.slug}`} label="Copy product link" />
+              <CopyButton
+                value={`${data.storeUrl ?? ''}/p/${product.slug}`}
+                label="Copy product link"
+              />
             </Card>
           )}
 
@@ -499,15 +592,18 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-8">
             <p className="text-body text-content-secondary">You have unsaved changes</p>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => {
-                setTitle(product.title)
-                setDescription(product.description ?? '')
-                setSlug(product.slug)
-                setIsFree(BigInt(product.price) === 0n)
-                setPrice(BigInt(product.price) === 0n ? '' : minorToInput(product.price))
-                setCompareAt(product.compareAtPrice ? minorToInput(product.compareAtPrice) : '')
-                setErrors({})
-              }}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setTitle(product.title)
+                  setDescription(product.description ?? '')
+                  setSlug(product.slug)
+                  setIsFree(BigInt(product.price) === 0n)
+                  setPrice(BigInt(product.price) === 0n ? '' : minorToInput(product.price))
+                  setCompareAt(product.compareAtPrice ? minorToInput(product.compareAtPrice) : '')
+                  setErrors({})
+                }}
+              >
                 Discard
               </Button>
               <Button loading={saving} loadingLabel="Saving" onClick={() => void save()}>

@@ -11,14 +11,16 @@ const MAX_EVENT_BYTES = 8 * 1024
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // A page-view beacon is a few hundred bytes; refuse anything that is not one.
   const declared = Number(request.headers.get('content-length') ?? '0')
-  if (declared > MAX_EVENT_BYTES) return NextResponse.json({ error: 'Event too large' }, { status: 413 })
+  if (declared > MAX_EVENT_BYTES)
+    return NextResponse.json({ error: 'Event too large' }, { status: 413 })
   try {
     let payload: RecordStorefrontEventInput
     const contentType = request.headers.get('content-type') ?? ''
 
     if (contentType.includes('application/json') || contentType.includes('text/plain')) {
       const text = await request.text()
-      if (text.length > MAX_EVENT_BYTES) return NextResponse.json({ error: 'Event too large' }, { status: 413 })
+      if (text.length > MAX_EVENT_BYTES)
+        return NextResponse.json({ error: 'Event too large' }, { status: 413 })
       payload = JSON.parse(text) as RecordStorefrontEventInput
     } else {
       payload = (await request.json()) as RecordStorefrontEventInput

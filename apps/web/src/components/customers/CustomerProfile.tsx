@@ -3,7 +3,19 @@
 import Link from 'next/link'
 import { Mail, Phone } from 'lucide-react'
 
-import { Avatar, Badge, Card, CardHeader, CopyButton, OrderStatusBadge, PageHeader, Stat, Table, Td, Th } from '@/components/ds'
+import {
+  Avatar,
+  Badge,
+  Card,
+  CardHeader,
+  CopyButton,
+  OrderStatusBadge,
+  PageHeader,
+  Stat,
+  Table,
+  Td,
+  Th,
+} from '@/components/ds'
 import { useWorkspace } from '@/components/layout/DashboardShell'
 import type { CustomerDetailsDTO } from '@/lib/customer-actions'
 import { formatAmount, formatDate, formatDateTime } from '@/lib/format'
@@ -16,7 +28,10 @@ export function CustomerProfile({ data }: { readonly data: CustomerDetailsDTO })
   return (
     <div>
       <PageHeader
-        crumbs={[{ label: 'Customers', href: `${basePath}/customers` }, { label: customer.name ?? customer.email }]}
+        crumbs={[
+          { label: 'Customers', href: `${basePath}/customers` },
+          { label: customer.name ?? customer.email },
+        ]}
         title={
           <span className="flex items-center gap-4">
             <Avatar label={customer.name ?? customer.email} className="size-12 text-base" />
@@ -31,7 +46,10 @@ export function CustomerProfile({ data }: { readonly data: CustomerDetailsDTO })
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Lifetime spend" value={formatAmount(customer.totalSpend, workspace.currency)} />
+        <Stat
+          label="Lifetime spend"
+          value={formatAmount(customer.totalSpend, workspace.currency)}
+        />
         <Stat label="Orders" value={customer.ordersCount} />
         <Stat label="Products owned" value={active} />
         <Stat label="Customer since" value={formatDate(customer.firstSeenAt)} />
@@ -53,14 +71,21 @@ export function CustomerProfile({ data }: { readonly data: CustomerDetailsDTO })
               {data.orders.map((order) => (
                 <tr key={order.id} className="group hover:bg-surface-sunken/50">
                   <Td>
-                    <Link href={`${basePath}/orders/${order.id}`} className="font-mono text-[13px] font-medium group-hover:underline">
+                    <Link
+                      href={`${basePath}/orders/${order.id}`}
+                      className="font-mono text-[13px] font-medium group-hover:underline"
+                    >
                       #{order.id.slice(-8).toUpperCase()}
                     </Link>
                   </Td>
                   <Td>
                     <OrderStatusBadge status={order.status} />
                   </Td>
-                  <Td align="right">{BigInt(order.totalAmount) === 0n ? 'Free' : formatAmount(order.totalAmount, order.currency)}</Td>
+                  <Td align="right">
+                    {BigInt(order.totalAmount) === 0n
+                      ? 'Free'
+                      : formatAmount(order.totalAmount, order.currency)}
+                  </Td>
                   <Td align="right" className="text-content-tertiary">
                     {formatDateTime(order.createdAt)}
                   </Td>

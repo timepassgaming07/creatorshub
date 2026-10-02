@@ -28,7 +28,9 @@ export function getStorageDriver(): StorageDriver {
 
   const provider = envValue('STORAGE_PROVIDER') ?? envValue('STORAGE_DRIVER') ?? 'local'
   if (provider === 'memory' && !allowsTestAdapters()) {
-    throw new ConfigurationError('STORAGE_PROVIDER=memory loses every file on restart. Use s3, r2, or local.')
+    throw new ConfigurationError(
+      'STORAGE_PROVIDER=memory loses every file on restart. Use s3, r2, or local.',
+    )
   }
 
   globalForStorage.storageDriver = createStorageDriver(
@@ -45,7 +47,8 @@ export function getStorageDriver(): StorageDriver {
  */
 export function getLocalStorageDriver(): LocalStorageDriver | null {
   const driver = getStorageDriver()
-  return driver.name === 'local' && typeof (driver as Partial<LocalStorageDriver>).verify === 'function'
+  return driver.name === 'local' &&
+    typeof (driver as Partial<LocalStorageDriver>).verify === 'function'
     ? (driver as LocalStorageDriver)
     : null
 }

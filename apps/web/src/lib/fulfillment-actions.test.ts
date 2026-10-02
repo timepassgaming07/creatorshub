@@ -19,12 +19,19 @@ const repo = {
 }
 vi.mock('@creatorhub/db', () => ({
   fulfillment: {
-    findDownloadGrantByTokenHash: (...a: unknown[]) => repo.findDownloadGrantByTokenHash(...a) as unknown,
+    findDownloadGrantByTokenHash: (...a: unknown[]) =>
+      repo.findDownloadGrantByTokenHash(...a) as unknown,
     consumeDownloadGrant: (...a: unknown[]) => repo.consumeDownloadGrant(...a) as unknown,
   },
   workspaces: { findCurrentWorkspace: () => Promise.resolve({ name: 'Priya Studio' }) },
-  storefronts: { findStorefrontByWorkspaceId: () => Promise.resolve({ title: 'Priya Studio', status: 'published', subdomain: 'priya' }) },
-  catalogue: { findProductById: () => Promise.resolve({ title: 'Golden Hour Presets', description: 'Twelve presets.' }) },
+  storefronts: {
+    findStorefrontByWorkspaceId: () =>
+      Promise.resolve({ title: 'Priya Studio', status: 'published', subdomain: 'priya' }),
+  },
+  catalogue: {
+    findProductById: () =>
+      Promise.resolve({ title: 'Golden Hour Presets', description: 'Twelve presets.' }),
+  },
 }))
 
 import { consumeDownload, getFulfillmentDetails } from './fulfillment-actions'
@@ -39,7 +46,12 @@ const asset = {
 
 function grant(overrides: Record<string, unknown> = {}) {
   return {
-    grant: { maxDownloads: 5, downloadCount: 1, expiresAt: new Date(Date.now() + 86_400_000), ...overrides },
+    grant: {
+      maxDownloads: 5,
+      downloadCount: 1,
+      expiresAt: new Date(Date.now() + 86_400_000),
+      ...overrides,
+    },
     asset,
     entitlement: { productId: '018f9e2b-7c5e-7a2e-8c3b-000000000005', status: 'active' },
   }
@@ -62,7 +74,11 @@ describe('download page', () => {
     const result = await getFulfillmentDetails(token)
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.data).toMatchObject({ productTitle: 'Golden Hour Presets', remainingDownloads: 4, canDownload: true })
+    expect(result.data).toMatchObject({
+      productTitle: 'Golden Hour Presets',
+      remainingDownloads: 4,
+      canDownload: true,
+    })
     expect(repo.findDownloadGrantByTokenHash).toHaveBeenCalledWith(expect.anything(), tokenHash)
     expect((mockWithWorkspace.mock.calls[0]?.[0] as { workspaceId: string }).workspaceId).toBe(WS)
   })
@@ -73,7 +89,9 @@ describe('download page', () => {
     const used = await getFulfillmentDetails(token)
     expect(used.ok && used.data.isExhausted && !used.data.canDownload).toBe(true)
 
-    repo.findDownloadGrantByTokenHash.mockResolvedValue(grant({ expiresAt: new Date(Date.now() - 1000) }))
+    repo.findDownloadGrantByTokenHash.mockResolvedValue(
+      grant({ expiresAt: new Date(Date.now() - 1000) }),
+    )
     const expired = await getFulfillmentDetails(token)
     expect(expired.ok && expired.data.isExpired && !expired.data.canDownload).toBe(true)
   })
@@ -90,15 +108,23 @@ describe('download', () => {
     repo.consumeDownloadGrant.mockResolvedValue({ ok: true, asset })
     generateDownloadUrl.mockResolvedValue({ downloadUrl: 'https://storage.example/signed' })
     const result = await consumeDownload(token, { ipAddress: '203.0.113.9', userAgent: 'Chrome' })
-    expect(result).toEqual({ ok: true, data: { downloadUrl: 'https://storage.example/signed', originalFilename: 'presets.zip' } })
-    expect(generateDownloadUrl).toHaveBeenCalledWith(expect.objectContaining({ expiresInSeconds: 300 }))
+    expect(result).toEqual({
+      ok: true,
+      data: { downloadUrl: 'https://storage.example/signed', originalFilename: 'presets.zip' },
+    })
+    expect(generateDownloadUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ expiresInSeconds: 300 }),
+    )
     const consumeArgs = repo.consumeDownloadGrant.mock.calls[0]?.[1] as { ipHash: string }
     expect(consumeArgs.ipHash).toMatch(/^[0-9a-f]{64}$/)
   })
 
   it('does not burn a download while the file is still being scanned', async () => {
     const { token } = createDownloadToken(WS)
-    repo.findDownloadGrantByTokenHash.mockResolvedValue({ ...grant(), asset: { ...asset, scanStatus: 'pending' } })
+    repo.findDownloadGrantByTokenHash.mockResolvedValue({
+      ...grant(),
+      asset: { ...asset, scanStatus: 'pending' },
+    })
     const result = await consumeDownload(token)
     expect(result).toMatchObject({ ok: false, error: { code: 'UNAVAILABLE' } })
     expect(repo.consumeDownloadGrant).not.toHaveBeenCalled()
@@ -107,9 +133,16 @@ describe('download', () => {
   it('passes on why a download was refused', async () => {
     const { token } = createDownloadToken(WS)
     repo.findDownloadGrantByTokenHash.mockResolvedValue(grant())
-    repo.consumeDownloadGrant.mockResolvedValue({ ok: false, code: 'REVOKED', message: 'This order was refunded.' })
+    repo.consumeDownloadGrant.mockResolvedValue({
+      ok: false,
+      code: 'REVOKED',
+      message: 'This order was refunded.',
+    })
     const result = await consumeDownload(token)
-    expect(result).toEqual({ ok: false, error: { code: 'REVOKED', message: 'This order was refunded.' } })
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'REVOKED', message: 'This order was refunded.' },
+    })
     expect(generateDownloadUrl).not.toHaveBeenCalled()
   })
 })

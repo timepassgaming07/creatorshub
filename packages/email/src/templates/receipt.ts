@@ -190,7 +190,8 @@ export function renderReceiptEmail(input: RenderReceiptEmailInput): RenderedEmai
   // Fallback plain-text representation
   const textDownloadLinks = input.downloadLinks
     .map(
-      (l) => `* ${l.productTitle}\n  Download: ${l.downloadUrl}\n  (Limit: ${String(l.maxDownloads)} downloads, expires ${l.expiresAtFormatted})\n`,
+      (l) =>
+        `* ${l.productTitle}\n  Download: ${l.downloadUrl}\n  (Limit: ${String(l.maxDownloads)} downloads, expires ${l.expiresAtFormatted})\n`,
     )
     .join('\n')
 

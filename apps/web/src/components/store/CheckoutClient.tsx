@@ -142,7 +142,10 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="flex items-center justify-between text-[13px] font-medium text-content-primary">
+      <label
+        htmlFor={id}
+        className="flex items-center justify-between text-[13px] font-medium text-content-primary"
+      >
         {label}
         {optional && <span className="font-normal text-content-tertiary">Optional</span>}
       </label>
@@ -212,7 +215,8 @@ export function CheckoutClient(props: CheckoutClientProps) {
 
   function validate(): boolean {
     const errors: Record<string, string> = {}
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors['email'] = 'Enter the email your files should go to.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      errors['email'] = 'Enter the email your files should go to.'
     if (!name.trim()) errors['name'] = 'Enter your name.'
     if (needsState && !stateCode) errors['state'] = 'Choose your state so the right GST applies.'
     if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
@@ -337,8 +341,8 @@ export function CheckoutClient(props: CheckoutClientProps) {
             {isFree ? 'It’s yours.' : 'Payment received.'}
           </h1>
           <p className="mt-2 text-[15px] text-content-secondary">
-            We sent your download links to <span className="font-medium text-content-primary">{email}</span>. Save them
-            here too.
+            We sent your download links to{' '}
+            <span className="font-medium text-content-primary">{email}</span>. Save them here too.
           </p>
 
           {downloads.length > 0 ? (
@@ -366,7 +370,8 @@ export function CheckoutClient(props: CheckoutClientProps) {
             </ul>
           ) : (
             <p className="mt-6 rounded-2xl bg-surface-sunken px-4 py-3 text-[14px] text-content-secondary">
-              The creator is still preparing the files. They will arrive by email as soon as they are ready.
+              The creator is still preparing the files. They will arrive by email as soon as they
+              are ready.
             </p>
           )}
 
@@ -397,13 +402,17 @@ export function CheckoutClient(props: CheckoutClientProps) {
           <ProductCover product={product} className="aspect-square h-full" />
         </div>
         <div className="min-w-0">
-          <p className="text-[12px] font-medium tracking-wide text-content-tertiary uppercase">{props.storeTitle}</p>
+          <p className="text-[12px] font-medium tracking-wide text-content-tertiary uppercase">
+            {props.storeTitle}
+          </p>
           <p className="mt-1 font-semibold leading-snug store-heading">{product.title}</p>
           {variant && <p className="mt-0.5 text-[13px] text-content-secondary">{variant.title}</p>}
         </div>
       </div>
 
-      <dl className={`mt-6 space-y-2.5 text-[14px] transition-opacity ${quoting ? 'opacity-60' : ''}`}>
+      <dl
+        className={`mt-6 space-y-2.5 text-[14px] transition-opacity ${quoting ? 'opacity-60' : ''}`}
+      >
         <div className="flex justify-between">
           <dt className="text-content-secondary">Subtotal</dt>
           <dd className="tabular-nums">{formatAmount(quote.subtotal, quote.currency)}</dd>
@@ -443,7 +452,9 @@ export function CheckoutClient(props: CheckoutClientProps) {
           <FlaskConical className="mt-0.5 size-4 shrink-0 text-caution" aria-hidden="true" />
           <p>
             <span className="font-semibold">Test mode.</span>{' '}
-            <span className="text-content-secondary">No real money moves. Payments are simulated end to end.</span>
+            <span className="text-content-secondary">
+              No real money moves. Payments are simulated end to end.
+            </span>
           </p>
         </div>
       )}
@@ -454,7 +465,9 @@ export function CheckoutClient(props: CheckoutClientProps) {
           <ul className="mt-5 grid gap-2.5 px-1 text-[13px] text-content-secondary">
             <li className="flex items-center gap-2.5">
               <ShieldCheck className="size-4 text-content-tertiary" aria-hidden="true" />
-              {isFree ? 'No payment details needed' : 'Payments processed by Razorpay, PCI DSS compliant'}
+              {isFree
+                ? 'No payment details needed'
+                : 'Payments processed by Razorpay, PCI DSS compliant'}
             </li>
             <li className="flex items-center gap-2.5">
               <Mail className="size-4 text-content-tertiary" aria-hidden="true" />
@@ -469,12 +482,17 @@ export function CheckoutClient(props: CheckoutClientProps) {
               {isFree ? 'Get your free download' : 'Checkout'}
             </h1>
             <p className="mt-1 text-[14px] text-content-secondary">
-              {isFree ? 'Tell us where to send it.' : 'Your files arrive by email the moment payment clears.'}
+              {isFree
+                ? 'Tell us where to send it.'
+                : 'Your files arrive by email the moment payment clears.'}
             </p>
           </div>
 
           {formError && (
-            <div role="alert" className="flex items-start gap-3 rounded-2xl border border-critical/25 bg-critical-subtle px-4 py-3 text-[14px]">
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-2xl border border-critical/25 bg-critical-subtle px-4 py-3 text-[14px]"
+            >
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-critical" aria-hidden="true" />
               <p>{formError}</p>
             </div>
@@ -591,7 +609,10 @@ export function CheckoutClient(props: CheckoutClientProps) {
                     <Tag className="size-4 text-content-tertiary" aria-hidden="true" />
                     Discount code
                   </span>
-                  <ChevronDown className={`size-4 transition-transform ${showCode ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  <ChevronDown
+                    className={`size-4 transition-transform ${showCode ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
                 </button>
                 {showCode && (
                   <div className="mt-3">
@@ -637,7 +658,8 @@ export function CheckoutClient(props: CheckoutClientProps) {
                     )}
                     {appliedCode && quote.discountCode && (
                       <p className="mt-2 text-[13px] text-positive">
-                        {quote.discountCode} applied. You save {formatAmount(quote.discount, quote.currency)}.
+                        {quote.discountCode} applied. You save{' '}
+                        {formatAmount(quote.discount, quote.currency)}.
                       </p>
                     )}
                   </div>
@@ -659,7 +681,10 @@ export function CheckoutClient(props: CheckoutClientProps) {
                     <Building2 className="size-4 text-content-tertiary" aria-hidden="true" />
                     Buying for a business? Add your GSTIN
                   </span>
-                  <ChevronDown className={`size-4 transition-transform ${showBusiness ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  <ChevronDown
+                    className={`size-4 transition-transform ${showBusiness ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
                 </button>
                 {showBusiness && (
                   <div className="mt-3">
@@ -685,7 +710,8 @@ export function CheckoutClient(props: CheckoutClientProps) {
             <div className="rounded-2xl border border-caution/30 bg-caution-subtle p-5">
               <p className="font-semibold">Simulate the payment</p>
               <p className="mt-1 text-[14px] text-content-secondary">
-                In test mode the payment step is simulated. The order, ledger entries, and delivery all run for real.
+                In test mode the payment step is simulated. The order, ledger entries, and delivery
+                all run for real.
               </p>
               <button
                 type="button"

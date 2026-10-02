@@ -8,13 +8,7 @@
  * 4. Customer detail with order history and entitlements.
  */
 import { customerId, userId, workspaceId } from '@creatorhub/contracts'
-import {
-  auditLog,
-  customers,
-  fulfillment,
-  orders,
-  workspaceMembers,
-} from '@creatorhub/db'
+import { auditLog, customers, fulfillment, orders, workspaceMembers } from '@creatorhub/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSession } from './server-session'
 

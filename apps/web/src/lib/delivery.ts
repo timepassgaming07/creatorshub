@@ -11,7 +11,13 @@
  * taken and the order is already fulfilled, and the creator can resend the
  * receipt from the order page, which issues fresh links.
  */
-import { orderId as toOrderId, productId, requestId, workspaceContext, workspaceId } from '@creatorhub/contracts'
+import {
+  orderId as toOrderId,
+  productId,
+  requestId,
+  workspaceContext,
+  workspaceId,
+} from '@creatorhub/contracts'
 import {
   catalogue,
   fulfillment,

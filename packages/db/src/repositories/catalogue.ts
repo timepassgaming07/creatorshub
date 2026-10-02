@@ -378,7 +378,10 @@ const PUBLIC_IMAGE_ROLES = ['cover_image', 'thumbnail', 'gallery'] as const
  * non-private product. The media route serves only assets that pass this, so a
  * buyer's purchased file can never be fetched through an image URL.
  */
-export async function isPublicProductImage(scope: RepositoryScope, astId: AssetId): Promise<boolean> {
+export async function isPublicProductImage(
+  scope: RepositoryScope,
+  astId: AssetId,
+): Promise<boolean> {
   const rows = await scope.tx
     .select({ id: productAssets.id })
     .from(productAssets)

@@ -6,11 +6,7 @@
  * 2. Scoped multi-tenant queries for customer profile, search, and lifetime metrics.
  * 3. Enforce tenant isolation via scoped(scope, customers, ...) on all database operations.
  */
-import {
-  type CustomerFilter,
-  type CustomerId,
-  type CustomerSummary,
-} from '@creatorhub/contracts'
+import { type CustomerFilter, type CustomerId, type CustomerSummary } from '@creatorhub/contracts'
 import { desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm'
 
 import { insertValues, scoped, type RepositoryScope } from '../repository.js'
@@ -80,7 +76,7 @@ export async function upsertCustomer(
         email: normalizedEmail,
         name: input.name ?? null,
         phone: input.phone ?? null,
-        metadata: (input.metadata ?? {}),
+        metadata: input.metadata ?? {},
         totalSpend: input.incrementSpend ?? 0n,
         ordersCount: input.incrementOrders ?? (input.incrementSpend ? 1 : 0),
         firstSeenAt: new Date(),
@@ -217,8 +213,7 @@ export async function getCustomerSummary(scope: RepositoryScope): Promise<Custom
   const totalCustomers = row?.totalCustomers ?? 0
   const totalLifetimeValue = BigInt(row?.totalLifetimeValue ?? '0')
   const repeatCustomersCount = row?.repeatCustomersCount ?? 0
-  const averageOrderValue =
-    totalCustomers > 0 ? totalLifetimeValue / BigInt(totalCustomers) : 0n
+  const averageOrderValue = totalCustomers > 0 ? totalLifetimeValue / BigInt(totalCustomers) : 0n
 
   return {
     totalCustomers,

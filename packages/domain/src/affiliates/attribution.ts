@@ -41,10 +41,7 @@ export type AttributionDecision = {
  *
  * Formula: (saleAmountMinor * bps) / 10000
  */
-export function calculateCommissionMinor(
-  saleAmountMinor: bigint,
-  commissionBps: number,
-): bigint {
+export function calculateCommissionMinor(saleAmountMinor: bigint, commissionBps: number): bigint {
   if (saleAmountMinor <= 0n || commissionBps <= 0) {
     return 0n
   }
@@ -62,11 +59,7 @@ export function isSelfReferral(buyerEmail: string, affiliateEmail: string): bool
 /**
  * Checks whether an affiliate click is within the active attribution cookie window.
  */
-export function isClickWithinWindow(
-  clickDate: Date,
-  orderDate: Date,
-  windowDays: number,
-): boolean {
+export function isClickWithinWindow(clickDate: Date, orderDate: Date, windowDays: number): boolean {
   const clickMs = clickDate.getTime()
   const orderMs = orderDate.getTime()
   if (orderMs < clickMs) {

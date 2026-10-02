@@ -27,10 +27,7 @@ export function calculateNetSales(
  * Calculates refund rate in basis points (100 bps = 1.00%).
  * Returns 0 if gross sales is 0.
  */
-export function calculateRefundRateBps(
-  grossSalesMinor: bigint,
-  refundsMinor: bigint,
-): number {
+export function calculateRefundRateBps(grossSalesMinor: bigint, refundsMinor: bigint): number {
   if (grossSalesMinor <= 0n || refundsMinor <= 0n) {
     return 0
   }
@@ -44,10 +41,7 @@ export function calculateRefundRateBps(
  * Calculates conversion rate in basis points from unique visitors to orders.
  * Returns 0 if visitors count is 0.
  */
-export function calculateConversionRateBps(
-  visitorsCount: number,
-  ordersCount: number,
-): number {
+export function calculateConversionRateBps(visitorsCount: number, ordersCount: number): number {
   if (visitorsCount <= 0 || ordersCount <= 0) {
     return 0
   }
@@ -61,10 +55,7 @@ export function calculateConversionRateBps(
  * Calculates Average Order Value (AOV) in minor units.
  * Returns 0n if orders count is 0.
  */
-export function calculateAverageOrderValue(
-  grossSalesMinor: bigint,
-  ordersCount: number,
-): bigint {
+export function calculateAverageOrderValue(grossSalesMinor: bigint, ordersCount: number): bigint {
   if (ordersCount <= 0 || grossSalesMinor <= 0n) {
     return 0n
   }

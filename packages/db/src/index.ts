@@ -200,24 +200,14 @@ export type {
 export * as analytics from './repositories/analytics.js'
 
 export * as aiUsageRepo from './repositories/ai-usage.js'
-export type {
-  RecordAiUsageInput,
-} from './repositories/ai-usage.js'
-export type {
-  AiUsageRow,
-  InsertAiUsageRow,
-} from './schema/ai.js'
+export type { RecordAiUsageInput } from './repositories/ai-usage.js'
+export type { AiUsageRow, InsertAiUsageRow } from './schema/ai.js'
 
 export * as beneficiaryAccountsRepo from './repositories/beneficiary-accounts.js'
-export type {
-  CreateBeneficiaryAccountData,
-} from './repositories/beneficiary-accounts.js'
+export type { CreateBeneficiaryAccountData } from './repositories/beneficiary-accounts.js'
 
 export * as payoutsRepo from './repositories/payouts.js'
-export type {
-  PayoutWithBeneficiary,
-  RequestPayoutData,
-} from './repositories/payouts.js'
+export type { PayoutWithBeneficiary, RequestPayoutData } from './repositories/payouts.js'
 export type {
   BeneficiaryAccount,
   NewBeneficiaryAccount,

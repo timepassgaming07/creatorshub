@@ -16,5 +16,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params, searchParams }: Props) {
   const { subdomain } = await params
   const { preview, ref } = await searchParams
-  return <StoreHomeRoute prefix="s" host={decodeURIComponent(subdomain)} preview={preview} referral={ref} />
+  return (
+    <StoreHomeRoute
+      prefix="s"
+      host={decodeURIComponent(subdomain)}
+      preview={preview}
+      referral={ref}
+    />
+  )
 }

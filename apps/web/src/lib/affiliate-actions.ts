@@ -163,10 +163,7 @@ export async function setAffiliateStatusAction(
   rawAffiliateId: string,
   status: 'approved' | 'suspended',
 ): Promise<ActionResult<{ readonly status: string }>> {
-  if (
-    !z.uuid().safeParse(rawAffiliateId).success ||
-    !['approved', 'suspended'].includes(status)
-  ) {
+  if (!z.uuid().safeParse(rawAffiliateId).success || !['approved', 'suspended'].includes(status)) {
     return { ok: false, error: 'That affiliate does not exist.' }
   }
   return memberAction(
