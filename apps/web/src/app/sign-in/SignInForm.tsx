@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Fingerprint } from 'lucide-react'
@@ -22,7 +22,7 @@ export function SignInForm() {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [error, setError] = useState<string | null>(params.get('reset') === '1' ? null : null)
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     if (!email.trim() || !password) {
@@ -45,7 +45,7 @@ export function SignInForm() {
     setPasskeyLoading(true)
     try {
       const result = await signIn.passkey()
-      if (result?.error) {
+      if (result.error) {
         setError('Your passkey was not accepted. Try again, or use your password.')
         setPasskeyLoading(false)
         return
@@ -82,7 +82,7 @@ export function SignInForm() {
           label="Email"
           type="email"
           name="email"
-          autoComplete="email username webauthn"
+          autoComplete="email webauthn"
           required
           value={email}
           onChange={(e) => {

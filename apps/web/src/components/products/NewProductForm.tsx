@@ -4,7 +4,7 @@
  * Step one of a product: what it is and what it costs. The file, images, and
  * publishing happen on the product page this redirects to.
  */
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Gift, Tag } from 'lucide-react'
 import { Button, Input } from '@creatorhub/ui'
@@ -35,7 +35,7 @@ export function NewProductForm() {
   const [error, setError] = useState<string | null>(null)
   const symbol = workspace.currency === 'INR' ? '₹' : '$'
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     if (title.trim().length < 2) {
@@ -123,9 +123,9 @@ export function NewProductForm() {
                     className="sr-only"
                   />
                   <option.icon className={cn('mt-0.5 size-5 shrink-0', pricing === option.value ? 'text-accent' : 'text-content-tertiary')} aria-hidden="true" />
-                  <span>
-                    <span className="block font-medium">{option.title}</span>
-                    <span className="mt-0.5 block text-caption text-content-secondary">{option.body}</span>
+                  <span className="font-medium">
+                    {option.title}
+                    <span className="mt-0.5 block text-caption font-normal text-content-secondary">{option.body}</span>
                   </span>
                 </label>
               ))}

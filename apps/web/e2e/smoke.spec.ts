@@ -13,7 +13,9 @@ import { expect, test } from '@playwright/test'
 
 test('the app serves and renders its heading', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('h1')).toBeVisible()
+  // The example store in the hero renders its own h1 inside an inert preview,
+  // so the page heading is found by its role and name.
+  await expect(page.getByRole('heading', { level: 1, name: /your audience/i })).toBeVisible()
   await expect(page.getByText('CreatorHub').first()).toBeVisible()
 })
 
@@ -51,7 +53,7 @@ test('design tokens are applied, not just imported', async ({ page }) => {
   expect(background).not.toBe('')
 })
 
-test('pricing section renders creator-friendly zero-tax tier', async ({ page }) => {
-  await page.goto('/')
+test('pricing shows a free plan to start on', async ({ page }) => {
+  await page.goto('/pricing')
   await expect(page.getByText(/₹0/i).first()).toBeVisible()
 })

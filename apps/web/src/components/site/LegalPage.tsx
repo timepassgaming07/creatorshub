@@ -41,11 +41,11 @@ export function legalEntity(): {
 export function ContactLine() {
   const { email } = legalEntity()
   return email ? (
-    <a href={`mailto:${email}`} className="font-medium text-accent hover:underline">
+    <a href={`mailto:${email}`} className="font-medium text-accent underline underline-offset-2">
       {email}
     </a>
   ) : (
-    <a href="/legal/contact" className="font-medium text-accent hover:underline">
+    <a href="/legal/contact" className="font-medium text-accent underline underline-offset-2">
       our contact page
     </a>
   )

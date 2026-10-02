@@ -66,7 +66,7 @@ export default function TermsPage() {
       <h2>Refunds and disputes</h2>
       <p>
         Creators set their own refund terms, within our{' '}
-        <a href="/legal/refunds" className="text-accent hover:underline">
+        <a href="/legal/refunds" className="text-accent underline underline-offset-2">
           refund policy
         </a>
         . A refund or a chargeback is deducted from the creator&rsquo;s balance, and any affiliate

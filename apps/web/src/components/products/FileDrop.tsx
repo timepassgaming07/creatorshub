@@ -29,7 +29,7 @@ type Item = {
 export function FileDrop({
   workspaceId,
   productId,
-  role,
+  assetRole,
   accept,
   multiple = true,
   label,
@@ -39,7 +39,7 @@ export function FileDrop({
 }: {
   readonly workspaceId: string
   readonly productId: string
-  readonly role: Role
+  readonly assetRole: Role
   readonly accept?: string
   readonly multiple?: boolean
   readonly label: string
@@ -70,7 +70,7 @@ export function FileDrop({
           },
         )
 
-        const attached = await attachProductAssetAction(workspaceId, productId, assetId, role)
+        const attached = await attachProductAssetAction(workspaceId, productId, assetId, assetRole)
         if (!attached.success) throw new Error(attached.error.detail)
 
         update(key, { state: 'done' })
@@ -82,7 +82,7 @@ export function FileDrop({
         })
       }
     },
-    [workspaceId, productId, role, onUploaded],
+    [workspaceId, productId, assetRole, onUploaded],
   )
 
   function accept_(files: FileList | null) {

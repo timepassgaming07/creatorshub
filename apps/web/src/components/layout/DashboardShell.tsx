@@ -140,7 +140,8 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 
 type Command = { readonly label: string; readonly hint?: string; readonly run: () => void; readonly icon: LucideIcon }
 
-function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: () => void; commands: readonly Command[] }) {
+// Mounted only while open, so every opening starts with an empty query.
+function CommandPalette({ onClose, commands }: { onClose: () => void; commands: readonly Command[] }) {
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -151,25 +152,23 @@ function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: (
   }, [commands, query])
 
   useEffect(() => {
-    if (open) {
-      setQuery('')
-      setIndex(0)
-      window.setTimeout(() => inputRef.current?.focus(), 10)
-    }
-  }, [open])
-
-  if (!open) return null
+    inputRef.current?.focus()
+  }, [])
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[14vh] backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[14vh] backdrop-blur-sm">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Close command palette"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-subtle bg-surface-overlay shadow-elevation-3"
-        onClick={(e) => {
-          e.stopPropagation()
-        }}
+        className="relative w-full max-w-lg overflow-hidden rounded-xl border border-border-subtle bg-surface-overlay shadow-elevation-3"
       >
         <div className="flex items-center gap-3 border-b border-border-subtle px-4">
           <Search className="size-4 text-content-tertiary" aria-hidden="true" />
@@ -277,10 +276,14 @@ export function DashboardShell({
     }
   }, [])
 
-  useEffect(() => {
+  // Navigating closes the drawer and the account menu. Adjusting state during
+  // render, rather than in an effect, avoids a second render pass.
+  const [lastPathname, setLastPathname] = useState(pathname)
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname)
     setMobileOpen(false)
     setMenuOpen(false)
-  }, [pathname])
+  }
 
   const go = useCallback((href: string) => () => {
     router.push(href)
@@ -471,8 +474,11 @@ export function DashboardShell({
 
         {mobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label="Close navigation"
+              className="absolute inset-0 cursor-default bg-black/40 backdrop-blur-sm"
               onClick={() => {
                 setMobileOpen(false)
               }}
@@ -523,13 +529,14 @@ export function DashboardShell({
           </main>
         </div>
 
-        <CommandPalette
-          open={paletteOpen}
-          onClose={() => {
-            setPaletteOpen(false)
-          }}
-          commands={commands}
-        />
+        {paletteOpen && (
+          <CommandPalette
+            onClose={() => {
+              setPaletteOpen(false)
+            }}
+            commands={commands}
+          />
+        )}
       </div>
     </WorkspaceContext.Provider>
   )

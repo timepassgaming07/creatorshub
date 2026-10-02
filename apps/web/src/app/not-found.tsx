@@ -12,7 +12,7 @@ export default function NotFound() {
       className="flex min-h-dvh flex-col items-center justify-center bg-surface-base px-5 text-center"
     >
       <Logo />
-      <p className="mt-12 font-display text-[clamp(5rem,16vw,9rem)] leading-none text-content-tertiary/50">
+      <p className="mt-12 font-display text-[clamp(5rem,16vw,9rem)] leading-none text-content-tertiary">
         404
       </p>
       <h1 className="mt-4 text-[clamp(1.5rem,3vw,2rem)] font-semibold tracking-tight">

@@ -239,7 +239,7 @@ export default function LandingPage() {
                   </div>
                 </div>
               </figure>
-              <figcaption className="mt-3 text-center text-caption text-content-tertiary">
+              <figcaption className="mt-3 text-center text-caption text-content-secondary">
                 An example store
               </figcaption>
             </div>
@@ -322,7 +322,7 @@ export default function LandingPage() {
             <ol data-reveal-group className="mt-12 grid gap-8 md:grid-cols-3">
               {STEPS.map((step, index) => (
                 <li key={step.title} className="relative">
-                  <span className="font-display text-[3.5rem] leading-none text-content-tertiary/60">
+                  <span className="font-display text-[3.5rem] leading-none text-content-tertiary">
                     0{index + 1}
                   </span>
                   <h3 className="mt-3 text-[17px] font-semibold">{step.title}</h3>

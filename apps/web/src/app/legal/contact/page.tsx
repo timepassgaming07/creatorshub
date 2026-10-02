@@ -21,7 +21,7 @@ export default function ContactPage() {
       {email ? (
         <p>
           Email{' '}
-          <a href={`mailto:${email}`} className="font-medium text-accent hover:underline">
+          <a href={`mailto:${email}`} className="font-medium text-accent underline underline-offset-2">
             {email}
           </a>
           . We reply within two working days.

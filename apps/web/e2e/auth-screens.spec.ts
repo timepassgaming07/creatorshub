@@ -10,7 +10,7 @@ test.describe('authentication screens', () => {
   test('sign-in page renders title, inputs, and links', async ({ page }) => {
     await page.goto('/sign-in')
 
-    await expect(page.locator('h1')).toHaveText(/Sign in to CreatorHub/i)
+    await expect(page.locator('h1')).toHaveText(/Welcome back/i)
     await expect(page.locator('input[type="email"]')).toBeVisible()
     await expect(page.locator('input[type="password"]')).toBeVisible()
     await expect(page.locator('button[type="submit"]')).toHaveText(/Sign in/i)
@@ -26,7 +26,7 @@ test.describe('authentication screens', () => {
     await expect(page.locator('input[name="name"]')).toBeVisible()
     await expect(page.locator('input[type="email"]')).toBeVisible()
     await expect(page.locator('input[name="password"]')).toBeVisible()
-    await expect(page.getByText(/Must be at least 12 characters/i)).toBeVisible()
+    await expect(page.getByText(/At least 12 characters/i)).toBeVisible()
     await expect(page.locator('button[type="submit"]')).toBeVisible()
 
     const signInLink = page.locator('a[href="/sign-in"]').first()
@@ -42,13 +42,13 @@ test.describe('authentication screens', () => {
     await expect(page).toHaveURL(/.*\/sign-in/)
   })
 
-  test('workspace creation page renders form controls', async ({ page }) => {
+  test('workspace creation asks a signed-out visitor to sign in first, and comes back after', async ({
+    page,
+  }) => {
     await page.goto('/workspaces/new')
 
-    await expect(page.locator('h1')).toHaveText(/Name your creative store|Create your workspace/i)
-    await expect(page.locator('input[placeholder*="Acme"]')).toBeVisible()
-    await expect(page.getByText(/\.creatorhub\.(store|com)/i)).toBeVisible()
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
+    await expect(page).toHaveURL(/\/sign-in\?redirect=(%2F|\/)workspaces(%2F|\/)new/)
+    await expect(page.locator('h1')).toHaveText(/Welcome back/i)
   })
 
   test('workspace detail page shows not-found state or redirects when unauthenticated', async ({ page }) => {

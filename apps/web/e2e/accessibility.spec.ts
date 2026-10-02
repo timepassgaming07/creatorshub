@@ -17,10 +17,17 @@ const PAGES = [
   { path: '/sign-in', name: 'sign-in' },
   { path: '/sign-up', name: 'sign-up' },
   { path: '/workspaces/new', name: 'new-workspace' },
+  { path: '/pricing', name: 'pricing' },
+  { path: '/legal/terms', name: 'terms' },
+  { path: '/no-such-page', name: 'not-found' },
 ]
 
 for (const page_ of PAGES) {
   test(`${page_.name} has no detectable accessibility violations @a11y`, async ({ page }) => {
+    // Axe measures one frame. Entrance animations fade text in, and a frame
+    // caught mid-fade reports contrast no reader ever sits on. Reduced motion
+    // renders the settled page, and proves content is visible without motion.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(page_.path)
 
     const results = await new AxeBuilder({ page })
@@ -35,7 +42,7 @@ for (const page_ of PAGES) {
   test(`${page_.name} passes in dark mode @a11y`, async ({ page }) => {
     // Both themes are verified independently. Dark mode contrast is re-tuned
     // rather than derived, so passing in light says nothing about dark.
-    await page.emulateMedia({ colorScheme: 'dark' })
+    await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
     await page.goto(page_.path)
 
     const results = await new AxeBuilder({ page })

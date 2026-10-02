@@ -161,7 +161,7 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
       title: variantTitle.trim(),
       priceOverride: minor,
       position: data.variants.length,
-    } as never)
+    })
     setAddingVariant(false)
     if (!result.success) {
       toast.show({ title: 'Could not add option', description: result.error.detail, variant: 'critical' })
@@ -317,7 +317,7 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
             <FileDrop
               workspaceId={workspace.id}
               productId={product.id}
-              role="deliverable"
+              assetRole="deliverable"
               label="Drop files here, or browse"
               hint="ZIP, PDF, video, presets, anything"
               onUploaded={refresh}
@@ -347,7 +347,7 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
                   <FileDrop
                     workspaceId={workspace.id}
                     productId={product.id}
-                    role="cover_image"
+                    assetRole="cover_image"
                     accept="image/png,image/jpeg,image/webp,image/avif"
                     multiple={false}
                     label="Add cover"
@@ -384,7 +384,7 @@ export function ProductEditor({ data, justCreated }: { readonly data: ProductEdi
                 <FileDrop
                   workspaceId={workspace.id}
                   productId={product.id}
-                  role="gallery"
+                  assetRole="gallery"
                   accept="image/png,image/jpeg,image/webp,image/avif"
                   label="Add gallery images"
                   hint="Screenshots, previews, examples"
