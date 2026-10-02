@@ -20,14 +20,14 @@ import {
   type WorkspaceRole,
 } from '@creatorhub/domain'
 
-import { getAuthPool } from './auth'
+import { getAuthPool, rememberDefaultWorkspace } from './auth'
+import { getEmailService } from './email'
+import { appUrl } from './env'
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { generateUuidV7 } from './uuidv7'
+import { auditOptions } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type ActionError = {
   readonly code: string
@@ -131,6 +131,9 @@ export async function createWorkspaceAction(
         metadata: { name, slug },
       })
     })
+
+    // Sign-in returns the creator here from now on.
+    await rememberDefaultWorkspace(session.user.id, newWorkspaceId).catch(() => undefined)
 
     return {
       success: true,
@@ -388,7 +391,14 @@ export async function inviteMemberAction(
 
   try {
     const db = getDatabase()
-    return await db.withWorkspace(context, async (tx) => {
+    const result = await db.withWorkspace(context, async (tx): Promise<
+      | { success: false; error: ActionError }
+      | {
+          success: true
+          data: { memberId: string }
+          invite: { targetUserId: string; isNewUser: boolean; workspaceName: string }
+        }
+    > => {
       const scope = { tx, context }
 
       const actorMember = await workspaceMembers.findMemberByUserId(scope, session.userId)
@@ -430,12 +440,14 @@ export async function inviteMemberAction(
         .query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email])
         .then((r) => r.rows[0])
 
+      let isNewUser = false
       if (!targetUser) {
         const created = await pool.query<{ id: string }>(
           'INSERT INTO users (email, name) VALUES ($1, $2) RETURNING id',
           [email, email.split('@')[0]],
         )
         targetUser = created.rows[0]
+        isNewUser = true
       }
 
       if (!targetUser) {
@@ -481,11 +493,41 @@ export async function inviteMemberAction(
         metadata: { email, role: input.role },
       })
 
+      const ws = await workspaces.findCurrentWorkspace(scope)
       return {
-        success: true,
+        success: true as const,
         data: { memberId },
+        invite: {
+          targetUserId: targetUser.id,
+          isNewUser,
+          workspaceName: ws?.name ?? 'a workspace',
+        },
       }
     })
+
+    if (!result.success) return result
+
+    // After commit: point a brand-new user at this workspace, then email them.
+    if (result.invite.isNewUser) {
+      await rememberDefaultWorkspace(result.invite.targetUserId, targetWsId).catch(() => undefined)
+    }
+    const next = `/workspaces/${targetWsId}`
+    const url = result.invite.isNewUser
+      ? `${appUrl()}/forgot-password?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`
+      : `${appUrl()}/sign-in?redirect=${encodeURIComponent(next)}`
+    await getEmailService()
+      .sendMemberInvite({
+        to: email,
+        workspaceName: result.invite.workspaceName,
+        inviterName: session.user.name ?? session.user.email,
+        role: input.role,
+        url,
+      })
+      .catch((error: unknown) => {
+        console.error('[invite] email failed', error instanceof Error ? error.message : error)
+      })
+
+    return { success: true, data: result.data }
   } catch (err) {
     return {
       success: false,

@@ -1,56 +1,48 @@
 /**
- * Server Actions for Digital Fulfillment & Asset Downloads (Slice 6).
+ * Buyer-side digital fulfilment: the download page and the download itself.
  *
  * Responsibilities:
- * 1. Resolve download grant by SHA-256 token hash and establish tenant-scoped context.
- * 2. Validate entitlement state (active), expiration date, and download use caps.
- * 3. Atomically consume a download credit, record the download audit event, and return the secure delivery stream or presigned URL.
+ * 1. Parse a download token, open its workspace, and find the grant by hash
+ *    under both isolation layers.
+ * 2. Report what the buyer can download and how many downloads remain.
+ * 3. Atomically consume one download and hand back a short-lived storage URL.
+ *
+ * Not a server-action module: these run from server components and the
+ * download route only. Consuming a download is a side effect that should never
+ * be callable from an arbitrary client-side action.
  */
-'use server'
-
 import { createHash } from 'node:crypto'
-import {
-  orderId,
-  productId,
-  requestId,
-  userId,
-  workspaceContext,
-  workspaceId,
-} from '@creatorhub/contracts'
-import {
-  catalogue,
-  fulfillment,
-  orders,
-  workspaces,
-  type ConsumeGrantResult,
-} from '@creatorhub/db'
+import { productId, requestId, workspaceContext, workspaceId } from '@creatorhub/contracts'
+import { catalogue, fulfillment, storefronts, workspaces } from '@creatorhub/db'
+import { isAssetDeliverable } from '@creatorhub/storage'
 
 import { getDatabase } from './db'
+import { parseDownloadToken } from './download-token'
+import { auditSalt, storefrontUrl } from './env'
 import { getStorageDriver } from './storage'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
+export type FulfillmentDetails = {
+  readonly token: string
+  readonly productTitle: string
+  readonly productDescription: string | null
+  readonly workspaceName: string
+  readonly storefrontUrl: string | null
+  readonly originalFilename: string
+  readonly mimeType: string
+  readonly byteSize: string
+  readonly maxDownloads: number
+  readonly downloadCount: number
+  readonly remainingDownloads: number
+  readonly expiresAt: string
+  readonly isExpired: boolean
+  readonly isRevoked: boolean
+  readonly isExhausted: boolean
+  readonly isPendingScan: boolean
+  readonly canDownload: boolean
+}
 
 export type FulfillmentDetailsResult =
-  | {
-      readonly ok: true
-      readonly data: {
-        readonly token: string
-        readonly productTitle: string
-        readonly workspaceName: string
-        readonly originalFilename: string
-        readonly mimeType: string
-        readonly byteSize: string
-        readonly maxDownloads: number
-        readonly downloadCount: number
-        readonly remainingDownloads: number
-        readonly expiresAt: string
-        readonly isExpired: boolean
-        readonly isRevoked: boolean
-        readonly isExhausted: boolean
-        readonly canDownload: boolean
-      }
-    }
+  | { readonly ok: true; readonly data: FulfillmentDetails }
   | {
       readonly ok: false
       readonly error: {
@@ -59,208 +51,155 @@ export type FulfillmentDetailsResult =
       }
     }
 
-export type InitiateDownloadResult =
+export type ConsumeDownloadResult =
   | {
       readonly ok: true
-      readonly data: {
-        readonly downloadUrl?: string | undefined
-        readonly originalFilename: string
-        readonly mimeType: string
-        readonly byteSize: string
-        readonly storageKey: string
-      }
+      readonly data: { readonly downloadUrl: string; readonly originalFilename: string }
     }
   | {
       readonly ok: false
       readonly error: {
-        readonly code: 'NOT_FOUND' | 'EXPIRED' | 'EXHAUSTED' | 'REVOKED' | 'ERROR'
+        readonly code: 'NOT_FOUND' | 'EXPIRED' | 'EXHAUSTED' | 'REVOKED' | 'UNAVAILABLE' | 'ERROR'
         readonly message: string
       }
     }
 
-/**
- * Retrieves public download portal details for a given raw download token.
- */
-export async function getFulfillmentDetailsAction(
-  token: string,
-): Promise<FulfillmentDetailsResult> {
+function contextFor(rawWorkspaceId: string, label: string) {
+  return workspaceContext({
+    workspaceId: workspaceId(rawWorkspaceId),
+    requestId: requestId(`req-${label}-${Date.now().toString(36)}`),
+  })
+}
+
+export async function getFulfillmentDetails(token: string): Promise<FulfillmentDetailsResult> {
+  const parsed = parseDownloadToken(token)
+  if (!parsed) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'This download link is not complete. Copy the whole link from your email.',
+      },
+    }
+  }
+
   try {
-    if (!token || token.trim().length === 0) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_TOKEN', message: 'Download token is required.' },
-      }
-    }
-
-    const tokenHash = createHash('sha256').update(token.trim()).digest('hex')
-    const db = getDatabase()
-    const resolved = await db.resolveDownloadGrantByTokenHash(tokenHash)
-
-    if (!resolved) {
-      return {
-        ok: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'This download link does not exist or has expired.',
-        },
-      }
-    }
-
-    const context = workspaceContext({
-      workspaceId: resolved.workspaceId,
-      actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-      requestId: requestId(`req-view-${resolved.id.slice(0, 8)}`),
-    })
-
-    return await db.withWorkspace(context, async (tx) => {
+    const context = contextFor(parsed.workspaceId, 'dl-view')
+    return await getDatabase().withWorkspace(context, async (tx) => {
       const scope = { tx, context }
-      const grantDetails = await fulfillment.findDownloadGrantByTokenHash(scope, tokenHash)
-
-      if (!grantDetails) {
+      const found = await fulfillment.findDownloadGrantByTokenHash(scope, parsed.tokenHash)
+      if (!found) {
         return {
-          ok: false,
+          ok: false as const,
           error: {
-            code: 'NOT_FOUND',
-            message: 'Download link details could not be found.',
+            code: 'NOT_FOUND' as const,
+            message:
+              'We could not find this download. The link may have been replaced by a newer one.',
           },
         }
       }
 
-      const { grant, asset, entitlement } = grantDetails
+      const { grant, asset, entitlement } = found
       const ws = await workspaces.findCurrentWorkspace(scope)
-      const prod = await catalogue.findProductById(scope, productId(entitlement.productId))
+      const store = await storefronts.findStorefrontByWorkspaceId(scope)
+      const product = await catalogue.findProductById(scope, productId(entitlement.productId))
 
-      const now = new Date()
-      const isExpired = grant.expiresAt.getTime() <= now.getTime()
+      const now = Date.now()
+      const isExpired = grant.expiresAt.getTime() <= now
       const isRevoked = entitlement.status !== 'active'
       const isExhausted = grant.downloadCount >= grant.maxDownloads
-      const remainingDownloads = Math.max(0, grant.maxDownloads - grant.downloadCount)
-      const canDownload = !isExpired && !isRevoked && !isExhausted
+      const isPendingScan = !isAssetDeliverable(asset)
 
       return {
-        ok: true,
+        ok: true as const,
         data: {
           token: token.trim(),
-          productTitle: prod?.title ?? asset.originalFilename,
-          workspaceName: ws?.name ?? 'CreatorHub',
+          productTitle: product?.title ?? asset.originalFilename,
+          productDescription: product?.description ?? null,
+          workspaceName: store?.title ?? ws?.name ?? 'CreatorHub',
+          storefrontUrl: store?.status === 'published' ? storefrontUrl(store.subdomain) : null,
           originalFilename: asset.originalFilename,
           mimeType: asset.mimeType,
           byteSize: asset.byteSize.toString(),
           maxDownloads: grant.maxDownloads,
           downloadCount: grant.downloadCount,
-          remainingDownloads,
+          remainingDownloads: Math.max(0, grant.maxDownloads - grant.downloadCount),
           expiresAt: grant.expiresAt.toISOString(),
           isExpired,
           isRevoked,
           isExhausted,
-          canDownload,
+          isPendingScan,
+          canDownload: !isExpired && !isRevoked && !isExhausted && !isPendingScan,
         },
       }
     })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to retrieve download details'
+  } catch (error) {
+    console.error('[fulfillment] details failed', error instanceof Error ? error.message : error)
     return {
       ok: false,
-      error: { code: 'ERROR', message },
+      error: {
+        code: 'ERROR',
+        message: 'Something went wrong loading this download. Try again in a moment.',
+      },
     }
   }
 }
 
-/**
- * Atomically consumes a download grant and provides the asset storage delivery target.
- */
-export async function consumeDownloadAction(
+export async function consumeDownload(
   token: string,
-  options: {
-    readonly ipAddress?: string | null | undefined
-    readonly userAgent?: string | null | undefined
-  } = {},
-): Promise<InitiateDownloadResult> {
+  client: { readonly ipAddress?: string | null; readonly userAgent?: string | null } = {},
+): Promise<ConsumeDownloadResult> {
+  const parsed = parseDownloadToken(token)
+  if (!parsed) {
+    return { ok: false, error: { code: 'NOT_FOUND', message: 'This download link is not valid.' } }
+  }
+
+  const ipHash = client.ipAddress
+    ? createHash('sha256').update(`${client.ipAddress}:${auditSalt()}`).digest('hex')
+    : null
+
   try {
-    if (!token || token.trim().length === 0) {
-      return {
-        ok: false,
-        error: { code: 'NOT_FOUND', message: 'Download token is required.' },
-      }
-    }
-
-    const tokenHash = createHash('sha256').update(token.trim()).digest('hex')
-    const db = getDatabase()
-    const resolved = await db.resolveDownloadGrantByTokenHash(tokenHash)
-
-    if (!resolved) {
-      return {
-        ok: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Download link is invalid or does not exist.',
-        },
-      }
-    }
-
-    const ipHash = options.ipAddress
-      ? createHash('sha256')
-          .update(options.ipAddress + AUDIT_SALT)
-          .digest('hex')
-      : null
-
-    const context = workspaceContext({
-      workspaceId: resolved.workspaceId,
-      actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-      requestId: requestId(`req-dl-${resolved.id.slice(0, 8)}`),
-    })
-
-    return await db.withWorkspace(context, async (tx) => {
+    const context = contextFor(parsed.workspaceId, 'dl')
+    const consumed = await getDatabase().withWorkspace(context, async (tx) => {
       const scope = { tx, context }
-
-      const consumeResult: ConsumeGrantResult = await fulfillment.consumeDownloadGrant(scope, {
-        tokenHash,
-        ipHash,
-        userAgent: options.userAgent ?? null,
-      })
-
-      if (!consumeResult.ok) {
+      // Checked before consuming, so a file still being scanned does not burn a download.
+      const peek = await fulfillment.findDownloadGrantByTokenHash(scope, parsed.tokenHash)
+      if (peek && !isAssetDeliverable(peek.asset)) {
         return {
-          ok: false,
-          error: {
-            code: consumeResult.code,
-            message: consumeResult.message,
-          },
+          ok: false as const,
+          code: 'UNAVAILABLE' as const,
+          message: 'This file is still being checked for safety. Try again in a few minutes.',
         }
       }
-
-      const { asset } = consumeResult
-      const storageDriver = getStorageDriver()
-
-      // Generate presigned download URL if supported by storage driver (e.g. S3 / R2)
-      let downloadUrl: string | undefined = undefined
-      try {
-        const presigned = await storageDriver.generateDownloadUrl({
-          key: asset.storageKey,
-          expiresInSeconds: 300, // 5 minutes presigned URL
-          filename: asset.originalFilename,
-        })
-        downloadUrl = presigned.downloadUrl
-      } catch {
-        // Driver might be MemoryStorageDriver or local buffer driver
-      }
-
-      return {
-        ok: true,
-        data: {
-          downloadUrl,
-          originalFilename: asset.originalFilename,
-          mimeType: asset.mimeType,
-          byteSize: asset.byteSize.toString(),
-          storageKey: asset.storageKey,
-        },
-      }
+      return fulfillment.consumeDownloadGrant(scope, {
+        tokenHash: parsed.tokenHash,
+        ipHash,
+        userAgent: client.userAgent?.slice(0, 512) ?? null,
+      })
     })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Download failed'
+
+    if (!consumed.ok) {
+      return { ok: false, error: { code: consumed.code, message: consumed.message } }
+    }
+
+    const presigned = await getStorageDriver().generateDownloadUrl({
+      key: consumed.asset.storageKey,
+      filename: consumed.asset.originalFilename,
+      expiresInSeconds: 300,
+    })
+
+    return {
+      ok: true,
+      data: {
+        downloadUrl: presigned.downloadUrl,
+        originalFilename: consumed.asset.originalFilename,
+      },
+    }
+  } catch (error) {
+    console.error('[fulfillment] download failed', error instanceof Error ? error.message : error)
     return {
       ok: false,
-      error: { code: 'ERROR', message },
+      error: { code: 'ERROR', message: 'The download could not start. Try again in a moment.' },
     }
   }
 }

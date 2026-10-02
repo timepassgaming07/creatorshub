@@ -55,7 +55,22 @@ export type CspOptions = {
    * production, which the test asserts by building both and comparing.
    */
   readonly development?: boolean
+  /**
+   * Extra origins the browser may send requests to, such as the storage
+   * bucket a file is uploaded to directly. Each must be an exact origin.
+   */
+  readonly connectSources?: readonly string[]
 }
+
+/**
+ * Razorpay Checkout. checkout.js is loaded by the app's own trusted bundle, so
+ * `strict-dynamic` already admits it; the API calls and the payment iframe are
+ * named here because those directives have no such propagation.
+ */
+export const PAYMENT_ORIGINS = {
+  connect: ['https://api.razorpay.com', 'https://lumberjack.razorpay.com'],
+  frame: ['https://api.razorpay.com', 'https://checkout.razorpay.com'],
+} as const
 
 /**
  * Build the header value.
@@ -65,7 +80,7 @@ export type CspOptions = {
  * policy actually permits.
  */
 
-export function buildCsp({ nonce, development = false }: CspOptions): string {
+export function buildCsp({ nonce, development = false, connectSources = [] }: CspOptions): string {
   const scriptSrc = [
     "'self'",
     `'nonce-${nonce}'`,
@@ -114,12 +129,11 @@ export function buildCsp({ nonce, development = false }: CspOptions): string {
     // upload. https: because a creator's storefront shows their own images.
     ['img-src', ["'self'", 'data:', 'blob:', 'https:']],
     ['font-src', ["'self'", 'data:']],
-    // Same-origin only. Slice 5 adds the payment provider explicitly rather
-    // than opening this now for a request that does not exist yet.
-    ['connect-src', ["'self'"]],
-    // No frames at all until something needs one. A provider checkout iframe in
-    // slice 5 is a deliberate addition, not a default.
-    ['frame-src', ["'none'"]],
+    // Same origin, the payment provider's API, and any storage bucket the
+    // browser uploads to directly. Named origins only; never a scheme.
+    ['connect-src', ["'self'", ...PAYMENT_ORIGINS.connect, ...connectSources]],
+    // The provider's checkout iframe and nothing else.
+    ['frame-src', [...PAYMENT_ORIGINS.frame]],
     // Nothing may frame us. X-Frame-Options says the same to older browsers.
     ['frame-ancestors', ["'none'"]],
     ['form-action', ["'self'"]],

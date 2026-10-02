@@ -15,6 +15,9 @@ export type ServerSession = {
     readonly id: string
     readonly email: string
     readonly name?: string | null
+    readonly emailVerified?: boolean
+    /** A routing hint only. Verify membership before trusting it. */
+    readonly defaultWorkspaceId?: string | null
   }
 }
 
@@ -29,12 +32,16 @@ export async function getServerSession(): Promise<ServerSession | null> {
       return null
     }
 
+    const user = session.user as typeof session.user & { defaultWorkspaceId?: string | null }
+
     return {
-      userId: userId(session.user.id),
+      userId: userId(user.id),
       user: {
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        defaultWorkspaceId: user.defaultWorkspaceId ?? null,
       },
     }
   } catch {

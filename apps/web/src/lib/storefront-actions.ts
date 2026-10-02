@@ -38,10 +38,8 @@ import {
   type VerifyDomainOptions,
 } from './domain-verification'
 import { getServerSession } from './server-session'
+import { auditOptions } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type StorefrontActionResult<T> =
   { readonly success: true; readonly data: T } | { readonly success: false; readonly error: string }
@@ -695,7 +693,6 @@ export async function getPublicStorefrontDataBySubdomain(
     if (wsParsed.success) {
       const context = workspaceContext({
         workspaceId: wsParsed.data,
-        actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
         requestId: requestId(`req-prev-${randomUUID().slice(0, 8)}`),
       })
 
@@ -728,7 +725,6 @@ export async function getPublicStorefrontDataBySubdomain(
 
   const context = workspaceContext({
     workspaceId: resolved.workspaceId,
-    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: requestId(`req-pub-sub-${randomUUID().slice(0, 8)}`),
   })
 
@@ -767,7 +763,6 @@ export async function getPublicStorefrontDataByCustomDomain(
 
   const context = workspaceContext({
     workspaceId: resolved.workspaceId,
-    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: requestId(`req-pub-dom-${randomUUID().slice(0, 8)}`),
   })
 
@@ -807,7 +802,6 @@ export async function getPublicProductDetailBySubdomain(
     if (wsParsed.success) {
       const context = workspaceContext({
         workspaceId: wsParsed.data,
-        actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
         requestId: requestId(`req-prev-prod-${randomUUID().slice(0, 8)}`),
       })
 
@@ -850,7 +844,6 @@ export async function getPublicProductDetailBySubdomain(
 
   const context = workspaceContext({
     workspaceId: resolved.workspaceId,
-    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: requestId(`req-pub-prod-${randomUUID().slice(0, 8)}`),
   })
 
@@ -900,7 +893,6 @@ export async function getPublicProductDetailByCustomDomain(
 
   const context = workspaceContext({
     workspaceId: resolved.workspaceId,
-    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: requestId(`req-pub-cd-prod-${randomUUID().slice(0, 8)}`),
   })
 
@@ -970,7 +962,6 @@ export async function recordStorefrontEventAction(
 
   const context = workspaceContext({
     workspaceId: sf.workspaceId,
-    actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: requestId(`req-sf-event-${randomUUID().slice(0, 8)}`),
   })
 

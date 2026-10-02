@@ -11,13 +11,55 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { buildCsp, generateNonce } from './lib/csp'
 import { resolveHostname } from './lib/hostname'
+import {
+  formatReferralCookie,
+  isValidReferralCode,
+  REFERRAL_COOKIE,
+  REFERRAL_MAX_AGE_SECONDS,
+} from './lib/referral'
 
 /** The response header a browser reads the policy from. */
 export const CSP_HEADER = 'Content-Security-Policy'
 
+/**
+ * The origin a browser uploads to directly when a bucket is configured. Only
+ * that exact origin is added to connect-src, never a wildcard.
+ */
+function storageOrigin(): string[] {
+  const provider = process.env['STORAGE_PROVIDER'] ?? process.env['STORAGE_DRIVER']
+  if (provider !== 's3' && provider !== 'r2') return []
+  const endpoint = process.env['STORAGE_ENDPOINT']
+  const bucket = process.env['STORAGE_BUCKET']
+  try {
+    if (endpoint) return [new URL(endpoint).origin]
+    if (bucket) {
+      const region = process.env['STORAGE_REGION'] ?? 'us-east-1'
+      return [`https://${bucket}.s3.${region}.amazonaws.com`]
+    }
+  } catch {
+    // A malformed endpoint adds nothing rather than something unexpected.
+  }
+  return []
+}
+
+/** The storefront host a request is for, when it is a storefront request. */
+function storefrontHost(
+  pathname: string,
+  resolution: ReturnType<typeof resolveHostname>,
+): string | null {
+  if (resolution.type === 'subdomain') return resolution.subdomain
+  if (resolution.type === 'custom-domain') return resolution.domain
+  const match = /^\/(?:s|c)\/([^/]+)/.exec(pathname)
+  return match?.[1] ? decodeURIComponent(match[1]).toLowerCase() : null
+}
+
 export function middleware(request: NextRequest): NextResponse {
   const nonce = generateNonce()
-  const csp = buildCsp({ nonce, development: process.env.NODE_ENV === 'development' })
+  const csp = buildCsp({
+    nonce,
+    development: process.env.NODE_ENV === 'development',
+    connectSources: storageOrigin(),
+  })
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set(CSP_HEADER, csp)
@@ -60,6 +102,20 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   response.headers.set(CSP_HEADER, csp)
+
+  // An affiliate link: remember the referral for this store only.
+  const ref = request.nextUrl.searchParams.get('ref')
+  const refHost = ref && !isApi ? storefrontHost(pathname, resolution) : null
+  if (ref && refHost && isValidReferralCode(ref)) {
+    response.cookies.set(REFERRAL_COOKIE, formatReferralCookie(refHost, ref, new Date()), {
+      httpOnly: true,
+      secure: request.nextUrl.protocol === 'https:',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: REFERRAL_MAX_AGE_SECONDS,
+    })
+  }
+
   return response
 }
 

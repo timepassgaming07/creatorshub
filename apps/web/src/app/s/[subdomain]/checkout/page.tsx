@@ -1,55 +1,27 @@
-/**
- * Subdomain Branded Storefront Checkout Route (Slice 5 §5.11).
- * Route: /s/[subdomain]/checkout?productId=...
- */
-import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import { getPublicCheckoutProductData } from '@/lib/checkout-actions'
-import { CheckoutForm } from '@/components/checkout/CheckoutForm'
-import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
+/** Checkout on a subdomain storefront: /checkout?product=<slug>&variant=<id>&code=<discount> */
+import { CheckoutRoute, checkoutMetadata } from '@/components/store/pages'
 
-export const metadata: Metadata = {
-  title: 'Secure Checkout · Creator Store',
-  description: 'Complete your purchase.',
-  robots: { index: false, follow: false },
-}
+export const metadata = checkoutMetadata
 
-type SubdomainCheckoutPageProps = {
+type Props = {
   readonly params: Promise<{ readonly subdomain: string }>
   readonly searchParams: Promise<{
-    readonly productId?: string
-    readonly discount?: string
+    readonly product?: string
+    readonly variant?: string
+    readonly code?: string
   }>
 }
 
-export default async function SubdomainCheckoutPage({
-  params,
-  searchParams,
-}: SubdomainCheckoutPageProps) {
+export default async function Page({ params, searchParams }: Props) {
   const { subdomain } = await params
-  const sParams = await searchParams
-  const productId = sParams.productId
-
-  if (!productId) {
-    notFound()
-  }
-
-  const result = await getPublicCheckoutProductData({
-    productId,
-    subdomain,
-  })
-
-  if (!result.ok) {
-    notFound()
-  }
-
-  const data = result.data
-
+  const query = await searchParams
   return (
-    <StorefrontThemeProvider theme={data.storefront.themeConfig}>
-      <div className="min-h-screen bg-slate-50/50 py-6 sm:py-10">
-        <CheckoutForm checkoutData={data} initialDiscountCode={sParams.discount ?? ''} />
-      </div>
-    </StorefrontThemeProvider>
+    <CheckoutRoute
+      prefix="s"
+      host={decodeURIComponent(subdomain)}
+      productSlug={query.product}
+      variantId={query.variant}
+      discount={query.code}
+    />
   )
 }

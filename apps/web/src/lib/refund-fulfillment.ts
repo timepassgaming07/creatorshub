@@ -49,10 +49,8 @@ import {
   type DisputePostingParams,
   type RefundPostingParams,
 } from '@creatorhub/domain'
+import { auditOptions } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type FulfillRefundInput = {
   readonly orderId: string

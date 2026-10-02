@@ -1,152 +1,181 @@
 /**
- * Inbound Webhook Ingestion API Route (Slice 5 §5.7, §5.9).
+ * Inbound payment webhooks.
  *
- * Responsibilities:
- * 1. Receive signed webhook POST requests from payment providers (Razorpay, Stripe, Memory).
- * 2. Cryptographically verify signature using `PaymentProvider.verifyWebhook`.
- * 3. Enforce exactly-once deduplication via `webhooks.recordWebhookEvent`.
- * 4. Fulfill paid orders atomically with balanced ledger transactions on `payment.captured`.
- * 5. Track failed attempts on `payment.failed`.
- * 6. Return 200 OK fast to acknowledge delivery to the provider.
+ * POST /api/webhooks/razorpay
+ *
+ * 1. Refuse when no webhook secret is configured. There is no default secret:
+ *    a known fallback would let anyone sign a "payment captured" event.
+ * 2. Verify the signature over the raw body before parsing anything else.
+ * 3. Read the tenant from metadata this app attached to the provider order,
+ *    which the signature covers, and open that workspace. No cross-tenant
+ *    lookup is needed (ADR-0021).
+ * 4. Record the event and process it in one transaction. The unique
+ *    constraint on (workspace, provider, event id) makes redelivery a no-op.
+ * 5. Send receipt emails only after that transaction commits.
+ *
+ * A transient failure returns 500 so the provider retries; the transaction
+ * rolled back, so the retry starts clean. A permanent problem (an order that
+ * is not ours, an amount that does not match) is recorded and acknowledged.
  */
 import { randomUUID } from 'node:crypto'
-import {
-  paymentProviderSchema,
-  requestId,
-  userId,
-  workspaceContext,
-  workspaceId,
-} from '@creatorhub/contracts'
-import { webhooks } from '@creatorhub/db'
+import { orderId as toOrderId, requestId, workspaceContext, workspaceId } from '@creatorhub/contracts'
+import { orders, webhooks } from '@creatorhub/db'
+import { WebhookSignatureVerificationError } from '@creatorhub/payments'
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { getDatabase } from '../../../../lib/db'
-import { fulfillPaidOrder, processPaymentFailure } from '../../../../lib/order-fulfillment'
-import { getPaymentProvider } from '../../../../lib/payments'
-import { fulfillRefund } from '../../../../lib/refund-fulfillment'
+import { sendPurchaseEmails, type IssuedDownload } from '@/lib/delivery'
+import { webhookSecret } from '@/lib/env'
+import { getDatabase } from '@/lib/db'
+import {
+  fulfillPaidOrder,
+  PaymentAmountMismatchError,
+  processPaymentFailure,
+} from '@/lib/order-fulfillment'
+import { getPaymentProvider } from '@/lib/payments'
+import { fulfillRefund } from '@/lib/refund-fulfillment'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function ack(body: Record<string, unknown>, status = 200): NextResponse {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
+}
 
 export async function POST(
   request: NextRequest,
-  contextProps: { params: Promise<{ provider: string }> },
+  props: { params: Promise<{ provider: string }> },
 ): Promise<NextResponse> {
-  const { provider: rawProvider } = await contextProps.params
-  const providerParse = paymentProviderSchema.safeParse(rawProvider)
+  const { provider: providerName } = await props.params
+  const provider = getPaymentProvider()
 
-  if (!providerParse.success) {
-    return NextResponse.json(
-      { error: `Unsupported payment provider: ${rawProvider}` },
-      { status: 400 },
-    )
+  if (providerName !== provider.name) {
+    return ack({ error: 'Unknown webhook endpoint.' }, 404)
   }
 
-  const provider = providerParse.data
-  const paymentProvider = getPaymentProvider()
-  const db = getDatabase()
+  const secret = webhookSecret(providerName)
+  if (!secret) {
+    console.error(`[webhook] ${providerName.toUpperCase()}_WEBHOOK_SECRET is not set; refusing delivery.`)
+    return ack({ error: 'Webhook endpoint is not configured.' }, 503)
+  }
+
+  const rawBody = await request.text()
+  let verified
+  try {
+    verified = await provider.verifyWebhook({
+      rawPayload: rawBody,
+      signature:
+        request.headers.get('x-razorpay-signature') ??
+        request.headers.get('x-payment-signature') ??
+        '',
+      secret,
+      eventId: request.headers.get('x-razorpay-event-id') ?? undefined,
+    })
+  } catch (error) {
+    if (error instanceof WebhookSignatureVerificationError) {
+      return ack({ error: 'Signature verification failed.' }, 401)
+    }
+    return ack({ error: 'Malformed webhook payload.' }, 400)
+  }
+
+  const domainEvent = provider.toDomainEvent(verified)
+  if (
+    !verified.workspaceId ||
+    !UUID.test(verified.workspaceId) ||
+    !domainEvent ||
+    !('orderId' in domainEvent) ||
+    !UUID.test(domainEvent.orderId)
+  ) {
+    // Not an event about an order this app created, or not one it acts on.
+    return ack({ received: true, ignored: true })
+  }
+
+  const tenantId = verified.workspaceId
+  const context = workspaceContext({
+    workspaceId: workspaceId(tenantId),
+    requestId: requestId(`req-whk-${randomUUID().slice(0, 8)}`),
+  })
 
   try {
-    const rawBody = await request.text()
-
-    const signature =
-      request.headers.get('x-razorpay-signature') ??
-      request.headers.get('stripe-signature') ??
-      request.headers.get('x-payment-signature') ??
-      ''
-
-    const webhookSecret =
-      process.env[`${provider.toUpperCase()}_WEBHOOK_SECRET`] ??
-      process.env['PAYMENT_WEBHOOK_SECRET'] ??
-      'whsec_test_secret_32_chars_long_12345'
-
-    const verified = await paymentProvider.verifyWebhook({
-      rawPayload: rawBody,
-      signature,
-      secret: webhookSecret,
-    })
-
-    const payload = verified.payload
-    const targetWsId =
-      (payload['workspace_id'] as string | undefined) ??
-      (payload['workspaceId'] as string | undefined) ??
-      ((payload['notes'] as Record<string, unknown> | undefined)?.['workspace_id'] as
-        string | undefined) ??
-      '018f9e2b-7c5e-7a2e-8c3b-000000000001'
-
-    const wsId = workspaceId(targetWsId)
-    const context = workspaceContext({
-      workspaceId: wsId,
-      actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-      requestId: requestId(`req-whk-${randomUUID().slice(0, 8)}`),
-    })
-
-    const domainEvent = paymentProvider.toDomainEvent(verified)
-
-    const recordResult = await db.withWorkspace(context, async (tx) => {
+    const outcome = await getDatabase().withWorkspace(context, async (tx) => {
       const scope = { tx, context }
       const recorded = await webhooks.recordWebhookEvent(scope, {
-        provider,
+        provider: provider.name as 'razorpay' | 'memory',
         providerEventId: verified.id,
         eventType: verified.eventType,
         signatureVerified: true,
         payload: verified.payload,
       })
+      if (recorded.isDuplicate) return { duplicate: true as const }
 
-      // If duplicate, do not re-execute side effects
-      if (recorded.isDuplicate) {
-        return recorded
+      const order = await orders.findOrderById(scope, toOrderId(domainEvent.orderId))
+      if (!order) {
+        await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'ignored', {
+          error: 'Order not found in this workspace.',
+        })
+        return { duplicate: false as const }
       }
 
-      // Process domain events atomically in the same database transaction
-      if (domainEvent) {
+      let downloads: readonly IssuedDownload[] | null = null
+      try {
         if (domainEvent.type === 'payment.captured') {
-          if (domainEvent.orderId) {
-            await fulfillPaidOrder(scope, {
-              orderId: domainEvent.orderId,
-              provider: domainEvent.provider,
-              providerPaymentId: domainEvent.providerPaymentId,
-              amount: domainEvent.amount.amount,
-              currency: domainEvent.amount.currency,
-              method: domainEvent.method,
-              capturedAt: domainEvent.occurredAt,
-            })
-            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
-          }
+          const result = await fulfillPaidOrder(scope, {
+            orderId: order.id,
+            provider: domainEvent.provider as 'razorpay' | 'memory',
+            providerPaymentId: domainEvent.providerPaymentId,
+            amount: domainEvent.amount.amount,
+            currency: domainEvent.amount.currency,
+            method: domainEvent.method,
+            capturedAt: domainEvent.occurredAt,
+          })
+          if (!result.idempotentReplay) downloads = result.downloadGrants ?? []
         } else if (domainEvent.type === 'payment.failed') {
-          if (domainEvent.orderId) {
+          if (order.status !== 'paid') {
             await processPaymentFailure(scope, {
-              orderId: domainEvent.orderId,
-              provider: domainEvent.provider,
+              orderId: order.id,
+              provider: domainEvent.provider as 'razorpay' | 'memory',
               providerPaymentId: domainEvent.providerPaymentId,
               reason: domainEvent.reason,
               failedAt: domainEvent.occurredAt,
             })
-            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
           }
         } else if (domainEvent.type === 'refund.processed') {
-          if (domainEvent.orderId) {
-            await fulfillRefund(scope, {
-              orderId: domainEvent.orderId,
-              providerRefundId: domainEvent.providerRefundId,
-              amount: domainEvent.amount.amount,
-              currency: domainEvent.amount.currency,
-            })
-            await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed')
-          }
+          await fulfillRefund(scope, {
+            orderId: order.id,
+            providerRefundId: domainEvent.providerRefundId,
+            amount: domainEvent.amount.amount,
+            currency: domainEvent.amount.currency,
+          })
         }
+      } catch (error) {
+        if (error instanceof PaymentAmountMismatchError) {
+          await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'failed', {
+            error: error.message,
+          })
+          return { duplicate: false as const }
+        }
+        throw error
       }
 
-      return recorded
+      await webhooks.updateWebhookEventStatus(scope, recorded.event.id, 'processed', {
+        processedAt: new Date(),
+      })
+      return { duplicate: false as const, orderId: order.id, downloads }
     })
 
-    return NextResponse.json(
-      {
-        received: true,
-        eventId: recordResult.event.id,
-        isDuplicate: recordResult.isDuplicate,
-      },
-      { status: 200 },
-    )
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Webhook verification failed'
-    return NextResponse.json({ error: message }, { status: 400 })
+    if ('downloads' in outcome && outcome.downloads && outcome.orderId) {
+      await sendPurchaseEmails({
+        workspaceId: tenantId,
+        orderId: outcome.orderId,
+        downloads: outcome.downloads,
+      })
+    }
+
+    return ack({ received: true, duplicate: outcome.duplicate })
+  } catch (error) {
+    console.error('[webhook] processing failed', {
+      eventId: verified.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    // 500 asks the provider to redeliver; the transaction rolled back.
+    return ack({ error: 'Processing failed; please retry.' }, 500)
   }
 }

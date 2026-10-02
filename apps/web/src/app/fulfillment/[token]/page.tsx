@@ -1,48 +1,44 @@
 /**
- * Digital Asset Fulfillment Page (Slice 6 §6.7).
+ * Download page: /fulfillment/<token>
  *
- * Route: /fulfillment/[token]
- *
- * Allows buyers to access their purchased digital products without account registration.
- * Validates download token, entitlement status, use-caps, and expiry dates.
+ * Linked from the buyer's receipt email. The token names its workspace, so
+ * this works on the platform host whatever the creator's store domain is.
  */
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-import { DownloadPortalView } from '../../../components/fulfillment/DownloadPortalView'
-import { getFulfillmentDetailsAction } from '../../../lib/fulfillment-actions'
+import { DownloadPortalView } from '@/components/fulfillment/DownloadPortalView'
+import { ErrorState } from '@/components/ds'
+import { getFulfillmentDetails } from '@/lib/fulfillment-actions'
 
-export const dynamic = 'force-dynamic'
+export const metadata: Metadata = {
+  title: 'Your download',
+  robots: { index: false, follow: false },
+  referrer: 'no-referrer',
+}
 
-export default async function FulfillmentPage(props: {
-  params: Promise<{ token: string }>
-}) {
-  const { token } = await props.params
+type Props = {
+  readonly params: Promise<{ readonly token: string }>
+  readonly searchParams: Promise<{ readonly error?: string }>
+}
 
-  const result = await getFulfillmentDetailsAction(token)
+export default async function DownloadPage({ params, searchParams }: Props) {
+  const { token } = await params
+  const { error } = await searchParams
+  const result = await getFulfillmentDetails(decodeURIComponent(token))
 
   if (!result.ok) {
     if (result.error.code === 'NOT_FOUND' || result.error.code === 'INVALID_TOKEN') {
-      notFound()
-    }
-
-    return (
-      <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-slate-200 text-center shadow-lg">
-          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xl font-bold mx-auto mb-4">
-            !
+      return (
+        <main id="main" className="flex min-h-dvh items-center justify-center bg-surface-base px-5">
+          <div className="w-full max-w-md">
+            <ErrorState title="This link does not work" detail={result.error.message} />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Error Accessing Download</h2>
-          <p className="text-sm text-slate-500 mb-6">{result.error.message}</p>
-          <a
-            href="/"
-            className="inline-block py-2.5 px-6 rounded-xl bg-slate-900 text-white font-medium text-sm hover:bg-slate-800 transition-colors"
-          >
-            Return Home
-          </a>
-        </div>
-      </div>
-    )
+        </main>
+      )
+    }
+    notFound()
   }
 
-  return <DownloadPortalView data={result.data} />
+  return <DownloadPortalView data={result.data} errorCode={error} />
 }

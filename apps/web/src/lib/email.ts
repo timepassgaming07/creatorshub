@@ -1,27 +1,45 @@
 /**
- * Transactional Email Client & Service for Web Application.
+ * Transactional email for the web app.
  *
- * Exposes a singleton TransactionalEmailService backed by the configured EmailProvider.
+ * RESEND_API_KEY selects Resend. Without it, development and test mode print
+ * each email and its links to the server log; production refuses to start a
+ * send rather than silently dropping a buyer's download links.
  */
-import { MemoryEmailProvider, TransactionalEmailService } from '@creatorhub/email'
+import {
+  LogEmailProvider,
+  ResendEmailProvider,
+  TransactionalEmailService,
+  type EmailProvider,
+} from '@creatorhub/email'
 
-let globalEmailProvider: MemoryEmailProvider | null = null
-let globalEmailService: TransactionalEmailService | null = null
+import { allowsTestAdapters, ConfigurationError, envValue } from './env'
 
-export function getEmailProvider(): MemoryEmailProvider {
-  if (!globalEmailProvider) {
-    globalEmailProvider = new MemoryEmailProvider()
+const globalForEmail = globalThis as unknown as {
+  emailProvider?: EmailProvider
+  emailService?: TransactionalEmailService
+}
+
+export function getEmailProvider(): EmailProvider {
+  if (globalForEmail.emailProvider) return globalForEmail.emailProvider
+
+  const apiKey = envValue('RESEND_API_KEY')
+  let provider: EmailProvider
+  if (apiKey) {
+    provider = new ResendEmailProvider({ apiKey })
+  } else if (allowsTestAdapters()) {
+    provider = new LogEmailProvider()
+  } else {
+    throw new ConfigurationError('Set RESEND_API_KEY so receipts and password resets can be delivered.')
   }
-  return globalEmailProvider
+
+  globalForEmail.emailProvider = provider
+  return provider
 }
 
 export function getEmailService(): TransactionalEmailService {
-  if (!globalEmailService) {
-    const provider = getEmailProvider()
-    globalEmailService = new TransactionalEmailService(provider, {
-      defaultFrom: process.env['EMAIL_FROM'] ?? 'CreatorHub <no-reply@creatorhub.online>',
-      supportEmail: process.env['SUPPORT_EMAIL'] ?? 'support@creatorhub.online',
-    })
-  }
-  return globalEmailService
+  globalForEmail.emailService ??= new TransactionalEmailService(getEmailProvider(), {
+    defaultFrom: envValue('EMAIL_FROM') ?? 'CreatorHub <no-reply@creatorhub.online>',
+    supportEmail: envValue('SUPPORT_EMAIL'),
+  })
+  return globalForEmail.emailService
 }

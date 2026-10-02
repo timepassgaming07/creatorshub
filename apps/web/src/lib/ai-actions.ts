@@ -45,10 +45,8 @@ import { authorise, type Membership } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
+import { auditOptions } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type AiActionResult<T> =
   | { readonly ok: true; readonly data: T }

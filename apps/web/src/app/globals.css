@@ -1,11 +1,9 @@
 /**
- * Application stylesheet — God-Mode Visual Architecture.
+ * Application stylesheet.
  *
- * Provides:
- * - Dynamic theme variables and Inter typography
- * - Ultra-rich Glassmorphism 2.0 with specular highlights
- * - Hardware-accelerated animations (border beams, float, marquee, aurora mesh)
- * - Micro-interaction utilities
+ * Everything colour, space, and type comes from the design tokens in
+ * @creatorhub/ui. This file adds the font wiring, a handful of effects the
+ * marketing pages use (grain, hairline glow, marquee), and nothing else.
  */
 @import '@creatorhub/ui/styles.css';
 
@@ -14,369 +12,193 @@
 
 @custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
-/* -------------------------------------------------------------------------
- * Font override — Inter loaded via next/font/google
- * ------------------------------------------------------------------------- */
 :root {
-  --font-display: var(--font-inter, 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif);
-  --font-body: var(--font-inter, 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif);
+  --font-body: var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
-/* -------------------------------------------------------------------------
- * Global polish & smooth scrolling
- * ------------------------------------------------------------------------- */
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
 html {
-  scroll-behavior: smooth;
-  color-scheme: dark light;
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom modern scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.25);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.5);
+html[data-theme='dark'] {
+  color-scheme: dark;
 }
 
-/* -------------------------------------------------------------------------
- * Animation keyframes
- * ------------------------------------------------------------------------- */
-@keyframes border-beam {
-  100% {
-    offset-distance: 100%;
+body {
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-content);
+}
+
+/* Scrollbars that belong to the surface rather than the operating system. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /** Display serif, used for one or two words at a time, never for paragraphs. */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  /** A hairline that catches light along its top edge. */
+  .hairline-glow {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, var(--content-primary) 8%, transparent),
+      var(--elevation-1);
+  }
+
+  /** Film grain over a dark section. Pure CSS, no image request. */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /** Fine dotted grid, faded toward the edges. */
+  .dot-grid {
+    background-image: radial-gradient(
+      color-mix(in oklch, var(--content-primary) 14%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  .mask-fade-x {
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+  }
+
+  .animate-marquee {
+    animation: marquee var(--marquee-duration, 40s) linear infinite;
+  }
+
+  .animate-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklch, var(--content-primary) 8%, transparent) 50%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: float 7s ease-in-out infinite;
   }
 }
 
 @keyframes marquee {
   from {
-    transform: translateX(0%);
+    transform: translateX(0);
   }
   to {
     transform: translateX(-50%);
-  }
-}
-
-@keyframes marquee-reverse {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0%);
-  }
-}
-
-@keyframes aurora {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes pulse-slow {
-  0%, 100% {
-    opacity: 0.35;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.08);
   }
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes float-slow {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-16px) rotate(1.5deg); }
-}
-
-@keyframes float-delayed {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-12px) rotate(-1.5deg); }
-}
-
-@keyframes text-gradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-/* -------------------------------------------------------------------------
- * God-Mode Visual Utilities & Glassmorphism
- * ------------------------------------------------------------------------- */
-
-/* Animated gradient text */
-.text-gradient-animated {
-  background-size: 200% auto;
-  animation: text-gradient 4s ease infinite;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Ambient Cyber Grid Patterns */
-.bg-grid-pattern {
-  background-image: radial-gradient(rgba(99, 102, 241, 0.12) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.bg-dots-pattern {
-  background-image: radial-gradient(rgba(168, 85, 247, 0.15) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Radial fade mask for smooth blending */
-.radial-fade-mask {
-  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-}
-
-.radial-top-fade-mask {
-  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-}
-
-/* Ultra-Glassmorphism 2.0 */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-}
-
-:root[data-theme='dark'] .glass-panel,
-.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-}
-
-.glass-nav {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
-}
-
-:root[data-theme='dark'] .glass-nav,
-.dark .glass-nav {
-  background: rgba(7, 8, 11, 0.75);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-}
-
-:root[data-theme='dark'] .glass-card,
-.dark .glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-/* Real Liquid Glassmorphism 3.0 (Apple Vision / iOS Specular Refraction) */
-.liquid-glass {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.75) 0%,
-    rgba(255, 255, 255, 0.45) 50%,
-    rgba(255, 255, 255, 0.6) 100%
-  );
-  backdrop-filter: blur(32px) saturate(200%);
-  -webkit-backdrop-filter: blur(32px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    0 20px 50px -10px rgba(99, 102, 241, 0.08),
-    0 10px 20px -5px rgba(0, 0, 0, 0.04),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04);
-}
-
-:root[data-theme='dark'] .liquid-glass,
-.dark .liquid-glass {
-  background: linear-gradient(
-    135deg,
-    rgba(15, 23, 42, 0.75) 0%,
-    rgba(7, 8, 11, 0.85) 50%,
-    rgba(15, 23, 42, 0.7) 100%
-  );
-  backdrop-filter: blur(32px) saturate(190%);
-  -webkit-backdrop-filter: blur(32px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow:
-    0 25px 60px -15px rgba(0, 0, 0, 0.7),
-    0 10px 25px -5px rgba(99, 102, 241, 0.12),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4);
-}
-
-.liquid-glass-card {
-  transition: all 0.4s cubic-bezier(0.25, 0.4, 0.25, 1);
-}
-.liquid-glass-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow:
-    0 30px 70px -15px rgba(99, 102, 241, 0.18),
-    0 12px 30px -5px rgba(139, 92, 246, 0.12),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.4);
-}
-
-.liquid-glass-pill {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px) saturate(1.8);
-  -webkit-backdrop-filter: blur(16px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-:root[data-theme='dark'] .liquid-glass-pill,
-.dark .liquid-glass-pill {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px) saturate(1.8);
-  -webkit-backdrop-filter: blur(16px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-/* Shimmer button effect */
-.shimmer-btn {
-  position: relative;
-  overflow: hidden;
-}
-.shimmer-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 25%,
-    rgba(255, 255, 255, 0.25) 50%,
-    transparent 75%
-  );
-  animation: shimmer 3s ease-in-out infinite;
-}
-
-/* -------------------------------------------------------------------------
- * Glow & Premium Effect Keyframes
- * ------------------------------------------------------------------------- */
-@keyframes glow-rotate {
-  0% { --glow-angle: 0deg; }
-  100% { --glow-angle: 360deg; }
-}
-
-@keyframes glow-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px 2px rgba(99, 102, 241, 0.15),
-                0 0 60px 4px rgba(139, 92, 246, 0.08);
+  0%,
+  100% {
+    transform: translateY(0);
   }
   50% {
-    box-shadow: 0 0 30px 4px rgba(99, 102, 241, 0.25),
-                0 0 80px 8px rgba(139, 92, 246, 0.15);
+    transform: translateY(-8px);
   }
 }
 
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-5%, -10%); }
-  20% { transform: translate(-15%, 5%); }
-  30% { transform: translate(7%, -25%); }
-  40% { transform: translate(-5%, 25%); }
-  50% { transform: translate(-15%, 10%); }
-  60% { transform: translate(15%, 0%); }
-  70% { transform: translate(0%, 15%); }
-  80% { transform: translate(3%, 35%); }
-  90% { transform: translate(-10%, 10%); }
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-shimmer,
+  .animate-float {
+    animation: none;
+  }
 }
 
 /* -------------------------------------------------------------------------
- * Glow Card — premium glassmorphism with animated border
+ * Storefront palettes.
+ *
+ * A creator's store keeps its own look whatever the visitor's dashboard theme
+ * is, so the tokens are re-declared on the store wrapper. Values mirror the
+ * light and dark token sets in @creatorhub/ui, which the contrast suite
+ * checks; the creator's accent is applied separately with computed text.
  * ------------------------------------------------------------------------- */
-.glow-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04),
-              0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.5s cubic-bezier(0.25, 0.4, 0.25, 1);
+.store-light {
+  --surface-base: oklch(98.6% 0.004 80);
+  --surface-raised: oklch(100% 0 0);
+  --surface-overlay: oklch(100% 0 0);
+  --surface-sunken: oklch(96% 0.005 80);
+  --content-primary: oklch(21% 0.01 70);
+  --content-secondary: oklch(45% 0.01 70);
+  --content-tertiary: oklch(53% 0.008 70);
+  --border-subtle: oklch(92.5% 0.004 80);
+  --border-default: oklch(87% 0.005 80);
+  --border-control: oklch(63% 0.005 80);
+  color-scheme: light;
 }
 
-.glow-card:hover {
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 8px 40px rgba(99, 102, 241, 0.1),
-              0 0 30px rgba(139, 92, 246, 0.06),
-              0 1px 2px rgba(0, 0, 0, 0.03);
+.store-dark {
+  --surface-base: oklch(14.5% 0.008 275);
+  --surface-raised: oklch(19% 0.009 275);
+  --surface-overlay: oklch(22% 0.01 275);
+  --surface-sunken: oklch(12% 0.007 275);
+  --content-primary: oklch(96% 0.004 265);
+  --content-secondary: oklch(76% 0.006 265);
+  --content-tertiary: oklch(64% 0.007 265);
+  --border-subtle: oklch(26% 0.008 265);
+  --border-default: oklch(33% 0.009 265);
+  --border-control: oklch(53% 0.009 265);
+  color-scheme: dark;
 }
 
-:root[data-theme='dark'] .glow-card,
-.dark .glow-card {
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3),
-              0 1px 2px rgba(0, 0, 0, 0.2);
+.store-light,
+.store-dark {
+  background-color: var(--surface-base);
+  color: var(--content-primary);
 }
 
-:root[data-theme='dark'] .glow-card:hover,
-.dark .glow-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 8px 40px rgba(99, 102, 241, 0.15),
-              0 0 60px rgba(139, 92, 246, 0.08),
-              0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Hover lift utility */
-.hover-lift {
-  transition: transform 0.4s cubic-bezier(0.25, 0.4, 0.25, 1),
-              box-shadow 0.4s cubic-bezier(0.25, 0.4, 0.25, 1);
-}
-.hover-lift:hover {
-  transform: translateY(-4px);
-}
-
-/* Animation utilities */
-.animate-float { animation: float 6s ease-in-out infinite; }
-.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
-.animate-float-delayed { animation: float-delayed 7s ease-in-out 1.5s infinite; }
-.animate-pulse-slow { animation: pulse-slow 6s ease-in-out infinite; }
-.animate-border-beam { animation: border-beam calc(var(--duration)*1s) infinite linear; }
-.animate-glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
-.animate-spin-slow { animation: spin 8s linear infinite; }
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.store-heading {
+  font-family: var(--store-heading-font, var(--font-body));
 }

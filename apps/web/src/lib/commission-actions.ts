@@ -33,10 +33,8 @@ import { authorise, type Membership } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
+import { auditOptions } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type CommissionActionResult<T> =
   | { readonly ok: true; readonly data: T }
@@ -140,7 +138,6 @@ export async function getAffiliateFinancialBreakdownAction(
   const reqId = toRequestId(`req-comm-breakdown-${Date.now()}`)
   const context = workspaceContext({
     workspaceId: wsId,
-    actorId: toUserId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
     requestId: reqId,
   })
   const db = getDatabase()

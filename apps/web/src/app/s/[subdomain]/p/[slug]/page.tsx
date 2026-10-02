@@ -1,73 +1,22 @@
-/**
- * Creator subdomain product detail page (Item 4.4, 4.5, 4.6, 4.7).
- * Route: /s/[subdomain]/p/[slug]
- */
+/** Product page on a subdomain storefront. */
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import { getPublicProductDetailBySubdomain } from '@/lib/storefront-actions'
-import { buildProductMetadata, generateProductJsonLd } from '@/lib/seo'
-import { StorefrontThemeProvider } from '@/components/storefront/StorefrontThemeProvider'
-import { StorefrontTelemetry } from '@/components/storefront/StorefrontTelemetry'
-import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
-import { ProductDetailView } from '@/components/storefront/ProductDetailView'
-import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 
-type SubdomainProductDetailPageProps = {
+import { ProductRoute, productMetadata } from '@/components/store/pages'
+
+type Props = {
   readonly params: Promise<{ readonly subdomain: string; readonly slug: string }>
-  readonly searchParams?: Promise<{ readonly previewWorkspaceId?: string }>
+  readonly searchParams: Promise<{ readonly preview?: string }>
 }
 
-export async function generateMetadata({
-  params,
-  searchParams,
-}: SubdomainProductDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { subdomain, slug } = await params
-  const sParams = await searchParams
-  const data = await getPublicProductDetailBySubdomain(subdomain, slug, sParams?.previewWorkspaceId)
-  if (!data) return { title: 'Product Not Found' }
-
-  const platformRoot = process.env['PLATFORM_ROOT_DOMAIN'] ?? 'creatorhub.com'
-  const canonicalUrl = `https://${subdomain}.${platformRoot}/p/${slug}`
-  return buildProductMetadata({
-    storefront: data.storefront,
-    product: data.product,
-    canonicalUrl,
-  })
+  return productMetadata(decodeURIComponent(subdomain), slug)
 }
 
-export default async function SubdomainProductDetailPage({
-  params,
-  searchParams,
-}: SubdomainProductDetailPageProps) {
+export default async function Page({ params, searchParams }: Props) {
   const { subdomain, slug } = await params
-  const sParams = await searchParams
-  const previewWorkspaceId = sParams?.previewWorkspaceId
-
-  const data = await getPublicProductDetailBySubdomain(subdomain, slug, previewWorkspaceId)
-  if (!data) {
-    notFound()
-  }
-
-  const { storefront, product } = data
-  const basePath = `/s/${subdomain}`
-  const platformRoot = process.env['PLATFORM_ROOT_DOMAIN'] ?? 'creatorhub.com'
-  const canonicalUrl = `https://${subdomain}.${platformRoot}/p/${slug}`
-  const jsonLd = generateProductJsonLd(data, canonicalUrl)
-
+  const { preview } = await searchParams
   return (
-    <StorefrontThemeProvider theme={storefront.themeConfig}>
-      <StorefrontTelemetry storefrontId={storefront.id} productId={product.id} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <div className="flex min-h-screen flex-col">
-        <StorefrontHeader storefront={storefront} basePath={basePath} />
-        <main className="flex-1">
-          <ProductDetailView data={data} basePath={basePath} />
-        </main>
-        <StorefrontFooter storefront={storefront} />
-      </div>
-    </StorefrontThemeProvider>
+    <ProductRoute prefix="s" host={decodeURIComponent(subdomain)} slug={slug} preview={preview} />
   )
 }

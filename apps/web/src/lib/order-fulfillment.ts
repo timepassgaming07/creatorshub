@@ -9,27 +9,25 @@
  * 5. Write transactional outbox events for downstream asynchronous workflows.
  * 6. Guarantee idempotency: multiple calls with the same provider payment id replay cleanly.
  */
-import { createHash, randomBytes } from 'node:crypto'
 import {
   affiliateId,
   attributionId,
   basisPoints,
   currency,
+  discountId,
   ledgerAccountId,
   money,
   orderId,
-  paymentId,
   percentage,
-  productId,
   type CurrencyCode,
   type PaymentProviderType,
 } from '@creatorhub/contracts'
 import {
   affiliates,
   auditLog,
-  catalogue,
   commissions,
   customers,
+  discounts,
   fulfillment,
   ledger,
   orders,
@@ -45,11 +43,12 @@ import {
   canTransitionOrderStatus,
   createOrderPaymentPosting,
   evaluateAttribution,
+  type AttributionDecision,
 } from '@creatorhub/domain'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
+import { issueDownloadGrants, type IssuedDownload } from './delivery'
+import { auditOptions } from './env'
+
 
 export type FulfillPaidOrderInput = {
   readonly orderId: string
@@ -70,13 +69,27 @@ export type FulfillPaidOrderResult = {
   readonly payment: PaymentRowRecord
   readonly idempotentReplay: boolean
   readonly transactionId?: string
-  readonly downloadGrants?: readonly {
-    readonly rawToken: string
-    readonly productTitle: string
-    readonly originalFilename: string
-    readonly maxDownloads: number
-    readonly expiresAt: Date
-  }[]
+  readonly downloadGrants?: readonly IssuedDownload[]
+}
+
+/**
+ * The provider reported a capture that does not cover the order. The order is
+ * left unpaid and nothing is delivered; the payment needs a human to refund or
+ * reconcile it.
+ */
+export class PaymentAmountMismatchError extends Error {
+  constructor(
+    readonly orderId: string,
+    readonly expected: bigint,
+    readonly received: bigint,
+    readonly expectedCurrency: string,
+    readonly receivedCurrency: string,
+  ) {
+    super(
+      `Captured ${received.toString()} ${receivedCurrency} does not match order ${orderId} total ${expected.toString()} ${expectedCurrency}.`,
+    )
+    this.name = 'PaymentAmountMismatchError'
+  }
 }
 
 export type ProcessPaymentFailureInput = {
@@ -120,39 +133,42 @@ export async function fulfillPaidOrder(
   const curr: CurrencyCode = currency(orderRecord.currency)
   const ledgerIdempotencyKey = `order_payment_${orderRecord.id}`
 
-  // Idempotency check: if order is already paid, check if ledger transaction already posted
+  // Idempotency: a second capture notice for a paid order (the browser
+  // confirmation and the webhook both arrive) replays without side effects.
   if (orderRecord.status === 'paid' && orderRecord.paymentStatus === 'paid') {
     const existingPayments = await payments.listPaymentsForOrder(scope, orderRecord.id)
     const capturedPayment =
       existingPayments.find(
         (p) => p.status === 'captured' && p.providerPaymentId === input.providerPaymentId,
-      ) ?? existingPayments[0]
+      ) ??
+      existingPayments.find((p) => p.status === 'captured') ??
+      existingPayments[0]
+
+    if (!capturedPayment) {
+      throw new Error(`Order '${orderRecord.id}' is paid but has no payment record.`)
+    }
 
     return {
       success: true,
       order: orderRecord,
-      payment: capturedPayment ?? {
-        id: paymentId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
-        workspaceId: scope.context.workspaceId,
-        orderId: orderRecord.id,
-        provider: input.provider,
-        providerPaymentId: input.providerPaymentId,
-        providerOrderId: null,
-        providerSignature: null,
-        amount: orderRecord.totalAmount,
-        currency: orderRecord.currency,
-        status: 'captured',
-        method: input.method ?? 'card',
-        capturedAt: input.capturedAt ?? new Date(),
-        failedAt: null,
-        failureReason: null,
-        idempotencyKey: ledgerIdempotencyKey,
-        metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+      payment: capturedPayment,
       idempotentReplay: true,
     }
+  }
+
+  // The capture must cover the order exactly. Free orders carry no payment.
+  if (
+    orderRecord.totalAmount > 0n &&
+    (input.amount !== orderRecord.totalAmount ||
+      input.currency.toUpperCase() !== orderRecord.currency.toUpperCase())
+  ) {
+    throw new PaymentAmountMismatchError(
+      orderRecord.id,
+      orderRecord.totalAmount,
+      input.amount,
+      orderRecord.currency,
+      input.currency,
+    )
   }
 
   let currentStatus = orderRecord.status
@@ -189,13 +205,14 @@ export async function fulfillPaidOrder(
     paymentRecord = await payments.updatePaymentStatus(scope, matchPayment.id, 'captured', {
       capturedAt: input.capturedAt ?? new Date(),
       method: input.method ?? matchPayment.method ?? 'card',
+      providerPaymentId: input.providerPaymentId,
     })
   } else {
     paymentRecord = await payments.createPayment(scope, {
       orderId: orderRecord.id,
       provider: input.provider,
       providerPaymentId: input.providerPaymentId,
-      amount: input.amount > 0n ? input.amount : orderRecord.totalAmount,
+      amount: orderRecord.totalAmount,
       currency: orderRecord.currency,
       status: 'captured',
       method: input.method ?? 'card',
@@ -219,6 +236,13 @@ export async function fulfillPaidOrder(
       method: input.method ?? 'card',
     },
   })
+
+  // Attribution is decided before the ledger posting so the commission is part
+  // of the same balanced transaction. Posting it later, or not at all, would
+  // overstate what the creator is owed.
+  const attribution = await resolveAttribution(scope, orderRecord)
+  const commissionMinor =
+    attribution?.decision.status === 'attributed' ? attribution.decision.commissionAmountMinor : 0n
 
   let ledgerTxResult: Awaited<ReturnType<typeof ledger.postTransaction>> | null = null
 
@@ -247,7 +271,7 @@ export async function fulfillPaidOrder(
     }
 
     let affiliatePayableAccId = undefined
-    if (input.affiliateCommission && input.affiliateCommission > 0n) {
+    if (commissionMinor > 0n) {
       const affAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'affiliate_payable', curr)
       affiliatePayableAccId = ledgerAccountId(affAcc.id)
     }
@@ -262,9 +286,7 @@ export async function fulfillPaidOrder(
     const baseMoney = money(orderRecord.subtotalAmount, curr)
     const platformFeeMoney = percentage(baseMoney, feeBps)
 
-    const affiliateMoney = input.affiliateCommission
-      ? money(input.affiliateCommission, curr)
-      : undefined
+    const affiliateMoney = commissionMinor > 0n ? money(commissionMinor, curr) : undefined
 
     const postingResult = createOrderPaymentPosting({
       workspaceId: scope.context.workspaceId,
@@ -338,123 +360,57 @@ export async function fulfillPaidOrder(
     // Non-fatal if customer repository encounters transient error
   }
 
-  // 10. Digital Asset Fulfillment: Issue entitlements & download grants (Slice 6)
-  const orderWithItems = await orders.findOrderWithItems(scope, orderRecord.id)
-  const issuedDownloadGrants: {
-    readonly rawToken: string
-    readonly productTitle: string
-    readonly originalFilename: string
-    readonly maxDownloads: number
-    readonly expiresAt: Date
-  }[] = []
-
-  if (orderWithItems && orderWithItems.items.length > 0) {
-    for (const item of orderWithItems.items) {
-      // Check existing entitlements to prevent duplicates on idempotent retries
-      const existing = await fulfillment.findEntitlementsByOrderId(scope, orderRecord.id)
-      const matchingEntitlement = existing.find((e) => e.productId === item.productId)
-
-      const ent =
-        matchingEntitlement ??
-        (await fulfillment.createEntitlement(scope, {
-          orderId: orderRecord.id,
-          productId: item.productId,
-          customerEmail: orderRecord.customerEmail,
-          metadata: {
-            productTitle: item.productTitle,
-            quantity: item.quantity,
-            unitAmount: item.unitAmount.toString(),
-          },
-        }))
-
-      // Fetch attached digital assets for this product
-      const productAssets = await catalogue.listAssetsForProduct(
-        scope,
-        productId(item.productId),
-      )
-      for (const pa of productAssets) {
-        const rawToken = randomBytes(32).toString('hex')
-        const tokenHash = createHash('sha256').update(rawToken).digest('hex')
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-
-        await fulfillment.createDownloadGrant(scope, {
-          entitlementId: ent.id,
-          assetId: pa.productAsset.assetId,
-          tokenHash,
-          maxDownloads: 5,
-          expiresAt,
-        })
-
-        issuedDownloadGrants.push({
-          rawToken,
-          productTitle: item.productTitle,
-          originalFilename: pa.asset.originalFilename,
-          maxDownloads: 5,
-          expiresAt,
-        })
-      }
-    }
+  // A discount counts as used only once the order is paid, so abandoned
+  // checkouts never exhaust a limited code.
+  const appliedDiscountId = (orderRecord.metadata as Record<string, unknown> | null)?.['discountId']
+  if (typeof appliedDiscountId === 'string') {
+    await discounts.incrementDiscountUsage(scope, discountId(appliedDiscountId))
   }
 
-  // 11. Affiliate Attribution Resolution (Slice 8 §8.5, §8.6)
-  try {
-    const meta = (orderRecord.metadata ?? {}) as Record<string, unknown>
-    const referralCode =
-      (typeof meta['referralCode'] === 'string' ? meta['referralCode'] : null) ??
-      (typeof meta['affiliateCode'] === 'string' ? meta['affiliateCode'] : null) ??
-      (typeof meta['ref'] === 'string' ? meta['ref'] : null)
-
-    if (referralCode) {
-      const existingAttr = await affiliates.findAttributionByOrderId(scope, orderRecord.id)
-      if (!existingAttr) {
-        const link = await affiliates.findAffiliateLinkByCode(scope, referralCode)
-        if (link) {
-          const program = await affiliates.getAffiliateProgram(scope)
-          const promoter = await affiliates.findAffiliateById(scope, link.affiliateId)
-
-          const decision = evaluateAttribution({
-            programIsActive: program?.isActive ?? false,
-            allowSelfReferral: program?.allowSelfReferral ?? false,
-            cookieWindowDays: program?.cookieWindowDays ?? 30,
-            defaultCommissionBps: program?.defaultCommissionBps ?? 2000,
-            customCommissionBps: promoter?.customCommissionBps ?? null,
-            affiliateStatus:
-              (promoter?.status as 'pending' | 'approved' | 'suspended' | 'rejected') ?? 'pending',
-            affiliateEmail: promoter?.email ?? '',
-            buyerEmail: orderRecord.customerEmail,
-            saleAmountMinor: orderRecord.subtotalAmount,
-            clickDate: null,
-            orderDate: orderRecord.createdAt,
-          })
-
-          const attr = await affiliates.createAttribution(scope, {
-            orderId: orderRecord.id,
-            affiliateId: link.affiliateId,
-            affiliateLinkId: link.id,
-            commissionBps: decision.commissionBps,
-            commissionAmount: decision.commissionAmountMinor,
-            status: decision.status,
-            rejectionReason: decision.rejectionReason,
-          })
-
-          if (decision.status === 'attributed' && decision.commissionAmountMinor > 0n) {
-            const heldUntil = calculateHeldUntil(orderRecord.createdAt, 30, 14)
-            await commissions.createCommission(scope, {
-              attributionId: attributionId(attr.id),
-              affiliateId: affiliateId(link.affiliateId),
-              orderId: orderId(orderRecord.id),
-              grossSaleAmount: orderRecord.subtotalAmount,
-              commissionBps: decision.commissionBps,
-              grossAmount: decision.commissionAmountMinor,
-              heldUntil,
-              currency: curr,
-            })
-          }
-        }
-      }
+  // 10. Entitlements, then fresh download grants for every file.
+  const orderWithItems = await orders.findOrderWithItems(scope, orderRecord.id)
+  if (orderWithItems) {
+    const existing = await fulfillment.findEntitlementsByOrderId(scope, orderRecord.id)
+    for (const item of orderWithItems.items) {
+      if (existing.some((e) => e.productId === item.productId)) continue
+      await fulfillment.createEntitlement(scope, {
+        orderId: orderRecord.id,
+        productId: item.productId,
+        customerEmail: orderRecord.customerEmail,
+        metadata: {
+          productTitle: item.productTitle,
+          quantity: item.quantity,
+          unitAmount: item.unitAmount.toString(),
+        },
+      })
     }
-  } catch {
-    // Non-fatal if attribution encounters unexpected error
+  }
+  const issuedDownloadGrants = await issueDownloadGrants(scope, orderRecord.id)
+
+  // 11. Record the attribution and, when it earned one, the held commission.
+  if (attribution) {
+    const attr = await affiliates.createAttribution(scope, {
+      orderId: orderRecord.id,
+      affiliateId: attribution.affiliateId,
+      affiliateLinkId: attribution.linkId,
+      commissionBps: attribution.decision.commissionBps,
+      commissionAmount: attribution.decision.commissionAmountMinor,
+      status: attribution.decision.status,
+      rejectionReason: attribution.decision.rejectionReason,
+    })
+
+    if (commissionMinor > 0n) {
+      await commissions.createCommission(scope, {
+        attributionId: attributionId(attr.id),
+        affiliateId: affiliateId(attribution.affiliateId),
+        orderId: orderId(orderRecord.id),
+        grossSaleAmount: orderRecord.subtotalAmount,
+        commissionBps: attribution.decision.commissionBps,
+        grossAmount: commissionMinor,
+        heldUntil: calculateHeldUntil(orderRecord.createdAt, 30, 14),
+        currency: curr,
+      })
+    }
   }
 
   return {
@@ -465,6 +421,54 @@ export async function fulfillPaidOrder(
     ...(ledgerTxResult ? { transactionId: ledgerTxResult.transaction.id } : {}),
     downloadGrants: issuedDownloadGrants,
   }
+}
+
+type ResolvedAttribution = {
+  readonly affiliateId: string
+  readonly linkId: string
+  readonly decision: AttributionDecision
+}
+
+/**
+ * Decide whether a referral on the order earns a commission. Returns null when
+ * there is no referral, the code matches no link, or the order is already
+ * attributed. Rule evaluation lives in the domain; this only gathers inputs.
+ */
+async function resolveAttribution(
+  scope: RepositoryScope,
+  orderRecord: OrderRecord,
+): Promise<ResolvedAttribution | null> {
+  const meta = orderRecord.metadata as Record<string, unknown> | null
+  const referralCode = typeof meta?.['referralCode'] === 'string' ? meta['referralCode'] : null
+  if (!referralCode || orderRecord.subtotalAmount <= 0n) return null
+
+  const already = await affiliates.findAttributionByOrderId(scope, orderRecord.id)
+  if (already) return null
+
+  const link = await affiliates.findAffiliateLinkByCode(scope, referralCode)
+  if (!link) return null
+
+  const program = await affiliates.getAffiliateProgram(scope)
+  const promoter = await affiliates.findAffiliateById(scope, link.affiliateId)
+  const clickedAt = typeof meta?.['referralClickedAt'] === 'string' ? new Date(meta['referralClickedAt']) : null
+
+  const decision = evaluateAttribution({
+    programIsActive: program?.isActive ?? false,
+    allowSelfReferral: program?.allowSelfReferral ?? false,
+    cookieWindowDays: program?.cookieWindowDays ?? 30,
+    defaultCommissionBps: program?.defaultCommissionBps ?? 2000,
+    customCommissionBps: promoter?.customCommissionBps ?? null,
+    affiliateStatus:
+      (promoter?.status as 'pending' | 'approved' | 'suspended' | 'rejected' | undefined) ??
+      'pending',
+    affiliateEmail: promoter?.email ?? '',
+    buyerEmail: orderRecord.customerEmail,
+    saleAmountMinor: orderRecord.subtotalAmount,
+    clickDate: clickedAt && !Number.isNaN(clickedAt.getTime()) ? clickedAt : null,
+    orderDate: orderRecord.createdAt,
+  })
+
+  return { affiliateId: link.affiliateId, linkId: link.id, decision }
 }
 
 /**

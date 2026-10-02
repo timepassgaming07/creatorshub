@@ -37,10 +37,8 @@ import { authorise, type Membership } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
+import { auditOptions, auditSalt } from './env'
 
-const AUDIT_SALT =
-  process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
-const auditOptions = { currentSalt: () => AUDIT_SALT }
 
 export type AffiliateActionResult<T> =
   | { readonly ok: true; readonly data: T }
@@ -562,7 +560,7 @@ export async function recordAffiliateClickAction(
     }
 
     const rawIp = metadata.ip ?? '127.0.0.1'
-    const ipHash = createHash('sha256').update(`${rawIp}:${AUDIT_SALT}`).digest('hex')
+    const ipHash = createHash('sha256').update(`${rawIp}:${auditSalt()}`).digest('hex')
 
     await affiliates.recordAffiliateClick(scope, {
       affiliateLinkId: link.id,
