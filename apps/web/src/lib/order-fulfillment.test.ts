@@ -209,20 +209,29 @@ describe('Order Fulfillment Service (§5.9)', () => {
       ],
     })
 
-    vi.spyOn(mockOrdersRepo.fulfillment, 'findEntitlementsByOrderId').mockResolvedValue([])
-    vi.spyOn(mockOrdersRepo.fulfillment, 'createEntitlement').mockResolvedValue({
-      id: 'ent_1',
-      workspaceId: wsId,
-      orderId: ordId,
-      productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
-      customerEmail: 'buyer@example.com',
-      status: 'active',
-      grantedAt: new Date(),
-      revokedAt: null,
-      metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // Fulfilment creates the entitlement, then reads it back to issue links.
+    const createdEntitlements: unknown[] = []
+    vi.spyOn(mockOrdersRepo.fulfillment, 'findEntitlementsByOrderId').mockImplementation(() =>
+      Promise.resolve(createdEntitlements as never),
+    )
+    vi.spyOn(mockOrdersRepo.fulfillment, 'createEntitlement').mockImplementation(() => {
+      const entitlement = {
+        id: 'ent_1',
+        workspaceId: wsId,
+        orderId: ordId,
+        productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
+        customerEmail: 'buyer@example.com',
+        status: 'active',
+        grantedAt: new Date(),
+        revokedAt: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      createdEntitlements.push(entitlement)
+      return Promise.resolve(entitlement as never)
     })
+    vi.spyOn(mockOrdersRepo.catalogue, 'findProductById').mockResolvedValue({ title: 'Product' } as never)
     vi.spyOn(mockOrdersRepo.catalogue, 'listAssetsForProduct').mockResolvedValue([
       {
         productAsset: {
@@ -270,6 +279,7 @@ describe('Order Fulfillment Service (§5.9)', () => {
       timezone: 'Asia/Kolkata',
       defaultCurrency: 'INR',
       platformFeeBps: 500,
+      taxSettings: { gstRegistered: false } as const,
       status: 'active' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -543,20 +553,29 @@ describe('Order Fulfillment Service (§5.9)', () => {
         },
       ],
     })
-    vi.spyOn(mockDb.fulfillment, 'findEntitlementsByOrderId').mockResolvedValue([])
-    vi.spyOn(mockDb.fulfillment, 'createEntitlement').mockResolvedValue({
-      id: 'ent_free_1',
-      workspaceId: wsId,
-      orderId: freeOrdId,
-      productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
-      customerEmail: 'freebuyer@example.com',
-      status: 'active',
-      grantedAt: new Date(),
-      revokedAt: null,
-      metadata: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // Fulfilment creates the entitlement, then reads it back to issue links.
+    const createdEntitlements: unknown[] = []
+    vi.spyOn(mockDb.fulfillment, 'findEntitlementsByOrderId').mockImplementation(() =>
+      Promise.resolve(createdEntitlements as never),
+    )
+    vi.spyOn(mockDb.fulfillment, 'createEntitlement').mockImplementation(() => {
+      const entitlement = {
+        id: 'ent_free_1',
+        workspaceId: wsId,
+        orderId: freeOrdId,
+        productId: '018f9e2b-7c5e-7a2e-8c3b-555555555555',
+        customerEmail: 'freebuyer@example.com',
+        status: 'active',
+        grantedAt: new Date(),
+        revokedAt: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      createdEntitlements.push(entitlement)
+      return Promise.resolve(entitlement as never)
     })
+    vi.spyOn(mockDb.catalogue, 'findProductById').mockResolvedValue({ title: 'Free Lead Magnet Guide' } as never)
     vi.spyOn(mockDb.catalogue, 'listAssetsForProduct').mockResolvedValue([
       {
         productAsset: {
@@ -584,7 +603,9 @@ describe('Order Fulfillment Service (§5.9)', () => {
         },
       },
     ])
-    vi.spyOn(mockDb.fulfillment, 'createDownloadGrant').mockResolvedValue({ id: 'grant_free' } as never)
+    vi.spyOn(mockDb.fulfillment, 'createDownloadGrant').mockResolvedValue({
+      id: 'grant_free',
+    } as never)
     vi.spyOn(mockDb.catalogue, 'findAssetById').mockResolvedValue({
       id: '018f9e2b-7c5e-7a2e-8c3b-666666666666',
       originalFilename: 'free-guide.pdf',

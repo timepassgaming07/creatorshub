@@ -32,12 +32,8 @@
  * simulation. For browser-level E2E, see the Playwright suites in e2e/.
  */
 import {
-  affiliateId,
-  attributionId,
   basisPoints,
-  commissionId,
   currency,
-  ledgerAccountId,
   money,
   orderId,
   paymentId,
@@ -49,7 +45,13 @@ import {
   workspaceId,
   type CurrencyCode,
 } from '@creatorhub/contracts'
+import * as db from '@creatorhub/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Static imports: a dynamic import inside a test spends the test's timeout on
+// module transform, which made this suite time out under parallel load.
+import { fulfillPaidOrder } from './order-fulfillment'
+import { fulfillRefund } from './refund-fulfillment'
 
 // ---------------------------------------------------------------------------
 // Mock Layer: Simulates a full database without needing Postgres
@@ -60,8 +62,6 @@ const ACTOR_ID = userId('018f0000-0000-7000-8000-000000000099')
 const PRODUCT_ID = productId('018f0000-0000-7000-8000-000000000010')
 const ORDER_ID = orderId('018f0000-0000-7000-8000-000000000020')
 const PAYMENT_ID = paymentId('018f0000-0000-7000-8000-000000000030')
-const AFFILIATE_ID = affiliateId('018f0000-0000-7000-8000-000000000040')
-const ATTRIBUTION_ID = attributionId('018f0000-0000-7000-8000-000000000050')
 const INR: CurrencyCode = currency('INR')
 
 const context = workspaceContext({
@@ -81,6 +81,7 @@ const WORKSPACE_RECORD = {
   timezone: 'Asia/Kolkata',
   defaultCurrency: 'INR',
   platformFeeBps: 500, // 5.00% — read from DB, not hardcoded
+  taxSettings: { gstRegistered: false } as const,
   status: 'active' as const,
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -90,6 +91,7 @@ const WORKSPACE_RECORD = {
 const WORKSPACE_RECORD_LOW_FEE = {
   ...WORKSPACE_RECORD,
   platformFeeBps: 300, // 3.00% — negotiated discount
+  taxSettings: { gstRegistered: false } as const,
 }
 
 /**
@@ -168,11 +170,11 @@ const PAYMENT_RECORD = {
 
 describe('Full Platform Simulation — Creator to Buyer E2E', () => {
   // Accumulate all ledger postings for conservation checks
-  let allLedgerPostings: Array<{
+  let allLedgerPostings: {
     kind: string
-    entries: Array<{ accountId: string; direction: string; amount: bigint; currency: string }>
-  }>
-  let allOutboxEvents: Array<{ eventType: string; aggregateId: string; payload: unknown }>
+    entries: { accountId: string; direction: string; amount: bigint; currency: string }[]
+  }[]
+  let allOutboxEvents: { eventType: string; aggregateId: string; payload: unknown }[]
 
   const scope = { context, tx: {} }
 
@@ -243,9 +245,6 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
     })
 
     it('atomically fulfills order with correct double-entry ledger postings from DB fee', async () => {
-      // Import the real function
-      const { fulfillPaidOrder } = await import('./order-fulfillment')
-      const db = await import('@creatorhub/db')
 
       // Mock all repository calls
       vi.spyOn(db.orders, 'findOrderById').mockResolvedValue(ORDER_RECORD)
@@ -284,29 +283,22 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
         tax_payable: '018f0000-0000-7000-8000-acc000000004',
       }
 
-      vi.spyOn(db.ledger, 'findOrCreateWorkspaceAccount').mockImplementation(
-        (_scope, kind) => {
-          return Promise.resolve({
-            id: accountIds[kind] ?? '018f0000-0000-7000-8000-acc000000099',
-            workspaceId: WORKSPACE_ID,
-            ownerType: 'workspace',
-            ownerId: WORKSPACE_ID,
-            kind,
-            currency: INR,
-            createdAt: new Date(),
-          })
-        },
-      )
+      vi.spyOn(db.ledger, 'findOrCreateWorkspaceAccount').mockImplementation((_scope, kind) => {
+        return Promise.resolve({
+          id: accountIds[kind] ?? '018f0000-0000-7000-8000-acc000000099',
+          workspaceId: WORKSPACE_ID,
+          ownerType: 'workspace',
+          ownerId: WORKSPACE_ID,
+          kind,
+          currency: INR,
+          createdAt: new Date(),
+        })
+      })
 
       vi.spyOn(db.ledger, 'postTransaction').mockImplementation((_scope, input) => {
         allLedgerPostings.push({
           kind: input.kind,
-          entries: input.entries as Array<{
-            accountId: string
-            direction: string
-            amount: bigint
-            currency: string
-          }>,
+          entries: input.entries,
         })
         return Promise.resolve({
           transaction: {
@@ -379,21 +371,30 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
         ],
       })
 
-      vi.spyOn(db.fulfillment, 'findEntitlementsByOrderId').mockResolvedValue([])
-      vi.spyOn(db.fulfillment, 'createEntitlement').mockResolvedValue({
-        id: 'ent_e2e_001',
-        workspaceId: WORKSPACE_ID,
-        orderId: ORDER_ID,
-        productId: PRODUCT_ID,
-        customerEmail: 'buyer@example.com',
-        status: 'active',
-        grantedAt: new Date(),
-        revokedAt: null,
-        metadata: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // Fulfilment creates the entitlement, then reads it back to issue links.
+      const createdEntitlements: unknown[] = []
+      vi.spyOn(db.fulfillment, 'findEntitlementsByOrderId').mockImplementation(() =>
+        Promise.resolve(createdEntitlements as never),
+      )
+      vi.spyOn(db.fulfillment, 'createEntitlement').mockImplementation(() => {
+        const entitlement = {
+          id: 'ent_e2e_001',
+          workspaceId: WORKSPACE_ID,
+          orderId: ORDER_ID,
+          productId: PRODUCT_ID,
+          customerEmail: 'buyer@example.com',
+          status: 'active',
+          grantedAt: new Date(),
+          revokedAt: null,
+          metadata: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        createdEntitlements.push(entitlement)
+        return Promise.resolve(entitlement as never)
       })
 
+      vi.spyOn(db.catalogue, 'findProductById').mockResolvedValue({ title: 'Complete Design System' } as never)
       vi.spyOn(db.catalogue, 'listAssetsForProduct').mockResolvedValue([
         {
           productAsset: {
@@ -493,8 +494,7 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
 
       // Find the platform_revenue credit entry
       const platformEntry = posting.entries.find(
-        (e) =>
-          e.accountId === accountIds['platform_revenue'] && e.direction === 'credit',
+        (e) => e.accountId === accountIds['platform_revenue'] && e.direction === 'credit',
       )
       expect(platformEntry).toBeDefined()
       expect(platformEntry!.amount).toBe(expectedPlatformFee)
@@ -512,8 +512,7 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
       // ASSERTIONS: Creator receives gross - fee - tax
       // ---------------------------------------------------------------
       const creatorEntry = posting.entries.find(
-        (e) =>
-          e.accountId === accountIds['creator_payable'] && e.direction === 'credit',
+        (e) => e.accountId === accountIds['creator_payable'] && e.direction === 'credit',
       )
       expect(creatorEntry).toBeDefined()
       const expectedCreatorNet = 353882n - expectedPlatformFee - 53982n
@@ -601,8 +600,6 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
 
   describe('Phase 4: Refund Flow', () => {
     it('computes correct refund platform fee reversal from DB-backed rate', async () => {
-      const { fulfillRefund } = await import('./refund-fulfillment')
-      const db = await import('@creatorhub/db')
 
       const paidOrder = { ...ORDER_RECORD, status: 'paid' as const, paymentStatus: 'paid' as const }
 
@@ -651,9 +648,9 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
       // KEY: workspace lookup returns real fee
       vi.spyOn(db.workspaces, 'findCurrentWorkspace').mockResolvedValue(WORKSPACE_RECORD)
 
-      const refundPostings: Array<{
-        entries: Array<{ direction: string; amount: bigint }>
-      }> = []
+      const refundPostings: {
+        entries: { direction: string; amount: bigint }[]
+      }[] = []
 
       const refundAccountIds: Record<string, string> = {
         processor_clearing: '018f0000-0000-7000-8000-a00000000001',
@@ -662,22 +659,21 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
         tax_payable: '018f0000-0000-7000-8000-a00000000004',
       }
 
-      vi.spyOn(db.ledger, 'findOrCreateWorkspaceAccount').mockImplementation(
-        (_scope, kind) =>
-          Promise.resolve({
-            id: refundAccountIds[kind] ?? '018f0000-0000-7000-8000-a00000000099',
-            workspaceId: WORKSPACE_ID,
-            ownerType: 'workspace',
-            ownerId: WORKSPACE_ID,
-            kind,
-            currency: INR,
-            createdAt: new Date(),
-          }),
+      vi.spyOn(db.ledger, 'findOrCreateWorkspaceAccount').mockImplementation((_scope, kind) =>
+        Promise.resolve({
+          id: refundAccountIds[kind] ?? '018f0000-0000-7000-8000-a00000000099',
+          workspaceId: WORKSPACE_ID,
+          ownerType: 'workspace',
+          ownerId: WORKSPACE_ID,
+          kind,
+          currency: INR,
+          createdAt: new Date(),
+        }),
       )
 
       vi.spyOn(db.ledger, 'postTransaction').mockImplementation((_scope, input) => {
         refundPostings.push({
-          entries: input.entries as Array<{ direction: string; amount: bigint }>,
+          entries: input.entries,
         })
         return Promise.resolve({
           transaction: {
@@ -712,6 +708,7 @@ describe('Full Platform Simulation — Creator to Buyer E2E', () => {
 
       vi.spyOn(db.auditLog, 'writeAuditLog').mockResolvedValue('audit_refund_001')
       vi.spyOn(db.fulfillment, 'revokeEntitlementsByOrderId').mockResolvedValue(1)
+      vi.spyOn(db.customers, 'upsertCustomer').mockResolvedValue({} as never)
 
       const result = await fulfillRefund(scope as never, {
         orderId: ORDER_ID,
