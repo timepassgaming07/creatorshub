@@ -310,7 +310,8 @@ export async function recordStorefrontEventAction(
 
   const db = getDatabase()
   const sf = await db.resolveStorefrontById(storefrontId(sfId))
-  if (!sf) {
+  // Only live stores collect visits; a draft or suspended store has no audience.
+  if (sf?.status !== 'published') {
     return { success: false, error: 'Storefront not found.' }
   }
 
