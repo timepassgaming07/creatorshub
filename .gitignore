@@ -24,6 +24,10 @@ pnpm-debug.log*
 .claude/settings.local.json
 .agents/
 
+# Local file storage (STORAGE_LOCAL_DIR defaults to .data/storage): uploads
+# made while developing. Never commit them.
+.data/
+
 test-results/
 playwright-report/
 blob-report/
