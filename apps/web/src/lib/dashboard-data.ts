@@ -12,10 +12,12 @@ import {
   requestId,
   workspaceContext,
   workspaceId as toWorkspaceId,
+  type AffiliatePerformanceDTO,
   type AnalyticsSummaryDTO,
   type AnalyticsTimeframe,
   type CurrencyCode,
   type CustomDomainChallenge,
+  type ProductPerformanceDTO,
   type WorkspaceContext,
   type WorkspaceTaxSettings,
 } from '@creatorhub/contracts'
@@ -38,7 +40,7 @@ import { authorise, type Permission, type WorkspaceRole } from '@creatorhub/doma
 import { referralUrl } from './affiliate-portal'
 import { getAuthPool } from './auth'
 import { getDatabase } from './db'
-import { customDomainTarget } from './env'
+import { customDomainTarget, platformRootDomain } from './env'
 import { cardFor, storeRecord, type PublicProductCard, type PublicStore } from './storefront-public'
 import { getWorkspaceAccess, type WorkspaceAccess } from './workspace-access'
 
@@ -686,6 +688,40 @@ export async function loadPayouts(rawWorkspaceId: string): Promise<PayoutsData> 
       role: scope.access.role as WorkspaceRole,
       memberCount: members.length,
       emailVerified: scope.access.session.user.emailVerified ?? false,
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Analytics
+// ---------------------------------------------------------------------------
+
+export type AnalyticsData = {
+  readonly timeframe: AnalyticsTimeframe
+  readonly summary: AnalyticsSummaryDTO
+  readonly products: readonly ProductPerformanceDTO[]
+  readonly affiliates: readonly AffiliatePerformanceDTO[]
+  readonly sources: readonly { readonly source: string; readonly visits: number }[]
+}
+
+export async function loadAnalytics(rawWorkspaceId: string, timeframe: AnalyticsTimeframe): Promise<AnalyticsData> {
+  return asMember(rawWorkspaceId, 'analytics.view', async (scope) => {
+    const [summary, products, affiliatePerf, sources, store] = await Promise.all([
+      analytics.getWorkspaceAnalyticsSummary(scope, { timeframe }),
+      analytics.listProductPerformance(scope, { timeframe }),
+      analytics.listAffiliatePerformance(scope, { timeframe }),
+      analytics.listTrafficSources(scope, { timeframe, limit: 12 }),
+      storefronts.findStorefrontByWorkspaceId(scope),
+    ])
+    // Moving between pages of your own store is not a traffic source.
+    const own = [platformRootDomain(), 'localhost', store?.customDomain ?? ''].filter(Boolean).map((h) => h.toLowerCase())
+    const external = sources.filter((s) => !own.some((h) => s.source === h || s.source.endsWith(`.${h}`)))
+    return {
+      timeframe,
+      summary,
+      products,
+      affiliates: affiliatePerf.filter((a) => a.clicksCount > 0 || a.conversionsCount > 0),
+      sources: external.slice(0, 8),
     }
   })
 }

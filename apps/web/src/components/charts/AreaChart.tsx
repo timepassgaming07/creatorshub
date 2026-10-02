@@ -140,7 +140,7 @@ export function AreaChart({
         })}
 
         {points.map((p, i) =>
-          i % labelEvery === 0 || i === points.length - 1 ? (
+          (i % labelEvery === 0 && points.length - 1 - i >= labelEvery / 2) || i === points.length - 1 ? (
             <text key={p.date} x={p.x} y={HEIGHT - 8} textAnchor="middle" className="fill-content-tertiary text-[11px]">
               {shortDate(p.date)}
             </text>

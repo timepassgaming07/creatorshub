@@ -1,53 +1,21 @@
-/**
- * Workspace Analytics & AI Intelligence Page (Slice 10 §10.1, §10.2, §10.9).
- *
- * Route: /workspaces/[id]/analytics
- */
-import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+import { ANALYTICS_TIMEFRAMES, type AnalyticsTimeframe } from '@creatorhub/contracts'
 
-import { AnalyticsDashboardView } from '../../../../components/analytics/AnalyticsDashboardView'
-import {
-  getAffiliatePerformanceAction,
-  getProductPerformanceAction,
-  getWorkspaceAnalyticsAction,
-} from '../../../../lib/analytics-actions'
-import { getServerSession } from '../../../../lib/server-session'
+import { AnalyticsView } from '@/components/analytics/AnalyticsView'
+import { loadAnalytics } from '@/lib/dashboard-data'
 
-export const dynamic = 'force-dynamic'
+export const metadata: Metadata = { title: 'Analytics' }
 
-export default async function WorkspaceAnalyticsPage(props: {
-  params: Promise<{ id: string }>
+export default async function AnalyticsPage({
+  params,
+  searchParams,
+}: {
+  readonly params: Promise<{ id: string }>
+  readonly searchParams: Promise<{ range?: string }>
 }) {
-  const { id } = await props.params
-  const session = await getServerSession()
-
-  if (!session) {
-    redirect('/sign-in')
-  }
-
-  const [summaryRes, prodRes, affRes] = await Promise.all([
-    getWorkspaceAnalyticsAction(id, '30d'),
-    getProductPerformanceAction(id, '30d'),
-    getAffiliatePerformanceAction(id, '30d'),
-  ])
-
-  if (!summaryRes.ok) {
-    if (summaryRes.error.code === 'FORBIDDEN') {
-      return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-          You do not have permission to view analytics in this workspace.
-        </div>
-      )
-    }
-    notFound()
-  }
-
-  return (
-    <AnalyticsDashboardView
-      workspaceId={id}
-      initialSummary={summaryRes.data}
-      initialProducts={prodRes.ok ? prodRes.data : []}
-      initialAffiliates={affRes.ok ? affRes.data : []}
-    />
-  )
+  const { id } = await params
+  const { range } = await searchParams
+  const timeframe: AnalyticsTimeframe = ANALYTICS_TIMEFRAMES.find((t) => t === range) ?? '30d'
+  const data = await loadAnalytics(id, timeframe)
+  return <AnalyticsView data={data} />
 }
