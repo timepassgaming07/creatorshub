@@ -9,8 +9,8 @@
  */
 import {
   currency,
-  orderId,
   requestId,
+  storefrontId,
   userId,
   workspaceContext,
   workspaceId,
@@ -29,6 +29,7 @@ import * as aiUsageRepo from './ai-usage.js'
 import * as analytics from './analytics.js'
 import * as catalogueRepo from './catalogue.js'
 import * as ordersRepo from './orders.js'
+import * as storefrontsRepo from './storefronts.js'
 
 const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname
 
@@ -73,12 +74,8 @@ describe('Analytics & AI Usage Repositories Integration Suite (Postgres 18)', ()
   }, 60000)
 
   afterAll(async () => {
-    if (adminClient) {
-      await adminClient.end()
-    }
-    if (db) {
-      await db.close()
-    }
+    await adminClient.end()
+    await db.close()
   })
 
   function inScope<T>(
@@ -89,7 +86,7 @@ describe('Analytics & AI Usage Repositories Integration Suite (Postgres 18)', ()
     const context = workspaceContext({
       workspaceId: wsId,
       actorId: actor,
-      requestId: requestId(`req-${Date.now()}`),
+      requestId: requestId(`req-${String(Date.now())}`),
     })
     return db.withWorkspace(context, async (tx) => work({ tx, context }))
   }
@@ -204,6 +201,38 @@ describe('Analytics & AI Usage Repositories Integration Suite (Postgres 18)', ()
       const matched = productPerf.find((p) => p.productId === prod.id)
       expect(matched).toBeDefined()
       expect(matched?.unitsSold).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('counts traffic sources only for the workspace that recorded them', async () => {
+    await inScope(ws1Id, actor1, async (scope) => {
+      const store = await storefrontsRepo.createStorefront(scope, {
+        workspaceId: ws1Id,
+        subdomain: 'traffic-ws1',
+        title: 'Traffic Store',
+      })
+      await storefrontsRepo.recordStorefrontEvent(scope, {
+        storefrontId: storefrontId(store.id),
+        eventType: 'page_view',
+        utmSource: 'Instagram',
+      })
+      await storefrontsRepo.recordStorefrontEvent(scope, {
+        storefrontId: storefrontId(store.id),
+        eventType: 'page_view',
+        referrer: 'https://www.youtube.com/watch?v=1',
+      })
+
+      const sources = await analytics.listTrafficSources(scope)
+      expect(sources).toEqual(
+        expect.arrayContaining([
+          { source: 'instagram', visits: 1 },
+          { source: 'youtube.com', visits: 1 },
+        ]),
+      )
+    })
+
+    await inScope(ws2Id, actor2, async (scope) => {
+      expect(await analytics.listTrafficSources(scope)).toEqual([])
     })
   })
 })

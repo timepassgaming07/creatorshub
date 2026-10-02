@@ -152,6 +152,13 @@ describe('Storefront Repository (Item 4.1)', () => {
         })
       }),
     ).rejects.toThrow(/not found or not accessible/i)
+
+    // Nor can it attach a domain to Workspace 1's storefront
+    await expect(
+      inScope(ws2Id, async (scope) => {
+        return storefrontsRepo.setCustomDomain(scope, storefrontId(s1.id), 'hijack.example', 'token')
+      }),
+    ).rejects.toThrow(/not found or not accessible/i)
   })
 
   it('enforces case-insensitive unique subdomains across all workspaces', async () => {
@@ -285,7 +292,7 @@ describe('Storefront Repository (Item 4.1)', () => {
 
   it('resolves published storefront by subdomain or custom domain publicly (4.2)', async () => {
     // ws1 creates and publishes a storefront
-    await inScope(ws1Id, async (scope) => {
+    const published = await inScope(ws1Id, async (scope) => {
       const sf = await storefrontsRepo.createStorefront(scope, {
         workspaceId: workspaceId(ws1Id),
         subdomain: 'public-subdomain',
@@ -293,6 +300,7 @@ describe('Storefront Repository (Item 4.1)', () => {
         title: 'Publicly Resolved Store',
       })
       await storefrontsRepo.publishStorefront(scope, storefrontId(sf.id))
+      return sf
     })
 
     // ws2 creates a draft storefront
@@ -316,6 +324,13 @@ describe('Storefront Repository (Item 4.1)', () => {
     const resolvedCase = await db.resolveStorefrontByHostname('PUBLIC-SUBDOMAIN')
     expect(resolvedCase).not.toBeNull()
     expect(resolvedCase?.workspaceId).toBe(ws1Id)
+
+    // A custom domain resolves only once DNS proves the creator controls it.
+    // Before that, anyone could point a domain they type in at their store.
+    expect(await db.resolveStorefrontByHostname('public-domain.com')).toBeNull()
+    await inScope(ws1Id, (scope) =>
+      storefrontsRepo.updateCustomDomainStatus(scope, storefrontId(published.id), 'verified', new Date()),
+    )
 
     // Public resolution by custom domain
     const resolvedByCustom = await db.resolveStorefrontByHostname('PUBLIC-DOMAIN.COM')

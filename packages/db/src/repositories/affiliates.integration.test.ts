@@ -10,7 +10,6 @@
  */
 import {
   currency,
-  orderId,
   requestId,
   userId,
   workspaceContext,
@@ -23,6 +22,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createDatabase, type Database } from '../client.js'
 import { loadDatabaseConfig } from '../config.js'
 import { runMigrations } from '../migrate.js'
+import type { RepositoryScope } from '../repository.js'
 import { startTestDatabase, type TestDatabase } from '../testing/harness.js'
 import * as affiliatesRepo from './affiliates.js'
 import * as catalogueRepo from './catalogue.js'
@@ -82,7 +82,7 @@ describe('Affiliates Repository Integration', () => {
     await seedWorkspace(ws2Id, 'Code Academy', 'code-academy', actor2)
   })
 
-  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: any) => Promise<T>) => {
+  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: RepositoryScope) => Promise<T>) => {
     const context = workspaceContext({
       workspaceId: wId,
       actorId: uId,
@@ -268,7 +268,7 @@ describe('Affiliates Repository Integration', () => {
   })
 
   it('enforces multi-tenant RLS isolation on affiliate data', async () => {
-    let ws1AffiliateId: string = ''
+    let ws1AffiliateId = ''
 
     await inScope(ws1Id, actor1, async (scope) => {
       const aff = await affiliatesRepo.createAffiliate(scope, {
@@ -285,6 +285,51 @@ describe('Affiliates Repository Integration', () => {
 
       const crossList = await affiliatesRepo.listAffiliates(scope)
       expect(crossList.find((a) => a.id === ws1AffiliateId)).toBeUndefined()
+    })
+  })
+
+  it('cannot claim, re-route payouts for, or read clicks of another workspace affiliate', async () => {
+    let affiliateId = ''
+    let linkId = ''
+
+    await inScope(ws1Id, actor1, async (scope) => {
+      const aff = await affiliatesRepo.createAffiliate(scope, {
+        email: 'payee@example.com',
+        status: 'approved',
+      })
+      affiliateId = aff.id
+      const link = await affiliatesRepo.createAffiliateLink(scope, {
+        affiliateId: aff.id,
+        code: 'PAYEE1',
+        destinationUrl: 'https://studio1.creatorhub.test/',
+      })
+      linkId = link.id
+      await affiliatesRepo.recordAffiliateClick(scope, {
+        affiliateLinkId: link.id,
+        affiliateId: aff.id,
+        visitorToken: 'visitor-1',
+        ipHash: 'hashed-ip',
+        userAgent: 'Mozilla/5.0',
+        isBot: false,
+      })
+      expect(await affiliatesRepo.hasClickFromVisitor(scope, link.id, 'visitor-1')).toBe(true)
+    })
+
+    await inScope(ws2Id, actor2, async (scope) => {
+      expect(await affiliatesRepo.hasClickFromVisitor(scope, linkId, 'visitor-1')).toBe(false)
+      await affiliatesRepo.linkAffiliateUser(scope, affiliateId, actor2)
+      await affiliatesRepo.setAffiliatePayoutAccount(scope, affiliateId, {
+        method: 'upi',
+        vpa: 'attacker@upi',
+      })
+    })
+
+    // The writes from workspace 2 matched nothing: the affiliate is unclaimed
+    // and still has no payout destination.
+    await inScope(ws1Id, actor1, async (scope) => {
+      const aff = await affiliatesRepo.findAffiliateById(scope, affiliateId)
+      expect(aff?.userId).toBeNull()
+      expect(aff?.payoutAccount).toEqual({})
     })
   })
 })

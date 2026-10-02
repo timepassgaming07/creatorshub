@@ -21,6 +21,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createDatabase, type Database } from '../client.js'
 import { loadDatabaseConfig } from '../config.js'
 import { runMigrations } from '../migrate.js'
+import type { RepositoryScope } from '../repository.js'
 import { startTestDatabase, type TestDatabase } from '../testing/harness.js'
 import * as customersRepo from './customers.js'
 import * as workspacesRepo from './workspaces.js'
@@ -78,7 +79,7 @@ describe('Customers Repository Integration', () => {
     await seedWorkspace(ws2Id, 'Code Academy', 'code-academy', actor2)
   })
 
-  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: any) => Promise<T>) => {
+  const inScope = <T>(wId: WorkspaceId, uId: typeof actor1, work: (scope: RepositoryScope) => Promise<T>) => {
     const context = workspaceContext({
       workspaceId: wId,
       actorId: uId,

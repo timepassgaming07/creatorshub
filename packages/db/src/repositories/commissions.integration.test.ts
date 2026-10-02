@@ -65,9 +65,9 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
   }, 120_000)
 
   afterAll(async () => {
-    await db?.close()
-    await adminClient?.end()
-    await container?.stop()
+    await db.close()
+    await adminClient.end()
+    await container.stop()
   })
 
   beforeEach(async () => {
@@ -92,7 +92,7 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
     const context = workspaceContext({
       workspaceId: wsId,
       actorId: actor,
-      requestId: requestId(`req-${Date.now()}`),
+      requestId: requestId(`req-${String(Date.now())}`),
     })
     return db.withWorkspace(context, async (tx) => work({ tx, context }))
   }
@@ -346,7 +346,8 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
   })
 
   it('enforces multi-tenant RLS isolation for commissions', async () => {
-    let ws1CommissionId: any
+    let ws1CommissionId = ''
+    let ws1AffiliateId = ''
 
     // Workspace 1 creates commission
     await inScope(ws1Id, actor1, async (scope) => {
@@ -392,15 +393,27 @@ describe('Commissions Repository Integration Suite (Postgres 18)', () => {
         currency: currency('INR'),
       })
       ws1CommissionId = comm.id
+      ws1AffiliateId = aff.id
+      // Vested, so a settlement from the wrong workspace has something to take.
+      await commissionsRepo.releaseHeldCommissions(scope, new Date(Date.now() + 1000))
     })
 
     // Workspace 2 attempts to read Workspace 1's commission
     await inScope(ws2Id, actor1, async (scope) => {
-      const commFromWs2 = await commissionsRepo.findCommissionById(scope, ws1CommissionId)
+      const commFromWs2 = await commissionsRepo.findCommissionById(scope, commissionId(ws1CommissionId))
       expect(commFromWs2).toBeNull()
 
       const listFromWs2 = await commissionsRepo.listWorkspaceCommissions(scope)
       expect(listFromWs2.items).toHaveLength(0)
+
+      const settled = await commissionsRepo.markVestedCommissionsPaid(scope, affiliateId(ws1AffiliateId))
+      expect(settled.count).toBe(0)
+    })
+
+    // Still vested in its own workspace, not paid.
+    await inScope(ws1Id, actor1, async (scope) => {
+      const comm = await commissionsRepo.findCommissionById(scope, commissionId(ws1CommissionId))
+      expect(comm?.status).toBe('vested')
     })
   })
 })

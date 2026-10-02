@@ -665,6 +665,33 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
   'payouts.listPayouts':
     'Lists payouts matching filters scoped to current workspace. Tested in payouts repository integration suite.',
 
+  'affiliates.hasClickFromVisitor':
+    "Takes ids, not a tenant. The affiliates suite reads workspace 1's click from workspace 2 and gets false.",
+
+  'affiliates.linkAffiliateUser':
+    "Update through scoped(). The affiliates suite runs it from workspace 2 against workspace 1's affiliate and checks the affiliate stays unclaimed.",
+
+  'affiliates.setAffiliatePayoutAccount':
+    "Update through scoped(). The affiliates suite runs it from workspace 2 and checks workspace 1's affiliate keeps no payout destination.",
+
+  'analytics.listTrafficSources':
+    "Takes no id. The analytics suite records page views in workspace 1 and gets an empty list in workspace 2.",
+
+  'catalogue.isPublicProductImage':
+    "The catalogue suite attaches a cover image in workspace 1: true there, false when asked from workspace 2.",
+
+  'commissions.markVestedCommissionsPaid':
+    "The commissions isolation test settles workspace 1's affiliate from workspace 2: zero rows, and the commission stays vested.",
+
+  'discounts.setDiscountActive':
+    "The discounts suite tries to switch off workspace 1's code from workspace 2: it throws and the code stays active.",
+
+  'orders.setCheckoutSession':
+    "The orders isolation test sets a checkout session on workspace 1's order from workspace 2 and expects a throw.",
+
+  'storefronts.setCustomDomain':
+    "The storefronts isolation test attaches a domain to workspace 1's storefront from workspace 2 and expects a throw.",
+
   'payouts.getPayoutBalanceOverview':
     'Aggregates orders, refunds, and payouts to derive available, in-transit, and settled balances. Tested in payouts repository integration suite.',
 }

@@ -84,8 +84,8 @@ describe('Payouts & Beneficiary Accounts Integration Suite (Postgres 18)', () =>
   }, 60000)
 
   afterAll(async () => {
-    await adminClient?.end()
-    await container?.stop()
+    await adminClient.end()
+    await container.stop()
   })
 
   async function inScope<T>(
@@ -96,7 +96,7 @@ describe('Payouts & Beneficiary Accounts Integration Suite (Postgres 18)', () =>
     const context = workspaceContext({
       workspaceId: wsId,
       actorId: actor,
-      requestId: requestId(`req-${Date.now()}`),
+      requestId: requestId(`req-${String(Date.now())}`),
     })
     return db.withWorkspace(context, async (tx) => work({ tx, context }))
   }

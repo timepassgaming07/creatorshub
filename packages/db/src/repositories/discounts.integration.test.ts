@@ -159,6 +159,17 @@ describe('Discounts Repository (Item 3.6)', () => {
       ),
     ).rejects.toThrow()
 
+    // ...nor switch it off
+    await expect(
+      inScope(ws2Id, u2Id, (scope) =>
+        discountsRepo.setDiscountActive(scope, discountId(discount1.id), false),
+      ),
+    ).rejects.toThrow()
+    const stillActive = await inScope(ws1Id, u1Id, (scope) =>
+      discountsRepo.findDiscountById(scope, discountId(discount1.id)),
+    )
+    expect(stillActive?.isActive).toBe(true)
+
     // 6. Creating same code in ws2 is permitted (per-tenant uniqueness)
     const discount2 = await inScope(ws2Id, u2Id, (scope) =>
       discountsRepo.createDiscount(scope, {

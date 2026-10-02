@@ -295,6 +295,31 @@ describe('Catalogue Repository (Item 3.1)', () => {
     expect(attachments[0]?.asset.originalFilename).toBe('course-archive-v1.zip')
     expect(attachments[0]?.productAsset.role).toBe('deliverable')
 
+    // A cover image on a published product is public, but only in its own workspace
+    const cover = await inScope(ws1Id, u1Id, async (scope) => {
+      const image = await catalogueRepo.createAsset(scope, {
+        storageKey: 'workspaces/ws-one/assets/cover.png',
+        originalFilename: 'cover.png',
+        mimeType: 'image/png',
+        byteSize: 2048n,
+        checksumSha256: 'a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        scanStatus: 'clean',
+      })
+      await catalogueRepo.attachProductAsset(scope, {
+        productId: productId(prod.id),
+        assetId: assetId(image.id),
+        role: 'cover_image',
+        position: 0,
+      })
+      return image
+    })
+    expect(
+      await inScope(ws1Id, u1Id, (scope) => catalogueRepo.isPublicProductImage(scope, assetId(cover.id))),
+    ).toBe(true)
+    expect(
+      await inScope(ws2Id, u2Id, (scope) => catalogueRepo.isPublicProductImage(scope, assetId(cover.id))),
+    ).toBe(false)
+
     // 4. Tenant isolation check: Workspace 2 cannot see Workspace 1's product, asset, or attachments
     const foreignProd = await inScope(ws2Id, u2Id, async (scope) =>
       catalogueRepo.findProductById(scope, productId(prod.id)),

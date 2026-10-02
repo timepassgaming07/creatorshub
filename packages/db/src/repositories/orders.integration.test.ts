@@ -209,6 +209,13 @@ describe('Orders Repository', () => {
         ordersRepo.updateOrderStatus(scope, ws1Order.order.id, 'cancelled'),
       ),
     ).rejects.toThrow()
+
+    // Nor point Workspace 1's order at a checkout session of its own
+    await expect(
+      inScope(ws2Id, (scope) =>
+        ordersRepo.setCheckoutSession(scope, ws1Order.order.id, 'order_hijack'),
+      ),
+    ).rejects.toThrow()
   })
 
   it('atomically fulfills order, updates payment, records transition, writes balanced ledger postings, and enqueues outbox event in one commit (§5.9)', async () => {
