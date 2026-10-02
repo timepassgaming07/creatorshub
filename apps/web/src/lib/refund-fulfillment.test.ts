@@ -39,6 +39,9 @@ import {
 } from './refund-fulfillment'
 
 vi.mock('@creatorhub/db', () => ({
+  customers: {
+    upsertCustomer: vi.fn().mockResolvedValue({}),
+  },
   orders: {
     findOrderById: vi.fn(),
     updateOrderStatus: vi.fn(),

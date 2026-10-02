@@ -27,7 +27,8 @@
     "check:exports": "tsx scripts/check-exports.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "turbo run typecheck lint test build && pnpm check:exports && pnpm format:check"
+    "verify": "turbo run typecheck lint test build && pnpm check:exports && pnpm format:check",
+    "operator": "tsx apps/web/scripts/operator.ts"
   },
   "devDependencies": {
     "prettier": "3.9.6",

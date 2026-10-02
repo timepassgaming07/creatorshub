@@ -39,6 +39,7 @@ import {
   beneficiaryAccountsRepo,
   payoutsRepo,
   workspaceMembers,
+  workspaces,
   type BeneficiaryAccount,
   type PayoutWithBeneficiary,
 } from '@creatorhub/db'
@@ -53,7 +54,9 @@ import {
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
-import { auditOptions } from './env'
+import { notificationRecipients } from './delivery'
+import { getEmailService } from './email'
+import { appUrl, auditOptions, envValue } from './env'
 
 
 export type PayoutActionResult<T> =
@@ -205,9 +208,11 @@ export async function createBeneficiaryAccountAction(
           }),
         }
 
+        // A creator registers accounts for their own workspace only, whatever
+        // the request says.
         const account = await beneficiaryAccountsRepo.createBeneficiaryAccount(scope, {
-          payeeType: input.payeeType,
-          payeeId: input.payeeId,
+          payeeType: 'workspace',
+          payeeId: workspaceId,
           accountHolderName: input.accountHolderName,
           accountType: input.accountType,
           accountNumber: input.accountNumber,
@@ -233,11 +238,35 @@ export async function createBeneficiaryAccountAction(
           },
         )
 
-        return account
+        const recipients = await notificationRecipients(scope)
+        const ws = await workspaces.findCurrentWorkspace(scope)
+        return { account, recipients, workspaceName: ws?.name ?? 'your workspace' }
       },
     )
 
-    return { ok: true, data: mapBeneficiaryDTO(created) }
+    // After commit: a new payout account is the first thing a takeover changes,
+    // so every owner and admin hears about it.
+    const shown =
+      created.account.accountType === 'vpa'
+        ? (created.account.vpa ?? 'UPI')
+        : (created.account.maskedAccountNumber ?? 'bank account')
+    await getEmailService()
+      .sendSecurityNotice({
+        to: created.recipients,
+        workspaceName: created.workspaceName,
+        subject: `New payout account added to ${created.workspaceName}`,
+        heading: 'A new payout account was added',
+        paragraphs: [
+          `${created.account.accountHolderName} (${shown}) can now receive payouts from ${created.workspaceName}.`,
+          'Large payouts to it are held for 24 hours. If you did not add this account, remove it now and change your password.',
+        ],
+        url: `${appUrl()}/workspaces/${workspaceId}/payouts`,
+      })
+      .catch((error: unknown) => {
+        console.error('[payouts] beneficiary notice failed', error instanceof Error ? error.message : error)
+      })
+
+    return { ok: true, data: mapBeneficiaryDTO(created.account) }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to register beneficiary account.'
     return { ok: false, error: { code: 'ERROR', message } }
@@ -401,6 +430,19 @@ export async function requestPayoutAction(
   const auth = await authenticateAndAuthorise(rawWorkspaceId, 'payout.request')
   if ('error' in auth) return { ok: false, error: auth.error }
 
+  // Money only leaves for an address we know reaches the account holder.
+  const requester = await getServerSession()
+  if (!requester?.user.emailVerified) {
+    return {
+      ok: false,
+      error: {
+        code: 'FORBIDDEN',
+        message:
+          'Confirm your email address before withdrawing. Use the link we sent you, or resend it from the banner at the top.',
+      },
+    }
+  }
+
   const { actorUserId, workspaceId, db } = auth
   const input = parsed.data
   const amountMinor = BigInt(input.amountMinor)
@@ -450,6 +492,11 @@ export async function requestPayoutAction(
           beneficiaryCreatedAt: beneficiary.createdAt,
           amount: requestMoney,
         })
+        if (cooldownCheck.requiresSafetyReview) {
+          throw new Error(
+            'This payout account was added less than 24 hours ago. Large payouts to a new account open after 24 hours, or send a smaller amount now.',
+          )
+        }
 
         const payout = await payoutsRepo.requestPayout(scope, {
           beneficiaryAccountId: toBeneficiaryAccountId(beneficiary.id),
@@ -572,6 +619,26 @@ export async function approvePayoutAction(
         return { ...updated, beneficiary: existing.beneficiary }
       },
     )
+
+    // After commit: the operator sends the money by hand (ADR-0021).
+    const operator = envValue('OPERATOR_EMAIL')
+    if (operator) {
+      await getEmailService()
+        .sendSecurityNotice({
+          to: [operator],
+          workspaceName: 'CreatorHub operations',
+          subject: `Payout approved: ${approved.amount.toString()} paise`,
+          heading: 'A withdrawal is ready to send',
+          paragraphs: [
+            `Workspace ${workspaceId}, payout ${approved.id}.`,
+            `Run: pnpm operator payouts --workspace ${workspaceId}`,
+          ],
+          url: `${appUrl()}/workspaces/${workspaceId}/payouts`,
+        })
+        .catch((error: unknown) => {
+          console.error('[payouts] operator alert failed', error instanceof Error ? error.message : error)
+        })
+    }
 
     return { ok: true, data: mapPayoutDTO(approved) }
   } catch (err: unknown) {

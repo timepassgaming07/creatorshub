@@ -8,7 +8,7 @@
  * - Order attribution records with immutable rejection/approval decisions.
  * - Strict multi-tenant scoping on workspace_id.
  */
-import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 
 import { insertValues, scoped, type RepositoryScope } from '../repository.js'
 import {
@@ -485,4 +485,52 @@ export async function listAttributionsForAffiliate(
     .from(attributions)
     .where(scoped(scope, attributions, eq(attributions.affiliateId, affiliateId)))
     .orderBy(desc(attributions.attributedAt))
+}
+
+/**
+ * Connect an affiliate record to the account that signed in with its email.
+ * Only sets a missing link, so an affiliate can never be moved to another user.
+ */
+export async function linkAffiliateUser(
+  scope: RepositoryScope,
+  affiliateId: string,
+  userId: string,
+): Promise<void> {
+  await scope.tx
+    .update(affiliates)
+    .set({ userId, updatedAt: new Date() })
+    .where(scoped(scope, affiliates, eq(affiliates.id, affiliateId), isNull(affiliates.userId)))
+}
+
+/** Where the affiliate wants to be paid. Read by the operator who settles payouts. */
+export async function setAffiliatePayoutAccount(
+  scope: RepositoryScope,
+  affiliateId: string,
+  payoutAccount: Record<string, unknown>,
+): Promise<void> {
+  await scope.tx
+    .update(affiliates)
+    .set({ payoutAccount, updatedAt: new Date() })
+    .where(scoped(scope, affiliates, eq(affiliates.id, affiliateId)))
+}
+
+/** Whether this visitor already has a click on this link (the token is per day). */
+export async function hasClickFromVisitor(
+  scope: RepositoryScope,
+  affiliateLinkId: string,
+  visitorToken: string,
+): Promise<boolean> {
+  const rows = await scope.tx
+    .select({ id: affiliateClicks.id })
+    .from(affiliateClicks)
+    .where(
+      scoped(
+        scope,
+        affiliateClicks,
+        eq(affiliateClicks.affiliateLinkId, affiliateLinkId),
+        eq(affiliateClicks.visitorToken, visitorToken),
+      ),
+    )
+    .limit(1)
+  return rows.length > 0
 }

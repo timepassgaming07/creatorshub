@@ -5,7 +5,7 @@ import { ProductRoute, productMetadata } from '@/components/store/pages'
 
 type Props = {
   readonly params: Promise<{ readonly domain: string; readonly slug: string }>
-  readonly searchParams: Promise<{ readonly preview?: string }>
+  readonly searchParams: Promise<{ readonly preview?: string; readonly ref?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params, searchParams }: Props) {
   const { domain, slug } = await params
-  const { preview } = await searchParams
+  const { preview, ref } = await searchParams
   return (
-    <ProductRoute prefix="c" host={decodeURIComponent(domain)} slug={slug} preview={preview} />
+    <ProductRoute prefix="c" host={decodeURIComponent(domain)} slug={slug} preview={preview} referral={ref} />
   )
 }

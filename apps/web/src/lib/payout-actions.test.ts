@@ -12,6 +12,7 @@ import {
   beneficiaryAccountsRepo,
   payoutsRepo,
   workspaceMembers,
+  workspaces,
 } from '@creatorhub/db'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSession } from './server-session'
@@ -28,6 +29,14 @@ vi.mock('./db', () => ({
   getDatabase: () => ({
     withWorkspace: mockWithWorkspace,
   }),
+}))
+
+const mockSendSecurityNotice = vi.fn().mockResolvedValue({ id: 'email_1' })
+vi.mock('./email', () => ({
+  getEmailService: () => ({ sendSecurityNotice: mockSendSecurityNotice }),
+}))
+vi.mock('./delivery', () => ({
+  notificationRecipients: () => Promise.resolve(['owner@example.com']),
 }))
 
 import {
@@ -66,6 +75,9 @@ describe('Payout Server Actions (Slice 11)', () => {
   })
 
   it('creates beneficiary account for authorized workspace owner', async () => {
+    vi.spyOn(workspaces, 'findCurrentWorkspace').mockResolvedValue({
+      name: 'Creator Studio',
+    } as any)
     mockGetServerSession.mockResolvedValue({
       userId: uId,
       user: { id: uId, email: 'owner@example.com', name: 'Owner User' },
@@ -101,8 +113,9 @@ describe('Payout Server Actions (Slice 11)', () => {
     vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as any)
 
     const result = await createBeneficiaryAccountAction(wsId, {
-      payeeType: 'workspace',
-      payeeId: wsId,
+      // A client naming someone else's payee is ignored.
+      payeeType: 'affiliate',
+      payeeId: 'someone-else',
       accountHolderName: 'Creator Studio',
       accountType: 'bank_account',
       accountNumber: '1234567890',
@@ -115,12 +128,22 @@ describe('Payout Server Actions (Slice 11)', () => {
       expect(result.data.accountHolderName).toBe('Creator Studio')
       expect(result.data.maskedAccountNumber).toBe('••••••••7890')
     }
+    expect(beneficiaryAccountsRepo.createBeneficiaryAccount).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ payeeType: 'workspace', payeeId: wsId }),
+    )
+    expect(mockSendSecurityNotice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ['owner@example.com'],
+        subject: expect.stringContaining('New payout account'),
+      }),
+    )
   })
 
   it('requests payout and validates available balance', async () => {
     mockGetServerSession.mockResolvedValue({
       userId: uId,
-      user: { id: uId, email: 'owner@example.com', name: 'Owner User' },
+      user: { id: uId, email: 'owner@example.com', name: 'Owner User', emailVerified: true },
     })
 
     vi.spyOn(workspaceMembers, 'findMemberByUserId').mockResolvedValue({
@@ -288,5 +311,64 @@ describe('Payout Server Actions (Slice 11)', () => {
       expect(result.data).toContain('••••••••7890')
       expect(result.data).toContain('HDFC0000060')
     }
+  })
+
+  it('refuses a withdrawal until the email address is confirmed', async () => {
+    mockGetServerSession.mockResolvedValue({
+      userId: uId,
+      user: { id: uId, email: 'owner@example.com', name: 'Owner User', emailVerified: false },
+    })
+    vi.spyOn(workspaceMembers, 'findMemberByUserId').mockResolvedValue({
+      workspaceId: wsId,
+      userId: uId,
+      role: 'owner',
+    } as any)
+    const request = vi.spyOn(payoutsRepo, 'requestPayout')
+
+    const result = await requestPayoutAction(wsId, {
+      beneficiaryAccountId: bId,
+      amountMinor: '100000',
+      currency: 'INR',
+    })
+    expect(result.ok).toBe(false)
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('holds a large withdrawal to an account added in the last 24 hours', async () => {
+    mockGetServerSession.mockResolvedValue({
+      userId: uId,
+      user: { id: uId, email: 'owner@example.com', name: 'Owner User', emailVerified: true },
+    })
+    vi.spyOn(workspaceMembers, 'findMemberByUserId').mockResolvedValue({
+      workspaceId: wsId,
+      userId: uId,
+      role: 'owner',
+    } as any)
+    vi.spyOn(beneficiaryAccountsRepo, 'findBeneficiaryAccountById').mockResolvedValue({
+      id: bId,
+      workspaceId: wsId,
+      accountType: 'vpa',
+      createdAt: new Date(Date.now() - 60 * 60 * 1000),
+    } as any)
+    vi.spyOn(payoutsRepo, 'getPayoutBalanceOverview').mockResolvedValue({
+      currency: 'INR' as any,
+      availableBalanceMinor: '20000000',
+      inTransitBalanceMinor: '0',
+      lifetimeSettledMinor: '0',
+      pendingApprovalMinor: '0',
+      minimumPayoutMinor: '50000',
+    })
+    const request = vi.spyOn(payoutsRepo, 'requestPayout')
+
+    const result = await requestPayoutAction(wsId, {
+      beneficiaryAccountId: bId,
+      amountMinor: '10000000',
+      currency: 'INR',
+    })
+    expect(result).toEqual({
+      ok: false,
+      error: expect.objectContaining({ message: expect.stringContaining('24 hours') }),
+    })
+    expect(request).not.toHaveBeenCalled()
   })
 })

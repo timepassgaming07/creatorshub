@@ -445,8 +445,8 @@ function SecuritySection() {
 
   async function changePassword() {
     setError(undefined)
-    if (next.length < 10) {
-      setError('Use at least 10 characters for the new password.')
+    if (next.length < 12) {
+      setError('Use at least 12 characters for the new password.')
       return
     }
     setBusy(true)

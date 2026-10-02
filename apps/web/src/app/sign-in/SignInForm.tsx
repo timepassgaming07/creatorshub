@@ -65,7 +65,7 @@ export function SignInForm() {
       footer={
         <>
           New to CreatorHub?{' '}
-          <Link href="/sign-up" className="font-medium text-content-primary underline-offset-4 hover:underline">
+          <Link href={next === '/dashboard' ? '/sign-up' : `/sign-up?redirect=${encodeURIComponent(next)}`} className="font-medium text-content-primary underline-offset-4 hover:underline">
             Create your store
           </Link>
         </>

@@ -1,652 +1,246 @@
 /**
- * Creator Affiliate Programme Server Actions (Slice 8 §8.8, §8.9).
+ * Server actions for the affiliate programme.
  *
- * Responsibilities:
- * 1. RBAC authorization for `affiliate.view` and `affiliate.manage`.
- * 2. Settings lifecycle, custom commission rates, and referral link generation.
- * 3. Public promoter portal data fetching and visitor click recording.
- * 4. Tenant-scoped CSV data exports with audit logging.
+ * Creators turn the programme on, set the commission, invite affiliates, and
+ * pause them. Affiliates save where they want to be paid. Commissions are
+ * accrued by the order flow and settled to affiliates by the operator, the
+ * same way creator payouts are.
  */
 'use server'
 
-import { createHash } from 'node:crypto'
-import {
-  affiliateId as toAffiliateId,
-  createAffiliateLinkSchema,
-  createAffiliateSchema,
-  requestId as toRequestId,
-  updateAffiliateProgramSchema,
-  userId as toUserId,
-  workspaceContext,
-  workspaceId as toWorkspaceId,
-  type CreateAffiliateInput,
-  type CreateAffiliateLinkInput,
-  type UpdateAffiliateProgramInput,
-  type WorkspaceId,
-} from '@creatorhub/contracts'
-import {
-  affiliates,
-  auditLog,
-  commissions,
-  workspaceMembers,
-  type AffiliateFilter,
-  type AffiliateProgramRow,
-  type AffiliateRow,
-} from '@creatorhub/db'
-import { authorise, type Membership } from '@creatorhub/domain'
+import { affiliates, auditLog } from '@creatorhub/db'
+import { z } from 'zod'
 
-import { getDatabase } from './db'
-import { getServerSession } from './server-session'
-import { auditOptions, auditSalt } from './env'
+import { getEmailService } from './email'
+import { auditOptions } from './env'
+import { affiliatePortalUrl, referralUrl, withAffiliateOwner } from './affiliate-portal'
+import { parsePriceToMinor } from './format'
+import { ActionFailure, isUniqueViolation, memberAction, type ActionResult } from './member-action'
 
+function percentToBps(value: string): number | null {
+  const scaled = parsePriceToMinor(value)
+  if (scaled === null || scaled < 0n || scaled > 10000n) return null
+  return Number(scaled)
+}
 
-export type AffiliateActionResult<T> =
-  | { readonly ok: true; readonly data: T }
-  | {
-      readonly ok: false
-      readonly error: {
-        readonly code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'ERROR'
-        readonly message: string
+const programSchema = z.object({
+  isActive: z.boolean(),
+  commissionPercent: z.string().trim(),
+  cookieWindowDays: z.number().int().min(1).max(365),
+})
+
+export async function saveAffiliateProgramAction(
+  rawWorkspaceId: string,
+  input: z.input<typeof programSchema>,
+): Promise<ActionResult<{ readonly isActive: boolean }>> {
+  const parsed = programSchema.safeParse(input)
+  if (!parsed.success)
+    return { ok: false, error: 'The cookie window must be between 1 and 365 days.' }
+  const bps = percentToBps(parsed.data.commissionPercent)
+  if (bps === null || bps === 0)
+    return { ok: false, error: 'Set a commission between 0.01% and 100%.' }
+
+  return memberAction(
+    'affiliate.program',
+    rawWorkspaceId,
+    'affiliate.manage',
+    async (scope, member) => {
+      const updated = await affiliates.upsertAffiliateProgram(scope, {
+        isActive: parsed.data.isActive,
+        defaultCommissionBps: bps,
+        cookieWindowDays: parsed.data.cookieWindowDays,
+      })
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        actorType: 'user',
+        actorId: member.actorId as never,
+        action: 'affiliate_program.updated',
+        targetType: 'affiliate_program',
+        targetId: updated.id,
+        metadata: {
+          isActive: updated.isActive,
+          defaultCommissionBps: bps,
+          cookieWindowDays: parsed.data.cookieWindowDays,
+        },
+      })
+      return { isActive: updated.isActive }
+    },
+  )
+}
+
+const inviteSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(254),
+  name: z.string().trim().max(120),
+  code: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9_-]{3,32}$/, 'Codes use 3 to 32 letters, numbers, hyphens, or underscores.'),
+  commissionPercent: z.string().trim(),
+})
+
+export async function inviteAffiliateAction(
+  rawWorkspaceId: string,
+  input: z.input<typeof inviteSchema>,
+): Promise<ActionResult<{ readonly code: string; readonly referralUrl: string }>> {
+  const parsed = inviteSchema.safeParse(input)
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Some fields are not valid.' }
+  const form = parsed.data
+  const customBps = form.commissionPercent ? percentToBps(form.commissionPercent) : null
+  if (form.commissionPercent && (customBps === null || customBps === 0)) {
+    return {
+      ok: false,
+      error: 'Set a commission between 0.01% and 100%, or leave it empty for your default.',
+    }
+  }
+
+  const result = await memberAction(
+    'affiliate.invite',
+    rawWorkspaceId,
+    'affiliate.manage',
+    async (scope, member) => {
+      const subdomain = member.access.storefront?.subdomain
+      if (!subdomain) throw new ActionFailure('Set up your store before inviting affiliates.')
+      const program = await affiliates.getAffiliateProgram(scope)
+      if (await affiliates.findAffiliateByEmail(scope, form.email)) {
+        throw new ActionFailure(`${form.email} is already one of your affiliates.`)
       }
-    }
+      if (await affiliates.findAffiliateLinkByCode(scope, form.code)) {
+        throw new ActionFailure(`The code ${form.code} is taken. Pick another.`)
+      }
+      try {
+        const affiliate = await affiliates.createAffiliate(scope, {
+          email: form.email,
+          name: form.name || null,
+          status: 'approved',
+          customCommissionBps: customBps,
+        })
+        await affiliates.createAffiliateLink(scope, { affiliateId: affiliate.id, code: form.code })
+        await auditLog.writeAuditLog(scope, auditOptions, {
+          actorType: 'user',
+          actorId: member.actorId as never,
+          action: 'affiliate.invited',
+          targetType: 'affiliate',
+          targetId: affiliate.id,
+          metadata: { email: form.email, code: form.code, customCommissionBps: customBps },
+        })
+      } catch (error) {
+        if (isUniqueViolation(error))
+          throw new ActionFailure('That email or code is already in use.')
+        throw error
+      }
+      return {
+        subdomain,
+        storeName: member.access.workspace.name,
+        bps: customBps ?? program?.defaultCommissionBps ?? 2000,
+      }
+    },
+  )
+  if (!result.ok) return result
 
-export type AffiliateDTO = {
-  readonly id: string
-  readonly email: string
-  readonly name: string | null
-  readonly status: string
-  readonly customCommissionBps: number | null
-  readonly totalEarnings: string
-  readonly totalConversions: number
-  readonly joinedAt: string
-}
-
-export type AffiliateProgramDTO = {
-  readonly id: string
-  readonly isActive: boolean
-  readonly defaultCommissionBps: number
-  readonly cookieWindowDays: number
-  readonly allowSelfReferral: boolean
-  readonly autoApproveAffiliates: boolean
-}
-
-export type AffiliateSummaryDTO = {
-  readonly totalAffiliates: number
-  readonly activeAffiliatesCount: number
-  readonly totalReferredRevenueMinor: string
-  readonly totalCommissionAccruedMinor: string
-  readonly totalConversionsCount: number
-}
-
-/**
- * Gets affiliate program settings and aggregated summary.
- */
-export async function getAffiliateProgramAction(
-  rawWorkspaceId: string,
-): Promise<AffiliateActionResult<{ program: AffiliateProgramDTO | null; summary: AffiliateSummaryDTO }>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
-  }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-get-aff-prog-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.view',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view affiliate program.' } }
-    }
-
-    const program = await affiliates.getAffiliateProgram(scope)
-    const summary = await affiliates.getAffiliateProgramSummary(scope)
-
-    const programDTO: AffiliateProgramDTO | null = program
-      ? {
-          id: program.id,
-          isActive: program.isActive,
-          defaultCommissionBps: program.defaultCommissionBps,
-          cookieWindowDays: program.cookieWindowDays,
-          allowSelfReferral: program.allowSelfReferral,
-          autoApproveAffiliates: program.autoApproveAffiliates,
-        }
-      : null
-
-    return {
-      ok: true,
-      data: {
-        program: programDTO,
-        summary: {
-          totalAffiliates: summary.totalAffiliates,
-          activeAffiliatesCount: summary.activeAffiliatesCount,
-          totalReferredRevenueMinor: summary.totalReferredRevenueMinor.toString(),
-          totalCommissionAccruedMinor: summary.totalCommissionAccruedMinor.toString(),
-          totalConversionsCount: summary.totalConversionsCount,
-        },
-      },
-    }
-  })
-}
-
-/**
- * Updates affiliate program settings.
- */
-export async function updateAffiliateProgramAction(
-  rawWorkspaceId: string,
-  rawInput: UpdateAffiliateProgramInput,
-): Promise<AffiliateActionResult<AffiliateProgramDTO>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
-  }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-update-aff-prog-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.manage',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to manage affiliate program.' } }
-    }
-
-    const parsed = updateAffiliateProgramSchema.safeParse(rawInput)
-    if (!parsed.success) {
-      return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input.' } }
-    }
-
-    const updated = await affiliates.upsertAffiliateProgram(scope, parsed.data)
-
-    await auditLog.writeAuditLog(scope, auditOptions, {
-      action: 'affiliate_program.updated',
-      targetType: 'affiliate_program',
-      targetId: updated.id,
-      actorType: 'user',
-      actorId,
-      metadata: {
-        isActive: updated.isActive,
-        defaultCommissionBps: updated.defaultCommissionBps,
-        cookieWindowDays: updated.cookieWindowDays,
-        allowSelfReferral: updated.allowSelfReferral,
-        autoApproveAffiliates: updated.autoApproveAffiliates,
-      },
+  // After commit: the email is a side effect, never part of the transaction.
+  const { subdomain, storeName, bps } = result.data
+  const link = referralUrl(subdomain, form.code)
+  await getEmailService()
+    .sendAffiliateInvite({
+      to: form.email,
+      storeName,
+      commissionPercent: `${(bps / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}%`,
+      referralUrl: link,
+      portalUrl: affiliatePortalUrl(subdomain, form.code),
     })
-
-    return {
-      ok: true,
-      data: {
-        id: updated.id,
-        isActive: updated.isActive,
-        defaultCommissionBps: updated.defaultCommissionBps,
-        cookieWindowDays: updated.cookieWindowDays,
-        allowSelfReferral: updated.allowSelfReferral,
-        autoApproveAffiliates: updated.autoApproveAffiliates,
-      },
-    }
-  })
-}
-
-/**
- * Lists promoters with search, status filtering, and pagination.
- */
-export async function listAffiliatesAction(
-  rawWorkspaceId: string,
-  filter: {
-    readonly status?: string | undefined
-    readonly query?: string | undefined
-    readonly limit?: number | undefined
-    readonly offset?: number | undefined
-  } = {},
-): Promise<AffiliateActionResult<{ items: readonly AffiliateDTO[]; total: number }>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
-  }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-list-aff-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.view',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to view affiliates.' } }
-    }
-
-    const items = await affiliates.listAffiliates(scope, filter)
-    const total = await affiliates.countAffiliates(scope, filter)
-
-    const formatted: AffiliateDTO[] = items.map((a) => ({
-      id: a.id,
-      email: a.email,
-      name: a.name,
-      status: a.status,
-      customCommissionBps: a.customCommissionBps,
-      totalEarnings: a.totalEarnings.toString(),
-      totalConversions: a.totalConversions,
-      joinedAt: a.joinedAt.toISOString(),
-    }))
-
-    return { ok: true, data: { items: formatted, total } }
-  })
-}
-
-/**
- * Updates affiliate status (approved, suspended, rejected).
- */
-export async function updateAffiliateStatusAction(
-  rawWorkspaceId: string,
-  affiliateId: string,
-  status: 'approved' | 'suspended' | 'rejected',
-): Promise<AffiliateActionResult<AffiliateDTO>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
-  }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-update-aff-status-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.manage',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to manage affiliates.' } }
-    }
-
-    const updated = await affiliates.updateAffiliateStatus(scope, affiliateId, status)
-    if (!updated) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Affiliate not found.' } }
-    }
-
-    await auditLog.writeAuditLog(scope, auditOptions, {
-      action: 'affiliate.status_updated',
-      targetType: 'affiliate',
-      targetId: affiliateId,
-      actorType: 'user',
-      actorId,
-      metadata: { newStatus: status },
+    .catch((error: unknown) => {
+      console.error(
+        '[affiliate] invite email failed',
+        error instanceof Error ? error.message : error,
+      )
     })
-
-    return {
-      ok: true,
-      data: {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        status: updated.status,
-        customCommissionBps: updated.customCommissionBps,
-        totalEarnings: updated.totalEarnings.toString(),
-        totalConversions: updated.totalConversions,
-        joinedAt: updated.joinedAt.toISOString(),
-      },
-    }
-  })
+  return { ok: true, data: { code: form.code, referralUrl: link } }
 }
 
-/**
- * Creates an affiliate referral link.
- */
-export async function createAffiliateLinkAction(
+export async function setAffiliateStatusAction(
   rawWorkspaceId: string,
-  rawInput: CreateAffiliateLinkInput,
-): Promise<AffiliateActionResult<{ id: string; code: string; clicksCount: number; conversionsCount: number }>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
+  rawAffiliateId: string,
+  status: 'approved' | 'suspended',
+): Promise<ActionResult<{ readonly status: string }>> {
+  if (
+    !z.string().uuid().safeParse(rawAffiliateId).success ||
+    !['approved', 'suspended'].includes(status)
+  ) {
+    return { ok: false, error: 'That affiliate does not exist.' }
   }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-create-aff-link-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.manage',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to create referral links.' } }
-    }
-
-    const parsed = createAffiliateLinkSchema.safeParse(rawInput)
-    if (!parsed.success) {
-      return { ok: false, error: { code: 'ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid link input.' } }
-    }
-
-    const existing = await affiliates.findAffiliateLinkByCode(scope, parsed.data.code)
-    if (existing) {
-      return { ok: false, error: { code: 'ERROR', message: `Referral code "${parsed.data.code}" is already taken.` } }
-    }
-
-    const link = await affiliates.createAffiliateLink(scope, parsed.data)
-
-    await auditLog.writeAuditLog(scope, auditOptions, {
-      action: 'affiliate_link.created',
-      targetType: 'affiliate_link',
-      targetId: link.id,
-      actorType: 'user',
-      actorId,
-      metadata: { code: link.code, affiliateId: link.affiliateId },
-    })
-
-    return {
-      ok: true,
-      data: {
-        id: link.id,
-        code: link.code,
-        clicksCount: link.clicksCount,
-        conversionsCount: link.conversionsCount,
-      },
-    }
-  })
+  return memberAction(
+    'affiliate.status',
+    rawWorkspaceId,
+    'affiliate.manage',
+    async (scope, member) => {
+      const updated = await affiliates.updateAffiliateStatus(scope, rawAffiliateId, status)
+      if (!updated) throw new ActionFailure('That affiliate does not exist.')
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        actorType: 'user',
+        actorId: member.actorId as never,
+        action: status === 'approved' ? 'affiliate.resumed' : 'affiliate.paused',
+        targetType: 'affiliate',
+        targetId: rawAffiliateId,
+        metadata: {},
+      })
+      return { status }
+    },
+  )
 }
 
-/**
- * Public portal loader: Fetches statistics for a promoter by their referral code.
- */
-export async function getAffiliatePortalDataAction(
+const payoutSchema = z.discriminatedUnion('method', [
+  z.object({
+    method: z.literal('upi'),
+    upiId: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9._-]{2,256}@[a-z][a-z0-9]{1,64}$/, 'Enter a UPI ID like name@okhdfcbank.'),
+  }),
+  z.object({
+    method: z.literal('bank'),
+    accountName: z.string().trim().min(2, 'Enter the name on the account.').max(120),
+    accountNumber: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{9,18}$/, 'Account numbers are 9 to 18 digits.'),
+    ifsc: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Enter an 11-character IFSC like HDFC0001234.'),
+  }),
+])
+
+/** The affiliate's own action: where to send their commissions. */
+export async function saveAffiliatePayoutAccountAction(
+  subdomain: string,
   code: string,
-  rawWorkspaceId?: string,
-): Promise<
-  AffiliateActionResult<{
-    workspaceId: string
-    affiliate: { name: string | null; email: string; status: string; totalEarnings: string; totalConversions: number }
-    link: { code: string; clicksCount: number; conversionsCount: number; destinationUrl: string | null }
-    financialBreakdown: {
-      held: string
-      vested: string
-      paid: string
-      clawedBack: string
-      totalEarned: string
-    }
-    commissions: readonly {
-      id: string
-      orderId: string
-      grossSaleAmount: string
-      commissionBps: number
-      grossAmount: string
-      netAmount: string
-      status: string
-      heldUntil: string
-      currency: string
-      createdAt: string
-    }[]
-    attributions: readonly { id: string; commissionAmount: string; status: string; attributedAt: string }[]
-  }>
-> {
-  const db = getDatabase()
-  let wsId: WorkspaceId
-
-  if (rawWorkspaceId) {
-    wsId = toWorkspaceId(rawWorkspaceId)
-  } else {
-    const resolved = await db.resolveAffiliateLinkByCode(code)
-    if (!resolved) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Referral link not found.' } }
-    }
-    wsId = resolved.workspaceId
-  }
-
-  const reqId = toRequestId(`req-portal-${code}-${Date.now()}`)
-  const context = workspaceContext({
-    workspaceId: wsId,
-    actorId: toUserId(wsId), // Public unauthenticated visitor scope
-    requestId: reqId,
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const link = await affiliates.findAffiliateLinkByCode(scope, code)
-    if (!link) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Referral link not found.' } }
-    }
-
-    const aff = await affiliates.findAffiliateById(scope, link.affiliateId)
-    if (!aff) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Affiliate profile not found.' } }
-    }
-
-    const [recentAttributions, breakdown, affiliateCommissions] = await Promise.all([
-      affiliates.listAttributionsForAffiliate(scope, toAffiliateId(aff.id)),
-      commissions.getAffiliateLedgerBreakdown(scope, toAffiliateId(aff.id)),
-      commissions.listCommissionsForAffiliate(scope, toAffiliateId(aff.id)),
-    ])
-
-    return {
-      ok: true,
-      data: {
-        workspaceId: wsId,
-        affiliate: {
-          name: aff.name,
-          email: aff.email,
-          status: aff.status,
-          totalEarnings: aff.totalEarnings.toString(),
-          totalConversions: aff.totalConversions,
-        },
-        link: {
-          code: link.code,
-          clicksCount: link.clicksCount,
-          conversionsCount: link.conversionsCount,
-          destinationUrl: link.destinationUrl,
-        },
-        financialBreakdown: {
-          held: breakdown.heldMinor.toString(),
-          vested: breakdown.vestedMinor.toString(),
-          paid: breakdown.paidMinor.toString(),
-          clawedBack: breakdown.clawedBackMinor.toString(),
-          totalEarned: breakdown.totalEarnedMinor.toString(),
-        },
-        commissions: affiliateCommissions.map((c) => ({
-          id: c.id,
-          orderId: c.orderId,
-          grossSaleAmount: c.grossSaleAmount.toString(),
-          commissionBps: c.commissionBps,
-          grossAmount: c.grossAmount.toString(),
-          netAmount: c.netAmount.toString(),
-          status: c.status,
-          heldUntil: c.heldUntil.toISOString(),
-          currency: c.currency,
-          createdAt: c.createdAt.toISOString(),
-        })),
-        attributions: recentAttributions.slice(0, 20).map((a) => ({
-          id: a.id,
-          commissionAmount: a.commissionAmount.toString(),
-          status: a.status,
-          attributedAt: a.attributedAt.toISOString(),
-        })),
-      },
-    }
-  })
-}
-
-/**
- * Public action: Records a visitor click on an affiliate referral code.
- */
-export async function recordAffiliateClickAction(
-  code: string,
-  metadata: {
-    visitorToken: string
-    ip?: string
-    userAgent?: string
-    referer?: string
-    isBot?: boolean
-  },
-  rawWorkspaceId?: string,
-): Promise<AffiliateActionResult<{ recorded: boolean }>> {
-  const db = getDatabase()
-  let wsId: WorkspaceId
-
-  if (rawWorkspaceId) {
-    wsId = toWorkspaceId(rawWorkspaceId)
-  } else {
-    const resolved = await db.resolveAffiliateLinkByCode(code)
-    if (!resolved) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Invalid referral code.' } }
-    }
-    wsId = resolved.workspaceId
-  }
-
-  const reqId = toRequestId(`req-click-${code}-${Date.now()}`)
-  const context = workspaceContext({
-    workspaceId: wsId,
-    actorId: toUserId(wsId),
-    requestId: reqId,
-  })
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const link = await affiliates.findAffiliateLinkByCode(scope, code)
-    if (!link) {
-      return { ok: false, error: { code: 'NOT_FOUND', message: 'Invalid referral code.' } }
-    }
-
-    const rawIp = metadata.ip ?? '127.0.0.1'
-    const ipHash = createHash('sha256').update(`${rawIp}:${auditSalt()}`).digest('hex')
-
-    await affiliates.recordAffiliateClick(scope, {
-      affiliateLinkId: link.id,
-      affiliateId: link.affiliateId,
-      visitorToken: metadata.visitorToken,
-      ipHash,
-      userAgent: metadata.userAgent,
-      referer: metadata.referer,
-      isBot: metadata.isBot ?? false,
+  input: z.input<typeof payoutSchema>,
+): Promise<ActionResult<{ readonly saved: true }>> {
+  const parsed = payoutSchema.safeParse(input)
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'Check the details.' }
+  try {
+    const result = await withAffiliateOwner(subdomain, code, async (scope, affiliate) => {
+      await affiliates.setAffiliatePayoutAccount(scope, affiliate.id, {
+        ...parsed.data,
+        updatedAt: new Date().toISOString(),
+      })
+      await auditLog.writeAuditLog(scope, auditOptions, {
+        actorType: 'affiliate',
+        action: 'affiliate.payout_account_updated',
+        targetType: 'affiliate',
+        targetId: affiliate.id,
+        metadata: { method: parsed.data.method },
+      })
     })
-
-    return { ok: true, data: { recorded: true } }
-  })
-}
-
-/**
- * Generates sanitized CSV export for affiliates.
- */
-export async function exportAffiliatesCsvAction(
-  rawWorkspaceId: string,
-): Promise<AffiliateActionResult<string>> {
-  const session = await getServerSession()
-  if (!session) {
-    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Sign-in required.' } }
+    if (!result.ok)
+      return { ok: false, error: 'Sign in with the email your invitation was sent to.' }
+    return { ok: true, data: { saved: true } }
+  } catch (error) {
+    console.error('[affiliate] payout account not saved', error)
+    return { ok: false, error: 'Something went wrong on our side. Try again in a moment.' }
   }
-
-  const wsId = toWorkspaceId(rawWorkspaceId)
-  const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-export-aff-${Date.now()}`)
-  const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
-  const db = getDatabase()
-
-  return db.withWorkspace(context, async (tx) => {
-    const scope = { tx, context }
-    const member = await workspaceMembers.findMemberByUserId(scope, actorId)
-    if (!member) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You are not a member of this workspace.' } }
-    }
-
-    const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
-      wsId,
-      'affiliate.view',
-    )
-    if (!authCheck.ok) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied to export affiliates.' } }
-    }
-
-    const items = await affiliates.listAffiliates(scope, { limit: 1000 })
-
-    const headers = [
-      'Affiliate ID',
-      'Email',
-      'Name',
-      'Status',
-      'Custom Commission Bps',
-      'Total Earnings (INR)',
-      'Total Conversions',
-      'Joined Date',
-    ]
-
-    const rows = items.map((a) => {
-      const earningsInr = (Number(a.totalEarnings) / 100).toFixed(2)
-      return [
-        `"${a.id}"`,
-        `"${a.email.replace(/"/g, '""')}"`,
-        `"${(a.name ?? '').replace(/"/g, '""')}"`,
-        `"${a.status}"`,
-        `"${a.customCommissionBps ?? 'Default'}"`,
-        `"${earningsInr}"`,
-        `"${a.totalConversions}"`,
-        `"${a.joinedAt.toISOString()}"`,
-      ].join(',')
-    })
-
-    const csvContent = [headers.join(','), ...rows].join('\n')
-
-    await auditLog.writeAuditLog(scope, auditOptions, {
-      action: 'affiliates.exported_csv',
-      targetType: 'workspace',
-      targetId: wsId,
-      actorType: 'user',
-      actorId,
-      metadata: { rowCount: items.length },
-    })
-
-    return { ok: true, data: csvContent }
-  })
 }

@@ -247,6 +247,61 @@ export class TransactionalEmailService {
     })
   }
 
+  async sendAffiliateInvite(input: {
+    readonly to: string
+    readonly storeName: string
+    readonly commissionPercent: string
+    readonly referralUrl: string
+    readonly portalUrl: string
+  }): Promise<SendEmailResult> {
+    const rendered = renderActionEmail({
+      subject: `${input.storeName} invited you to their affiliate programme`,
+      preheader: `Earn ${input.commissionPercent} on every sale you refer.`,
+      heading: `Earn ${input.commissionPercent} on every sale you send to ${input.storeName}`,
+      paragraphs: [
+        `Share this link anywhere: ${input.referralUrl}`,
+        'When someone buys through it, you earn a commission. Commissions are held for 30 days in case of refunds, then become payable to you.',
+        'Open your affiliate dashboard to see clicks, sales, and earnings, and to add where you want to be paid. Sign in or create an account with this email address.',
+      ],
+      action: { label: 'Open your affiliate dashboard', url: input.portalUrl },
+      brand: input.storeName,
+    })
+    return this.provider.send({
+      to: input.to,
+      from: this.fromFor(input.storeName),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'affiliate_invite' },
+    })
+  }
+
+  /** A security-relevant change the account owners should know about. */
+  async sendSecurityNotice(input: {
+    readonly to: readonly string[]
+    readonly workspaceName: string
+    readonly subject: string
+    readonly heading: string
+    readonly paragraphs: readonly string[]
+    readonly url: string
+  }): Promise<SendEmailResult> {
+    const rendered = renderActionEmail({
+      subject: input.subject,
+      preheader: input.paragraphs[0] ?? input.heading,
+      heading: input.heading,
+      paragraphs: [...input.paragraphs],
+      action: { label: 'Review in CreatorHub', url: input.url },
+    })
+    return this.provider.send({
+      to: [...input.to],
+      from: this.fromFor(),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      tags: { type: 'security_notice' },
+    })
+  }
+
   async sendSaleNotification(input: {
     readonly to: readonly string[]
     readonly workspaceName: string

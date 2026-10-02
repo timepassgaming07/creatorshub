@@ -28,11 +28,8 @@ import {
   type Payout,
   type PayoutItem,
   beneficiaryAccounts,
-  commissions,
-  orders,
   payoutItems,
   payouts,
-  refunds,
 } from '../schema/index.js'
 import * as ledgerRepo from './ledger.js'
 
@@ -97,51 +94,42 @@ export async function approvePayout(
     return undefined
   }
 
-  // Double-entry ledger integration for payout disbursement:
-  // Post a balanced transaction debiting creator_payable and crediting processor_clearing
-  let ledgerTxId: string | null = null
-  try {
-    const creatorPayableAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
-      scope,
-      'creator_payable',
-      existing.currency as CurrencyCode,
-      scope.context.workspaceId,
-    )
-
-    const processorClearingAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
-      scope,
-      'processor_clearing',
-      existing.currency as CurrencyCode,
-      'processor_clearing_default',
-    )
-
-    const ledgerRes = await ledgerRepo.postTransaction(scope, {
-      workspaceId: scope.context.workspaceId,
-      idempotencyKey: `payout-approval-${existing.id}`,
-      kind: 'payout',
-      referenceType: 'payout',
-      referenceId: existing.id,
-      description: `Disbursement payout of ${existing.amount.toString()} paise`,
-      entries: [
-        {
-          accountId: creatorPayableAcc.id as any,
-          direction: 'debit',
-          amount: existing.amount,
-          currency: existing.currency as CurrencyCode,
-        },
-        {
-          accountId: processorClearingAcc.id as any,
-          direction: 'credit',
-          amount: existing.amount,
-          currency: existing.currency as CurrencyCode,
-        },
-      ],
-    })
-
-    ledgerTxId = ledgerRes.transaction.id
-  } catch (_err) {
-    // If ledger posting fails, continue recording the approval metadata
-  }
+  // The approval and its ledger posting commit together or not at all: a
+  // payout marked approved without the matching debit would let the same
+  // money be paid twice.
+  const creatorPayableAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
+    scope,
+    'creator_payable',
+    existing.currency as CurrencyCode,
+  )
+  const processorClearingAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
+    scope,
+    'processor_clearing',
+    existing.currency as CurrencyCode,
+  )
+  const ledgerRes = await ledgerRepo.postTransaction(scope, {
+    workspaceId: scope.context.workspaceId,
+    idempotencyKey: `payout-approval-${existing.id}`,
+    kind: 'payout',
+    referenceType: 'payout',
+    referenceId: existing.id,
+    description: `Disbursement payout of ${existing.amount.toString()} paise`,
+    entries: [
+      {
+        accountId: creatorPayableAcc.id as any,
+        direction: 'debit',
+        amount: existing.amount,
+        currency: existing.currency as CurrencyCode,
+      },
+      {
+        accountId: processorClearingAcc.id as any,
+        direction: 'credit',
+        amount: existing.amount,
+        currency: existing.currency as CurrencyCode,
+      },
+    ],
+  })
+  const ledgerTxId = ledgerRes.transaction.id
 
   const [updated] = await scope.tx
     .update(payouts)
@@ -200,7 +188,8 @@ export async function recordPayoutProcessing(
       providerPayoutId: params.providerPayoutId,
       updatedAt: new Date(),
     })
-    .where(scoped(scope, payouts, eq(payouts.id, params.payoutId)))
+    // Only an approved payout has had its ledger debit posted.
+    .where(scoped(scope, payouts, eq(payouts.id, params.payoutId), eq(payouts.status, 'approved')))
     .returning()
 
   return updated
@@ -217,7 +206,14 @@ export async function recordPayoutSettlement(
       completedAt: new Date(),
       updatedAt: new Date(),
     })
-    .where(scoped(scope, payouts, eq(payouts.id, payoutIdToSettle)))
+    .where(
+      scoped(
+        scope,
+        payouts,
+        eq(payouts.id, payoutIdToSettle),
+        inArray(payouts.status, ['approved', 'processing']),
+      ),
+    )
     .returning()
 
   return updated
@@ -238,48 +234,42 @@ export async function recordPayoutFailure(
 
   if (!existing) return undefined
 
-  // Compensating ledger entry if funds were already debited on approval
+  // Compensating ledger entry if funds were already debited on approval.
   if (existing.status === 'approved' || existing.status === 'processing') {
-    try {
-      const creatorPayableAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
-        scope,
-        'creator_payable',
-        existing.currency as CurrencyCode,
-        scope.context.workspaceId,
-      )
-
-      const processorClearingAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
-        scope,
-        'processor_clearing',
-        existing.currency as CurrencyCode,
-        'processor_clearing_default',
-      )
-
-      await ledgerRepo.postTransaction(scope, {
-        workspaceId: scope.context.workspaceId,
-        idempotencyKey: `payout-failure-reversal-${existing.id}`,
-        kind: 'payout',
-        referenceType: 'payout',
-        referenceId: existing.id,
-        description: `Compensating reversal for failed payout ${existing.id}`,
-        entries: [
-          {
-            accountId: processorClearingAcc.id as any,
-            direction: 'debit',
-            amount: existing.amount,
-            currency: existing.currency as CurrencyCode,
-          },
-          {
-            accountId: creatorPayableAcc.id as any,
-            direction: 'credit',
-            amount: existing.amount,
-            currency: existing.currency as CurrencyCode,
-          },
-        ],
-      })
-    } catch (_err) {
-      // Ignore compensation error if accounts uninitialized
-    }
+    const creatorPayableAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
+      scope,
+      'creator_payable',
+      existing.currency as CurrencyCode,
+    )
+    const processorClearingAcc = await ledgerRepo.findOrCreateWorkspaceAccount(
+      scope,
+      'processor_clearing',
+      existing.currency as CurrencyCode,
+    )
+    await ledgerRepo.postTransaction(scope, {
+      workspaceId: scope.context.workspaceId,
+      idempotencyKey: `payout-failure-reversal-${existing.id}`,
+      kind: 'payout',
+      referenceType: 'payout',
+      referenceId: existing.id,
+      description: `Compensating reversal for failed payout ${existing.id}`,
+      entries: [
+        {
+          accountId: processorClearingAcc.id as any,
+          direction: 'debit',
+          amount: existing.amount,
+          currency: existing.currency as CurrencyCode,
+        },
+        {
+          accountId: creatorPayableAcc.id as any,
+          direction: 'credit',
+          amount: existing.amount,
+          currency: existing.currency as CurrencyCode,
+        },
+      ],
+    })
+  } else if (existing.status !== 'requested') {
+    return undefined
   }
 
   const [updated] = await scope.tx
@@ -394,51 +384,7 @@ export async function getPayoutBalanceOverview(
   readonly pendingApprovalMinor: string
   readonly minimumPayoutMinor: string
 }> {
-  // 1. Calculate Gross Paid Orders
-  const [orderTotals] = await scope.tx
-    .select({
-      totalNetSales: sql<string>`coalesce(sum(${orders.subtotalAmount}), 0)::text`,
-    })
-    .from(orders)
-    .where(
-      scoped(
-        scope,
-        orders,
-        eq(orders.status, 'paid'),
-        eq(orders.currency, curr),
-      ),
-    )
-
-  // 2. Calculate Total Refunds
-  const [refundTotals] = await scope.tx
-    .select({
-      totalRefunds: sql<string>`coalesce(sum(${refunds.amount}), 0)::text`,
-    })
-    .from(refunds)
-    .where(
-      scoped(
-        scope,
-        refunds,
-        eq(refunds.status, 'succeeded'),
-        eq(refunds.currency, curr),
-      ),
-    )
-
-  // 3. Calculate Vested Commissions Expense
-  const [commissionTotals] = await scope.tx
-    .select({
-      totalCommissions: sql<string>`coalesce(sum(${commissions.netAmount}), 0)::text`,
-    })
-    .from(commissions)
-    .where(
-      scoped(
-        scope,
-        commissions,
-        inArray(commissions.status, ['vested', 'paid']),
-      ),
-    )
-
-  // 4. Calculate Payouts by Status
+  // Payouts by status
   const payoutRows = await scope.tx
     .select({
       status: payouts.status,
@@ -451,7 +397,6 @@ export async function getPayoutBalanceOverview(
   let pendingApproval = 0n
   let inTransit = 0n
   let lifetimeSettled = 0n
-  let totalDeductedFromCreator = 0n
 
   for (const row of payoutRows) {
     const amount = BigInt(row.totalAmount || '0')
@@ -459,25 +404,17 @@ export async function getPayoutBalanceOverview(
       pendingApproval += amount
     } else if (row.status === 'approved' || row.status === 'processing') {
       inTransit += amount
-      totalDeductedFromCreator += amount
     } else if (row.status === 'paid') {
       lifetimeSettled += amount
-      totalDeductedFromCreator += amount
     }
   }
 
-  const netSales = BigInt(orderTotals?.totalNetSales || '0')
-  const totalRefunds = BigInt(refundTotals?.totalRefunds || '0')
-  const totalCommissions = BigInt(commissionTotals?.totalCommissions || '0')
-
-  // Available = (Net Sales - Refunds - Commissions) - (Approved/Processing/Paid Payouts)
-  const totalGrossAvailable = netSales > totalRefunds + totalCommissions
-    ? netSales - totalRefunds - totalCommissions
-    : 0n
-
-  const netAvailable = totalGrossAvailable > totalDeductedFromCreator
-    ? totalGrossAvailable - totalDeductedFromCreator
-    : 0n
+  // The creator's money is the creator_payable account: credited with each
+  // sale net of fees, tax, and commission; debited by refunds and approved
+  // payouts. Requests still awaiting approval are set aside on top.
+  const creatorPayable = await ledgerRepo.findOrCreateWorkspaceAccount(scope, 'creator_payable', curr)
+  const ledgerBalance = (await ledgerRepo.getAccountBalance(scope, creatorPayable.id as any)).amount
+  const netAvailable = ledgerBalance > pendingApproval ? ledgerBalance - pendingApproval : 0n
 
   return {
     currency: curr,

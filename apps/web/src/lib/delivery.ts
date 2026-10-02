@@ -91,7 +91,7 @@ export async function issueDownloadGrants(
 }
 
 /** Owner and admin email addresses, for sale notifications. */
-async function notificationRecipients(scope: RepositoryScope): Promise<string[]> {
+export async function notificationRecipients(scope: RepositoryScope): Promise<string[]> {
   const members = await workspaceMembers.listMembers(scope)
   const ids = members.filter((m) => m.role === 'owner' || m.role === 'admin').map((m) => m.userId)
   if (ids.length === 0) return []

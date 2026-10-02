@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation'
 import { INDIAN_STATES } from '@creatorhub/contracts'
 
 import { StorefrontTelemetry } from '@/components/storefront/StorefrontTelemetry'
+import { recordReferralClick } from '@/lib/affiliate-portal'
 import { getBuyerOrder, quoteCheckout } from '@/lib/checkout'
 import { appUrl } from '@/lib/env'
 import { isTestPaymentMode } from '@/lib/payments'
@@ -22,6 +23,18 @@ import { StoreHome } from './StoreHome'
 import { StoreShell } from './StoreShell'
 
 type Prefix = 's' | 'c'
+
+/**
+ * JSON inside a <script> tag. Creators write the titles and descriptions in
+ * it, and `</script>` in a title would otherwise end the tag and run whatever
+ * follows. Escaping `<` keeps the JSON identical and the tag closed.
+ */
+export function jsonForScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
 
 function absolute(path: string | null): string | undefined {
   if (!path) return undefined
@@ -57,13 +70,16 @@ export async function StoreHomeRoute({
   prefix,
   host,
   preview,
+  referral,
 }: {
   readonly prefix: Prefix
   readonly host: string
   readonly preview?: string | undefined
+  readonly referral?: string | undefined
 }) {
   const data = await loadStore(host, { preview })
   if (!data) notFound()
+  if (referral && !data.store.isPreview) await recordReferralClick(host, referral)
   const basePath = await storeBasePath(prefix, host)
 
   const jsonLd = {
@@ -77,7 +93,10 @@ export async function StoreHomeRoute({
   return (
     <StoreShell store={data.store} basePath={basePath} appUrl={appUrl()}>
       {!data.store.isPreview && <StorefrontTelemetry storefrontId={data.store.id} />}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonForScript(jsonLd) }}
+      />
       <StoreHome store={data.store} products={data.products} basePath={basePath} />
     </StoreShell>
   )
@@ -111,14 +130,17 @@ export async function ProductRoute({
   host,
   slug,
   preview,
+  referral,
 }: {
   readonly prefix: Prefix
   readonly host: string
   readonly slug: string
   readonly preview?: string | undefined
+  readonly referral?: string | undefined
 }) {
   const data = await loadProduct(host, slug, { preview })
   if (!data) notFound()
+  if (referral && !data.store.isPreview) await recordReferralClick(host, referral)
   const basePath = await storeBasePath(prefix, host)
   const { store, product } = data
 
@@ -141,7 +163,10 @@ export async function ProductRoute({
   return (
     <StoreShell store={store} basePath={basePath} compactHeader appUrl={appUrl()}>
       {!store.isPreview && <StorefrontTelemetry storefrontId={store.id} productId={product.id} />}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonForScript(jsonLd) }}
+      />
       <ProductPage store={store} product={product} basePath={basePath} />
     </StoreShell>
   )
@@ -187,7 +212,11 @@ export async function CheckoutRoute({
 
   return (
     <StoreShell store={store} basePath={basePath} compactHeader appUrl={appUrl()}>
-      <StorefrontTelemetry storefrontId={store.id} productId={product.id} eventType="checkout_started" />
+      <StorefrontTelemetry
+        storefrontId={store.id}
+        productId={product.id}
+        eventType="checkout_started"
+      />
       <CheckoutClient
         host={host}
         basePath={basePath}

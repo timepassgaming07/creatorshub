@@ -363,3 +363,27 @@ export async function getAffiliateLedgerBreakdown(
     totalEarnedMinor,
   }
 }
+
+/**
+ * Mark an affiliate's payable (vested) commissions as paid, all at once.
+ * Returns what was marked so the caller can post the matching ledger entry
+ * in the same transaction.
+ */
+export async function markVestedCommissionsPaid(
+  scope: RepositoryScope,
+  affiliateId: AffiliateId,
+): Promise<{ readonly count: number; readonly totalMinor: bigint; readonly currency: string | null }> {
+  const rows = await scope.tx
+    .update(commissions)
+    .set({ status: 'paid', paidAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()` })
+    .where(scoped(scope, commissions, eq(commissions.affiliateId, affiliateId), eq(commissions.status, 'vested')))
+    .returning({ netAmount: commissions.netAmount, currency: commissions.currency })
+
+  const currencies = new Set(rows.map((r) => r.currency))
+  if (currencies.size > 1) throw new Error('Commissions in more than one currency; settle them separately.')
+  return {
+    count: rows.length,
+    totalMinor: rows.reduce((sum, r) => sum + r.netAmount, 0n),
+    currency: rows[0]?.currency ?? null,
+  }
+}

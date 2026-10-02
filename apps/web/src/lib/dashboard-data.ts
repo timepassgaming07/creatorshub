@@ -14,16 +14,20 @@ import {
   workspaceId as toWorkspaceId,
   type AnalyticsSummaryDTO,
   type AnalyticsTimeframe,
+  type CurrencyCode,
   type CustomDomainChallenge,
   type WorkspaceContext,
   type WorkspaceTaxSettings,
 } from '@creatorhub/contracts'
 import {
+  affiliates,
   analytics,
   beneficiaryAccountsRepo,
   catalogue,
+  commissions,
   discounts,
   orders,
+  payoutsRepo,
   storefronts,
   workspaceMembers,
   workspaces,
@@ -31,6 +35,7 @@ import {
 } from '@creatorhub/db'
 import { authorise, type Permission, type WorkspaceRole } from '@creatorhub/domain'
 
+import { referralUrl } from './affiliate-portal'
 import { getAuthPool } from './auth'
 import { getDatabase } from './db'
 import { customDomainTarget } from './env'
@@ -458,4 +463,229 @@ export async function loadSettings(rawWorkspaceId: string): Promise<SettingsData
     currentUserId: loaded.access.session.userId,
     role: loaded.access.role as WorkspaceRole,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Affiliates
+// ---------------------------------------------------------------------------
+
+export type AffiliateRowData = {
+  readonly id: string
+  readonly name: string | null
+  readonly email: string
+  readonly status: string
+  readonly code: string | null
+  readonly referralUrl: string | null
+  readonly commissionBps: number
+  readonly isCustomRate: boolean
+  readonly clicks: number
+  readonly conversions: number
+  readonly saleTotal: string
+  readonly held: string
+  readonly payable: string
+  readonly paid: string
+  readonly hasPayoutAccount: boolean
+}
+
+export type AffiliatesData = {
+  readonly program: {
+    readonly isActive: boolean
+    readonly commissionBps: number
+    readonly cookieWindowDays: number
+  }
+  readonly affiliates: readonly AffiliateRowData[]
+  readonly totals: {
+    readonly clicks: number
+    readonly conversions: number
+    readonly referredSales: string
+    readonly commissionOwed: string
+  }
+  readonly recent: readonly {
+    readonly id: string
+    readonly affiliateName: string
+    readonly orderId: string
+    readonly saleAmount: string
+    readonly amount: string
+    readonly status: string
+    readonly heldUntil: string
+    readonly createdAt: string
+  }[]
+}
+
+export async function loadAffiliates(rawWorkspaceId: string): Promise<AffiliatesData> {
+  return asMember(rawWorkspaceId, 'affiliate.view', async (scope) => {
+    await commissions.releaseHeldCommissions(scope, new Date())
+    const [program, rows, links, { items: comms }] = await Promise.all([
+      affiliates.getAffiliateProgram(scope),
+      affiliates.listAffiliates(scope, { limit: 500 }),
+      affiliates.listAffiliateLinks(scope),
+      commissions.listWorkspaceCommissions(scope),
+    ])
+    const defaultBps = program?.defaultCommissionBps ?? 2000
+    const subdomain = scope.access.storefront?.subdomain
+
+    const byAffiliate = new Map<
+      string,
+      { held: bigint; payable: bigint; paid: bigint; sales: bigint }
+    >()
+    for (const c of comms) {
+      const agg = byAffiliate.get(c.affiliateId) ?? { held: 0n, payable: 0n, paid: 0n, sales: 0n }
+      if (c.status === 'held') agg.held += c.netAmount
+      if (c.status === 'vested') agg.payable += c.netAmount
+      if (c.status === 'paid') agg.paid += c.netAmount
+      if (c.status !== 'clawed_back') agg.sales += c.grossSaleAmount
+      byAffiliate.set(c.affiliateId, agg)
+    }
+    const names = new Map(rows.map((a) => [a.id, a.name ?? a.email]))
+
+    const list: AffiliateRowData[] = rows.map((a) => {
+      const link = links.find((l) => l.affiliateId === a.id)
+      const agg = byAffiliate.get(a.id) ?? { held: 0n, payable: 0n, paid: 0n, sales: 0n }
+      return {
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        status: a.status,
+        code: link?.code ?? null,
+        referralUrl: link && subdomain ? referralUrl(subdomain, link.code) : null,
+        commissionBps: a.customCommissionBps ?? defaultBps,
+        isCustomRate: a.customCommissionBps !== null,
+        clicks: link?.clicksCount ?? 0,
+        conversions: link?.conversionsCount ?? a.totalConversions,
+        saleTotal: agg.sales.toString(),
+        held: agg.held.toString(),
+        payable: agg.payable.toString(),
+        paid: agg.paid.toString(),
+        hasPayoutAccount:
+          Object.keys((a.payoutAccount as Record<string, unknown> | null) ?? {}).length > 0,
+      }
+    })
+
+    let owed = 0n
+    let sales = 0n
+    for (const agg of byAffiliate.values()) {
+      owed += agg.held + agg.payable
+      sales += agg.sales
+    }
+
+    return {
+      program: {
+        isActive: program?.isActive ?? false,
+        commissionBps: defaultBps,
+        cookieWindowDays: program?.cookieWindowDays ?? 30,
+      },
+      affiliates: list,
+      totals: {
+        clicks: list.reduce((sum, a) => sum + a.clicks, 0),
+        conversions: list.reduce((sum, a) => sum + a.conversions, 0),
+        referredSales: sales.toString(),
+        commissionOwed: owed.toString(),
+      },
+      recent: comms.slice(0, 25).map((c) => ({
+        id: c.id,
+        affiliateName: names.get(c.affiliateId) ?? 'Affiliate',
+        orderId: c.orderId,
+        saleAmount: c.grossSaleAmount.toString(),
+        amount: c.netAmount.toString(),
+        status: c.status,
+        heldUntil: c.heldUntil.toISOString(),
+        createdAt: c.createdAt.toISOString(),
+      })),
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Payouts
+// ---------------------------------------------------------------------------
+
+export type PayoutAccountRow = {
+  readonly id: string
+  readonly holder: string
+  readonly kind: 'vpa' | 'bank_account'
+  readonly display: string
+  readonly isDefault: boolean
+  readonly createdAt: string
+}
+
+export type PayoutRow = {
+  readonly id: string
+  readonly amount: string
+  readonly status: string
+  readonly account: string
+  readonly requestedBy: string
+  readonly requestedAt: string
+  readonly approvedAt: string | null
+  readonly completedAt: string | null
+  readonly reference: string | null
+  readonly failureReason: string | null
+}
+
+export type PayoutsData = {
+  readonly currency: string
+  readonly balance: {
+    readonly available: string
+    readonly pending: string
+    readonly inTransit: string
+    readonly settled: string
+    readonly minimum: string
+  }
+  readonly accounts: readonly PayoutAccountRow[]
+  readonly payouts: readonly PayoutRow[]
+  readonly currentUserId: string
+  readonly role: WorkspaceRole
+  readonly memberCount: number
+  readonly emailVerified: boolean
+}
+
+export async function loadPayouts(rawWorkspaceId: string): Promise<PayoutsData> {
+  return asMember(rawWorkspaceId, 'payout.view', async (scope) => {
+    const currencyCode = scope.access.workspace.currency as CurrencyCode
+    const [balance, accounts, list, members] = await Promise.all([
+      payoutsRepo.getPayoutBalanceOverview(scope, currencyCode),
+      beneficiaryAccountsRepo.listBeneficiaryAccounts(scope, { payeeType: 'workspace' }),
+      payoutsRepo.listPayouts(scope, { limit: 50, offset: 0 }),
+      workspaceMembers.listMembers(scope),
+    ])
+    const describe = (a: {
+      accountType: string
+      vpa: string | null
+      maskedAccountNumber: string | null
+    }) =>
+      a.accountType === 'vpa' ? (a.vpa ?? 'UPI') : `Bank ${a.maskedAccountNumber ?? ''}`.trim()
+    return {
+      currency: currencyCode,
+      balance: {
+        available: balance.availableBalanceMinor,
+        pending: balance.pendingApprovalMinor,
+        inTransit: balance.inTransitBalanceMinor,
+        settled: balance.lifetimeSettledMinor,
+        minimum: balance.minimumPayoutMinor,
+      },
+      accounts: accounts.map((a) => ({
+        id: a.id,
+        holder: a.accountHolderName,
+        kind: a.accountType as 'vpa' | 'bank_account',
+        display: describe(a),
+        isDefault: a.isDefault,
+        createdAt: a.createdAt.toISOString(),
+      })),
+      payouts: list.map((p) => ({
+        id: p.id,
+        amount: p.amount.toString(),
+        status: p.status,
+        account: p.beneficiary ? describe(p.beneficiary) : 'Removed account',
+        requestedBy: p.requestedBy,
+        requestedAt: p.createdAt.toISOString(),
+        approvedAt: p.approvedAt?.toISOString() ?? null,
+        completedAt: p.completedAt?.toISOString() ?? null,
+        reference: p.providerPayoutId,
+        failureReason: p.failureReason,
+      })),
+      currentUserId: scope.access.session.userId,
+      role: scope.access.role as WorkspaceRole,
+      memberCount: members.length,
+      emailVerified: scope.access.session.user.emailVerified ?? false,
+    }
+  })
 }
