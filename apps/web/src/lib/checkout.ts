@@ -46,6 +46,7 @@ import {
   calculateServerOrderPricing,
   evaluateDiscount,
   type CalculatedOrderPricing,
+  type DiscountEvaluationFailure,
   type DiscountEvaluationSuccess,
   type ServerProductPriceInfo,
 } from '@creatorhub/domain'
@@ -59,6 +60,7 @@ import {
 import { getDatabase } from './db'
 import { issueDownloadGrants, sendPurchaseEmails, type IssuedDownload } from './delivery'
 import { auditOptions, storefrontUrl } from './env'
+import { formatAmount } from './format'
 import { fulfillPaidOrder, PaymentAmountMismatchError } from './order-fulfillment'
 import { getPaymentProvider } from './payments'
 
@@ -91,13 +93,21 @@ export type CheckoutQuote = {
   readonly discountCode: string | null
   /** Why a code the buyer typed did not apply. Null when it applied or none was typed. */
   readonly discountProblem: string | null
-  readonly taxLines: readonly { readonly label: string; readonly rateBps: number; readonly amount: string }[]
+  readonly taxLines: readonly {
+    readonly label: string
+    readonly rateBps: number
+    readonly amount: string
+  }[]
   /** One sentence explaining the tax treatment, shown under the total. */
   readonly taxNote: string
   readonly gstRegistered: boolean
 }
 
-export type CheckoutFailure = { readonly ok: false; readonly code: string; readonly message: string }
+export type CheckoutFailure = {
+  readonly ok: false
+  readonly code: string
+  readonly message: string
+}
 
 export type SerializedDownload = {
   readonly url: string
@@ -175,7 +185,32 @@ export async function resolvePublishedStore(store: StoreRef) {
   return resolved?.status === 'published' ? resolved : null
 }
 
-function toDiscountRecord(row: Awaited<ReturnType<typeof discounts.findDiscountByCode>>): DiscountRecord | null {
+/** What the buyer reads when a code does not apply. */
+function discountProblemFor(
+  code: DiscountEvaluationFailure['code'],
+  record: DiscountRecord,
+  orderCurrency: string,
+): string {
+  switch (code) {
+    case 'INACTIVE':
+    case 'NOT_STARTED':
+      return 'That code is not active right now.'
+    case 'EXPIRED':
+      return 'That code has expired.'
+    case 'USAGE_EXCEEDED':
+      return 'That code has been used up.'
+    case 'MIN_ORDER_NOT_MET':
+      return `That code needs an order of at least ${formatAmount(record.minOrderAmount ?? 0n, orderCurrency)}.`
+    case 'PRODUCT_NOT_APPLICABLE':
+      return 'That code does not apply to this product.'
+    case 'CURRENCY_MISMATCH':
+      return 'That code cannot be used with this currency.'
+  }
+}
+
+function toDiscountRecord(
+  row: Awaited<ReturnType<typeof discounts.findDiscountByCode>>,
+): DiscountRecord | null {
   if (!row) return null
   return {
     id: discountId(row.id),
@@ -243,7 +278,8 @@ async function priceCheckout(
     })
   }
 
-  const unitPrice = catalog.get(chosenVariant ? `${product.id}:${chosenVariant}` : product.id)?.price.amount ?? 0n
+  const unitPrice =
+    catalog.get(chosenVariant ? `${product.id}:${chosenVariant}` : product.id)?.price.amount ?? 0n
 
   // Discount
   let evaluated: DiscountEvaluationSuccess | null = null
@@ -267,7 +303,7 @@ async function priceCheckout(
         appliedCode = record.code
         appliedDiscountId = record.id
       } else {
-        discountProblem = result.reason
+        discountProblem = discountProblemFor(result.code, record, productCurrency)
       }
     }
   }
@@ -324,7 +360,11 @@ async function priceCheckout(
   const taxLines: CheckoutQuote['taxLines'] =
     scheme === 'intra'
       ? [
-          { label: 'CGST', rateBps: Math.floor(rateBps / 2), amount: (pricing.taxAmount / 2n).toString() },
+          {
+            label: 'CGST',
+            rateBps: Math.floor(rateBps / 2),
+            amount: (pricing.taxAmount / 2n).toString(),
+          },
           {
             label: 'SGST',
             rateBps: rateBps - Math.floor(rateBps / 2),
@@ -465,7 +505,12 @@ export async function startCheckout(input: StartCheckoutInput): Promise<StartChe
         method: 'free',
         capturedAt: new Date(),
       })
-      return { ok: true as const, kind: 'free' as const, order, downloads: fulfilled.downloadGrants ?? [] }
+      return {
+        ok: true as const,
+        kind: 'free' as const,
+        order,
+        downloads: fulfilled.downloadGrants ?? [],
+      }
     }
 
     await orders.recordOrderTransition(scope, {
@@ -566,7 +611,10 @@ export async function startCheckout(input: StartCheckoutInput): Promise<StartChe
     amount: created.order.totalAmount.toString(),
     currency: created.order.currency,
     storeName: created.storeName,
-    description: created.pricing.items.map((i) => i.title).join(', ').slice(0, 250),
+    description: created.pricing.items
+      .map((i) => i.title)
+      .join(', ')
+      .slice(0, 250),
     prefill: { name: input.name, email: input.email, contact: input.phone ?? '' },
     testMode: provider.name === 'memory',
   }
@@ -606,8 +654,14 @@ async function confirmWith(
       signature: input.signature,
     })
   } catch (error) {
-    if (error instanceof WebhookSignatureVerificationError || (error as Error | null)?.name === 'WebhookSignatureVerificationError') {
-      return fail('PAYMENT_NOT_VERIFIED', 'We could not verify this payment. If money left your account, the seller will see it and refund it automatically.')
+    if (
+      error instanceof WebhookSignatureVerificationError ||
+      (error as Error | null)?.name === 'WebhookSignatureVerificationError'
+    ) {
+      return fail(
+        'PAYMENT_NOT_VERIFIED',
+        'We could not verify this payment. If money left your account, the seller will see it and refund it automatically.',
+      )
     }
     if (error instanceof PaymentProviderError) {
       // The webhook will settle it; tell the buyer to wait rather than retry.
@@ -643,7 +697,10 @@ async function confirmWith(
   } catch (error) {
     if (error instanceof PaymentAmountMismatchError) {
       console.error('[checkout] amount mismatch', error.message)
-      return fail('AMOUNT_MISMATCH', 'The payment amount did not match this order. The seller has been notified and will refund you.')
+      return fail(
+        'AMOUNT_MISMATCH',
+        'The payment amount did not match this order. The seller has been notified and will refund you.',
+      )
     }
     throw error
   }
@@ -735,7 +792,10 @@ export async function getBuyerOrder(input: {
       tax: order.taxAmount.toString(),
       currency: order.currency,
       createdAt: order.createdAt.toISOString(),
-      items: items.map((item) => ({ title: item.productTitle, amount: item.totalAmount.toString() })),
+      items: items.map((item) => ({
+        title: item.productTitle,
+        amount: item.totalAmount.toString(),
+      })),
     }
   })
 }
@@ -762,7 +822,8 @@ export async function resendBuyerLinks(input: {
   const outcome = await getDatabase().withWorkspace(context, async (tx) => {
     const scope = { tx, context }
     const order = await orders.findOrderById(scope, toOrderId(input.orderId))
-    if (order?.status !== 'paid') return { ok: false as const, message: 'This order is not paid yet.' }
+    if (order?.status !== 'paid')
+      return { ok: false as const, message: 'This order is not paid yet.' }
 
     const entitlementRows = await fulfillment.findEntitlementsByOrderId(scope, order.id)
     for (const entitlement of entitlementRows) {
@@ -787,5 +848,8 @@ export async function resendBuyerLinks(input: {
     downloads: outcome.downloads,
     notifyCreator: false,
   })
-  return { ok: true, message: `Fresh links are on their way to ${maskEmail(outcome.order.customerEmail)}.` }
+  return {
+    ok: true,
+    message: `Fresh links are on their way to ${maskEmail(outcome.order.customerEmail)}.`,
+  }
 }

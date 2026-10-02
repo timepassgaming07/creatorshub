@@ -29,6 +29,8 @@ import {
 import { getAuthPool, rememberDefaultWorkspace } from './auth'
 import { getEmailService } from './email'
 import { appUrl } from './env'
+import { z } from 'zod'
+
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { generateUuidV7 } from './uuidv7'
@@ -387,7 +389,7 @@ export async function inviteMemberAction(
   }
 
   const email = input.email.trim().toLowerCase()
-  if (!email.includes('@')) {
+  if (!z.string().email().max(254).safeParse(email).success) {
     return {
       success: false,
       error: {
@@ -552,7 +554,7 @@ export async function inviteMemberAction(
       error: {
         code: 'member.invite_failed',
         title: 'Could not invite member',
-        detail: err instanceof Error ? err.message : 'An unexpected error occurred.',
+        detail: 'Something went wrong on our side. Try again in a moment.',
         status: 500,
       },
     }
@@ -632,6 +634,19 @@ export async function updateMemberRoleAction(
       }
 
       const targetId = userId(input.targetUserId)
+      // Exactly one owner, always. Ownership does not move through a role change.
+      const targetMember = await workspaceMembers.findMemberByUserId(scope, targetId)
+      if (targetMember?.role === 'owner') {
+        return {
+          success: false,
+          error: {
+            code: 'member.owner_role_fixed',
+            title: 'The owner stays the owner',
+            detail: 'The workspace owner cannot be given another role.',
+            status: 400,
+          },
+        }
+      }
       const updated = await workspaceMembers.updateMemberRole(scope, targetId, input.role)
 
       if (updated) {
@@ -656,7 +671,7 @@ export async function updateMemberRoleAction(
       error: {
         code: 'member.update_failed',
         title: 'Could not update role',
-        detail: err instanceof Error ? err.message : 'An error occurred.',
+        detail: 'Something went wrong on our side. Try again in a moment.',
         status: 500,
       },
     }
@@ -735,6 +750,18 @@ export async function removeMemberAction(
       }
 
       const targetId = userId(input.targetUserId)
+      const targetMember = await workspaceMembers.findMemberByUserId(scope, targetId)
+      if (targetMember?.role === 'owner') {
+        return {
+          success: false,
+          error: {
+            code: 'member.owner_not_removable',
+            title: 'The owner cannot be removed',
+            detail: 'A workspace always has its owner. Remove other members instead.',
+            status: 400,
+          },
+        }
+      }
       const removed = await workspaceMembers.removeMember(scope, targetId)
 
       if (removed) {
@@ -758,7 +785,7 @@ export async function removeMemberAction(
       error: {
         code: 'member.remove_failed',
         title: 'Could not remove member',
-        detail: err instanceof Error ? err.message : 'An error occurred.',
+        detail: 'Something went wrong on our side. Try again in a moment.',
         status: 500,
       },
     }

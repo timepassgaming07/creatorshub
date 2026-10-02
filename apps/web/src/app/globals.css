@@ -176,6 +176,14 @@ body {
   --border-subtle: oklch(92.5% 0.004 80);
   --border-default: oklch(87% 0.005 80);
   --border-control: oklch(63% 0.005 80);
+  --positive: oklch(48% 0.11 150);
+  --positive-subtle: oklch(96% 0.03 150);
+  --caution: oklch(54% 0.12 75);
+  --caution-subtle: oklch(96.5% 0.04 85);
+  --critical: oklch(51% 0.17 25);
+  --critical-subtle: oklch(96.5% 0.03 25);
+  --info: oklch(52% 0.09 240);
+  --info-subtle: oklch(96.5% 0.025 240);
   color-scheme: light;
 }
 
@@ -190,6 +198,14 @@ body {
   --border-subtle: oklch(26% 0.008 265);
   --border-default: oklch(33% 0.009 265);
   --border-control: oklch(53% 0.009 265);
+  --positive: oklch(72% 0.14 150);
+  --positive-subtle: oklch(26% 0.05 150);
+  --caution: oklch(78% 0.13 80);
+  --caution-subtle: oklch(28% 0.05 80);
+  --critical: oklch(70% 0.16 25);
+  --critical-subtle: oklch(28% 0.07 25);
+  --info: oklch(73% 0.11 240);
+  --info-subtle: oklch(27% 0.05 240);
   color-scheme: dark;
 }
 

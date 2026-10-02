@@ -180,3 +180,25 @@ export async function listApplicableProductIdsForDiscount(
 
   return rows.map((r) => productId(r.productId))
 }
+
+/**
+ * Pauses or resumes a discount. Discounts are never deleted: orders keep a
+ * reference to the code they used, and the code stays reserved.
+ */
+export async function setDiscountActive(
+  scope: RepositoryScope,
+  id: DiscountId,
+  isActive: boolean,
+): Promise<DiscountRecord> {
+  const [row] = await scope.tx
+    .update(discounts)
+    .set({ isActive, updatedAt: new Date() })
+    .where(scoped(scope, discounts, eq(discounts.id, id)))
+    .returning()
+
+  if (!row) {
+    throw new Error(`Discount ${id} not found or not accessible to tenant.`)
+  }
+
+  return row
+}

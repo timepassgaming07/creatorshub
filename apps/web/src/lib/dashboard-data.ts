@@ -8,6 +8,7 @@
 import { notFound, redirect } from 'next/navigation'
 import {
   buildDomainChallenge,
+  discountId,
   requestId,
   workspaceContext,
   workspaceId as toWorkspaceId,
@@ -15,18 +16,22 @@ import {
   type AnalyticsTimeframe,
   type CustomDomainChallenge,
   type WorkspaceContext,
+  type WorkspaceTaxSettings,
 } from '@creatorhub/contracts'
 import {
   analytics,
   beneficiaryAccountsRepo,
   catalogue,
+  discounts,
   orders,
   storefronts,
+  workspaceMembers,
   workspaces,
   type RepositoryScope,
 } from '@creatorhub/db'
 import { authorise, type Permission, type WorkspaceRole } from '@creatorhub/domain'
 
+import { getAuthPool } from './auth'
 import { getDatabase } from './db'
 import { customDomainTarget } from './env'
 import { cardFor, storeRecord, type PublicProductCard, type PublicStore } from './storefront-public'
@@ -329,4 +334,128 @@ export async function loadStorefrontEditor(
       },
     }
   })
+}
+
+// ---------------------------------------------------------------------------
+// Discounts
+// ---------------------------------------------------------------------------
+
+export type DiscountRow = {
+  readonly id: string
+  readonly code: string
+  readonly type: 'percentage' | 'fixed_amount'
+  readonly value: string
+  readonly currency: string | null
+  readonly maxUses: number | null
+  readonly usesCount: number
+  readonly startsAt: string | null
+  readonly expiresAt: string | null
+  readonly minOrderAmount: string | null
+  readonly isActive: boolean
+  readonly productTitles: readonly string[]
+  readonly createdAt: string
+}
+
+export type DiscountsData = {
+  readonly discounts: readonly DiscountRow[]
+  readonly products: readonly { readonly id: string; readonly title: string }[]
+}
+
+export async function loadDiscounts(rawWorkspaceId: string): Promise<DiscountsData> {
+  return asMember(rawWorkspaceId, 'discount.manage', async (scope) => {
+    const allProducts = (await catalogue.listProducts(scope)).filter((p) => p.status !== 'archived')
+    const titles = new Map(allProducts.map((p) => [p.id, p.title]))
+    const rows = await discounts.listDiscounts(scope)
+    const result: DiscountRow[] = []
+    for (const d of rows) {
+      const productIds = await discounts.listApplicableProductIdsForDiscount(
+        scope,
+        discountId(d.id),
+      )
+      result.push({
+        id: d.id,
+        code: d.code,
+        type: d.discountType,
+        value: d.discountValue.toString(),
+        currency: d.currency,
+        maxUses: d.maxUses,
+        usesCount: d.usesCount,
+        startsAt: d.startsAt?.toISOString() ?? null,
+        expiresAt: d.expiresAt?.toISOString() ?? null,
+        minOrderAmount: d.minOrderAmount?.toString() ?? null,
+        isActive: d.isActive,
+        productTitles: productIds.map((id) => titles.get(id) ?? 'Removed product'),
+        createdAt: d.createdAt.toISOString(),
+      })
+    }
+    return { discounts: result, products: allProducts.map((p) => ({ id: p.id, title: p.title })) }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export type SettingsMember = {
+  readonly userId: string
+  readonly name: string
+  readonly email: string
+  readonly role: WorkspaceRole
+  readonly joinedAt: string
+}
+
+export type SettingsData = {
+  readonly workspace: {
+    readonly id: string
+    readonly name: string
+    readonly slug: string
+    readonly currency: string
+    readonly platformFeeBps: number
+  }
+  readonly taxSettings: WorkspaceTaxSettings
+  readonly members: readonly SettingsMember[]
+  readonly currentUserId: string
+  readonly role: WorkspaceRole
+}
+
+export async function loadSettings(rawWorkspaceId: string): Promise<SettingsData> {
+  const loaded = await asMember(rawWorkspaceId, 'workspace.view', async (scope) => {
+    const ws = await workspaces.findCurrentWorkspace(scope)
+    if (!ws) notFound()
+    const members = await workspaceMembers.listMembers(scope)
+    return { ws, members, access: scope.access }
+  })
+
+  // Names and emails live in the auth database, read with its own role.
+  const rows = await getAuthPool()
+    .query<{ id: string; email: string; name: string | null }>(
+      'SELECT id, email, name FROM users WHERE id = ANY($1)',
+      [loaded.members.map((m) => m.userId)],
+    )
+    .then((result) => result.rows)
+  const users = new Map(rows.map((u) => [u.id, u]))
+  const order: Record<WorkspaceRole, number> = { owner: 0, admin: 1, member: 2 }
+
+  return {
+    workspace: {
+      id: loaded.ws.id,
+      name: loaded.ws.name,
+      slug: loaded.ws.slug,
+      currency: loaded.ws.defaultCurrency,
+      platformFeeBps: loaded.ws.platformFeeBps,
+    },
+    taxSettings: loaded.ws.taxSettings,
+    members: loaded.members
+      .map((m) => ({
+        userId: m.userId,
+        name:
+          users.get(m.userId)?.name ?? users.get(m.userId)?.email.split('@')[0] ?? 'Invited member',
+        email: users.get(m.userId)?.email ?? '',
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+      }))
+      .sort((a, b) => order[a.role] - order[b.role] || a.joinedAt.localeCompare(b.joinedAt)),
+    currentUserId: loaded.access.session.userId,
+    role: loaded.access.role as WorkspaceRole,
+  }
 }

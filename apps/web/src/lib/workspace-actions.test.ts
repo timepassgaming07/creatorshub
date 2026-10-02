@@ -8,6 +8,14 @@ vi.mock('./server-session', () => ({
   getServerSession: () => mockGetServerSession(),
 }))
 
+vi.mock('./db', () => ({
+  getDatabase: () => ({
+    withWorkspace: (_ctx: unknown, fn: (tx: unknown) => Promise<unknown>) => fn({}),
+  }),
+}))
+
+import { workspaceMembers } from '@creatorhub/db'
+
 import {
   createWorkspaceAction,
   getWorkspaceDataAction,
@@ -136,5 +144,41 @@ describe('workspace actions - input validation', () => {
       expect(res.error.status).toBe(400)
       expect(res.error.code).toBe('validation.invalid_email')
     }
+  })
+})
+
+describe('workspace actions - the owner is permanent', () => {
+  const ws = '018f9e2b-7c5e-7a2e-8c3b-000000000001'
+  const actor = '018f9e2b-7c5e-7a2e-8c3b-000000000002'
+  const owner = '018f9e2b-7c5e-7a2e-8c3b-000000000003'
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    mockGetServerSession.mockResolvedValue({
+      userId: userId(actor),
+      user: { id: actor, email: 'admin@example.com' },
+    } as ServerSession)
+    vi.spyOn(workspaceMembers, 'findMemberByUserId').mockImplementation((_scope, id) =>
+      Promise.resolve({
+        id: `m-${String(id)}`,
+        userId: id,
+        role: id === owner ? 'owner' : actor === id ? 'owner' : 'member',
+        joinedAt: new Date(),
+      } as never),
+    )
+  })
+
+  it('will not remove the owner', async () => {
+    const remove = vi.spyOn(workspaceMembers, 'removeMember')
+    const res = await removeMemberAction({ workspaceId: ws, targetUserId: owner })
+    expect(res.success).toBe(false)
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('will not change the owner role', async () => {
+    const update = vi.spyOn(workspaceMembers, 'updateMemberRole')
+    const res = await updateMemberRoleAction({ workspaceId: ws, targetUserId: owner, role: 'member' })
+    expect(res.success).toBe(false)
+    expect(update).not.toHaveBeenCalled()
   })
 })
