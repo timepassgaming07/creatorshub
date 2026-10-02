@@ -11,17 +11,20 @@
  */
 import {
   basisPoints,
+  commissionId,
   currency,
   ledgerAccountId,
   money,
   orderId,
   paymentId,
   percentage,
+  refundId,
   userId,
   type DisputeStatus,
 } from '@creatorhub/contracts'
 import {
   auditLog,
+  commissions,
   disputes,
   fulfillment,
   ledger,
@@ -29,6 +32,7 @@ import {
   outbox,
   payments,
   refunds,
+  workspaces,
   type CreateDisputeInput,
   type CreateRefundInput,
   type DisputeRecord,
@@ -213,6 +217,30 @@ export async function fulfillRefund(
     },
   })
 
+  // 6.5. Process affiliate commission clawback if applicable (Slice 9 §9.5)
+  let affiliateClawbackAmount = input.affiliateClawbackAmount ?? 0n
+  let affiliatePayableAccId: typeof procAcc.id | undefined
+
+  try {
+    const existingCommission = await commissions.findCommissionByOrderId(scope, oId)
+    if (existingCommission && existingCommission.netAmount > 0n) {
+      const clawbackRes = await commissions.applyClawback(scope, {
+        commissionId: commissionId(existingCommission.id),
+        refundId: refundId(refundRecord.id),
+        amount: input.amount,
+        reason: input.reason ?? 'Order refund commission clawback',
+      })
+      affiliateClawbackAmount = clawbackRes.clawback.amount
+    }
+  } catch {
+    // Non-fatal if commission clawback is not applicable or already clawed back
+  }
+
+  if (affiliateClawbackAmount > 0n) {
+    const affAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'affiliate_payable', curr)
+    affiliatePayableAccId = affAcc.id
+  }
+
   // 7. Calculate compensating ledger posting portions
   // Pro-rata tax refund: (refundAmount / totalAmount) * taxAmount
   let taxRefundAmount = 0n
@@ -220,10 +248,12 @@ export async function fulfillRefund(
     taxRefundAmount = (input.amount * orderRecord.taxAmount) / orderRecord.totalAmount
   }
 
-  // Platform fee refund: 5% of base refund
+  // Platform fee refund: use workspace's configured rate
+  const workspaceRecord = await workspaces.findCurrentWorkspace(scope)
+  const workspaceFeeBps = workspaceRecord?.platformFeeBps ?? 500
   const baseRefundAmount = input.amount - taxRefundAmount
   const baseMoney = money(baseRefundAmount, curr)
-  const feeRefundMoney = percentage(baseMoney, basisPoints(input.platformFeeRefundBps ?? 500))
+  const feeRefundMoney = percentage(baseMoney, basisPoints(workspaceFeeBps))
 
   const procAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'processor_clearing', curr)
   const creatorAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'creator_payable', curr)
@@ -239,14 +269,17 @@ export async function fulfillRefund(
     grossRefundAmount: money(input.amount, curr),
     platformFeeRefundAmount: feeRefundMoney,
     ...(taxRefundAmount > 0n ? { taxRefundAmount: money(taxRefundAmount, curr) } : {}),
-    ...(input.affiliateClawbackAmount
-      ? { affiliateClawbackAmount: money(input.affiliateClawbackAmount, curr) }
+    ...(affiliateClawbackAmount > 0n
+      ? { affiliateClawbackAmount: money(affiliateClawbackAmount, curr) }
       : {}),
     accounts: {
       processorClearingAccountId: ledgerAccountId(procAcc.id),
       creatorPayableAccountId: ledgerAccountId(creatorAcc.id),
       platformRevenueAccountId: ledgerAccountId(feeAcc.id),
       ...(taxRefundAmount > 0n ? { taxPayableAccountId: ledgerAccountId(taxAcc.id) } : {}),
+      ...(affiliatePayableAccId
+        ? { affiliatePayableAccountId: ledgerAccountId(affiliatePayableAccId) }
+        : {}),
     },
   }
 

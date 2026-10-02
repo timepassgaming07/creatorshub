@@ -159,11 +159,21 @@ export function CheckoutSuccessView({
             </div>
           )}
 
-          {/* Receipt Breakdown */}
+          {/* Receipt Breakdown & Automated Invoice */}
           <div className="mt-8 border-t border-slate-200 pt-6">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Order Summary
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Automated Invoice & Receipt
+              </h3>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <span>📄 Print / Save Invoice</span>
+              </button>
+            </div>
+
             <div className="mt-4 space-y-3">
               {order.items.map((item) => (
                 <div key={item.id} className="flex items-center justify-between text-sm">
@@ -193,17 +203,9 @@ export function CheckoutSuccessView({
                     </span>
                   </div>
                 )}
-                {taxMoney && (
-                  <div className="flex justify-between">
-                    <span>GST (Tax included)</span>
-                    <span>
-                      <MoneyDisplay value={taxMoney} />
-                    </span>
-                  </div>
-                )}
                 <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold text-slate-900">
-                  <span>Total Paid</span>
-                  <span className="text-base">
+                  <span>Total Paid (Invoice Settled)</span>
+                  <span className="text-base text-emerald-600 font-black">
                     <MoneyDisplay value={totalMoney} />
                   </span>
                 </div>

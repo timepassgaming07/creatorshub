@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -27,8 +34,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={inter.variable}>
+      <body className="font-sans antialiased bg-[#07080b] text-slate-100">
         {/* The first focusable element on every page. Keyboard and screen-reader
             users should not have to traverse navigation to reach content. */}
         <a

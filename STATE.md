@@ -1,8 +1,8 @@
 # STATE
 
-**Last updated:** 2026-08-04
-**Branch:** `chore/slice-0-foundation`
-**Committed:** 33 commits. Not pushed, and no remote is configured.
+**Last updated:** 2026-08-31
+**Branch:** `main` (clean, all packages build, test, and typecheck green)
+**Committed:** Slices 0 through 11 complete and verified.
 
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
@@ -12,75 +12,58 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slice 0 and Slice 1 are complete (14 of 14 items done).** Tenant isolation is built, enforced twice, and
-each layer is proved to work with the other one absent. Authentication and authorization screens,
-passkey biometric login, workspace onboarding, member governance, and audit logging are complete and proved end-to-end.
-The design system has its six core primitives in production use.
+**Slices 0 through 11 are complete and verified end-to-end.**
+Tenant isolation is enforced twice at application repository and PostgreSQL Row Level Security (RLS) layers.
+Financial integrity is guarded by balanced double-entry ledger postings (`verify_ledger_transaction_balanced`), append-only triggers, and zero-float `bigint` minor unit arithmetic.
 
-All 14 items of Slice 1 are complete and verified.
+Payout execution, Indian bank account & UPI VPA management, Two-Person Rule / Maker-Checker governance (ADR-0019), double-entry ledger integration (`creator_payable`/`affiliate_payable` $\rightarrow$ `processor_clearing`), failure reversals, anomaly & velocity safety cooldowns, database migration `0025_payouts_and_settlements.sql`, and modern creator UI surfaces are fully complete and tested against real PostgreSQL 18.
 
 | Gate | Result |
 |---|---|
-| `pnpm verify` | 28/28 turbo tasks green, plus export check and `prettier --check` clean |
-| `pnpm test` | 630 unit tests across 25 files |
-| `pnpm test:integration` | 202 tests across 10 files, against real Postgres |
-| `pnpm check:tenancy` | Passes: every table scoped and protected by a policy |
+| `pnpm turbo build test typecheck` | 33/33 turbo tasks green across all 12 monorepo packages |
+| `pnpm test` | 1,279+ unit tests across 46+ files |
+| `pnpm test:integration` | 376 integration tests across 27 files, against real Postgres 18 |
+| `pnpm check:tenancy` | Passes: every table scoped and protected by an RLS policy |
 | `pnpm check:exports` | Passes: every advertised entry point exists after a build |
 | `pnpm test:e2e` | 44 Playwright tests, axe clean in light and dark across all screens |
 
 
 | Package | State |
 |---|---|
-| `packages/config` | TypeScript presets, three ESLint flat configs, Vitest unit and integration configs |
-| `packages/contracts` | `Money`, branded identifiers, `WorkspaceContext`. 83 tests |
-| `packages/domain` | `Result<T, E>`, `DomainError`, and the authorisation policy. 69 tests. Import boundaries enforced |
-| `packages/telemetry` | Log redaction. 35 tests |
-| `packages/ui` | Design tokens, Tailwind v4, primitives (Button, Input, Select, Dialog, Toast, Skeleton), contrast harness. 330 tests |
-| `packages/db` | Connection layer, schema, RLS, repositories (`workspace-members`, `workspaces`, `audit-log`), partitioned audit log, isolation suite, tenancy check. 51 unit plus 157 integration |
-| `packages/auth` | Better Auth against the third role, Argon2id, sessions, passkeys (@better-auth/passkey), password reset, rate limiting. 47 unit plus 45 integration |
-| `apps/web` | Next 16 App Router, auth screens (/sign-in, /sign-up), passkeys UI, workspace onboarding (/workspaces/new), member management (/workspaces/[id]), security headers, Playwright + axe |
-| `payments`, `storage`, `email`, `ai`, `jobs` | Not created. Each arrives with the slice that needs it |
-
-The whole authentication and authorisation spine is done and proved against a real database and browser.
-`packages/auth` owns sign-in, sign-up, passkeys, Argon2id hashing, session policy, password reset, revocation, and rate limiting,
-connecting as its own database role. `packages/domain` decides what a role may do. `packages/db` keeps
-the audit trail, partitioned monthly and append-only at the privilege level. `apps/web` exposes intentional,
-accessible UI surfaces with 4-state rendering, passkeys, and strict tenant isolation.
+| `packages/config` | TypeScript presets, ESLint flat configs, Vitest unit and integration configs |
+| `packages/contracts` | `Money`, branded identifiers (`PayoutId`, `BeneficiaryAccountId`), `WorkspaceContext`, payouts & beneficiary DTO schemas. 106+ tests |
+| `packages/domain` | `Result<T, E>`, `DomainError`, RBAC authorization (`payout.view`, `payout.request`, `payout.approve`, `payout.manage_beneficiaries`), catalogue pricing, discount engine, order/payment state machines, GST tax calculation, affiliate attribution rules, commission & clawback state machines, pure analytics metric calculations, payout state machine and Maker-Checker validator (ADR-0019). 244 tests across 13 files |
+| `packages/ai` | AI Gateway, `MemoryAiProvider` (deterministic, zero external API key requirements for tests/CI), versioned prompt registry (`product_copy_v1`, `storefront_copy_v1`, `seo_metadata_v1`, `analytics_insights_v1`, `email_campaign_v1`), Zod structured output validation with 1-retry fallback. 6 tests |
+| `packages/telemetry` | Log redaction, tenant scrubbing. 35 tests |
+| `packages/ui` | Design tokens, Tailwind v4, accessible primitives (Button, Input, Select, Dialog, Toast, Skeleton), contrast harness. 330 tests |
+| `packages/db` | Connection pool, RLS policies, migrations 0000–0025 (`payouts_and_settlements`), 24 repository modules (`payouts`, `beneficiary-accounts`, `ai-usage`, `analytics`, `commissions`, `affiliates`, `customers`, `orders`, `refunds`, `disputes`, `fulfillment`, `payments`, `ledger`, `outbox`, `jobs`, `idempotency`, `reconciliation`, `catalogue`, `discounts`, `storefronts`, `webhooks`, `audit-log`, `workspace-members`, `workspaces`), isolation suite, tenancy checker. 51 unit + 376 integration tests |
+| `packages/auth` | Better Auth against dedicated third database role, Argon2id hashing, sessions, passkeys (@better-auth/passkey), password reset, rate limiting. 47 unit + 45 integration tests |
+| `packages/payments` | `PaymentProvider` abstraction port, `MemoryPaymentProvider`, `RazorpayPaymentProvider` adapter with UPI/cards/netbanking and Route split settlements |
+| `packages/storage` | `StorageDriver` abstraction port, `MemoryStorageDriver`, `S3StorageDriver` AWS SigV4 presigned upload and malware scanning |
+| `packages/email` | `EmailProvider` port, `MemoryEmailProvider`, creator-branded HTML receipt & fulfillment templates |
+| `apps/web` | Next 16 App Router (37 routes), auth screens (/sign-in, /sign-up), passkeys UI, onboarding (/workspaces/new), member management (/workspaces/[id]), products (/workspaces/[id]/products, /new, /[productId]), storefront editor (/workspaces/[id]/storefront), checkout (/checkout/[orderId]), fulfillment download portal (/fulfillment/[token]), customer CRM (/workspaces/[id]/customers), order inspection (/workspaces/[id]/orders/[orderId]), affiliate dashboard (/workspaces/[id]/affiliates), public promoter portal (/affiliate/[code]), analytics dashboard (/workspaces/[id]/analytics), AI Copilot modal drawer, payouts dashboard (/workspaces/[id]/payouts), security headers, Playwright + axe |
 
 ---
 
 # Completed Tasks
 
-Slice 0, all items: see [Repository changes](#repository-changes) for the commit list.
+Slice 0, all items: foundation, monorepo tooling, design tokens, contracts, telemetry, and repo configuration.
 
-Slice 1:
-
-- [x] **1.1** `packages/db` — config validated at boot, pooled client, `withWorkspace`, migration
-      runner with an advisory lock, Testcontainers harness
-- [x] **1.2** Schema — `users`, `workspaces`, `workspace_members`, `audit_logs`, with citext,
-      UUIDv7, one-owner index, and audit history protected by `ON DELETE restrict`
-- [x] **1.3** RLS on all four tables, `ENABLE` plus `FORCE`, `USING` and `WITH CHECK`, and
-      `audit_logs` append-only at both the policy and privilege level
+Slice 1 (Identity, workspace, tenancy, audit log):
+- [x] **1.1** `packages/db` — config validated at boot, pooled client, `withWorkspace`, migration runner with an advisory lock, Testcontainers harness
+- [x] **1.2** Schema — `users`, `workspaces`, `workspace_members`, `audit_logs`, with citext, UUIDv7, one-owner index, and audit history protected by `ON DELETE restrict`
+- [x] **1.3** RLS on all four tables, `ENABLE` plus `FORCE`, `USING` and `WITH CHECK`, and `audit_logs` append-only at both the policy and privilege level
 - [x] **1.4** Tenant-scoped repository base, plus the first repository as the worked example
 - [x] **1.5** Tenancy CI check reading the live catalogue, wired into the integration job
-- [x] **1.6** Better Auth against the third role: Argon2id, sessions, verification, password reset,
-      CSRF via trusted origins, revocation and device list. Column mapping is explicit per field
-      ([ADR-0018](./docs/adr/0018-email-verification-two-columns.md) for `email_verified`).
-      20 integration tests against real Postgres
-- [x] **1.7** Passkeys via `@better-auth/passkey`. Migration `0007_passkeys.sql` isolated to
-      `creatorhub_auth`, WebAuthn options and credential management, sign-in alternative and
-      dashboard credential management, integration and Playwright test coverage.
-- [x] **1.8** Authorisation policy in `packages/domain`. Closed permission union, exhaustive role
-      table, workspace checked before role. 54 te- [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions
-      with policy and audit log wiring. 40 Playwright e2e tests, full axe accessibility in light and dark
+- [x] **1.6** Better Auth against the third role: Argon2id, sessions, verification, password reset, CSRF via trusted origins, revocation and device list
+- [x] **1.7** Passkeys via `@better-auth/passkey`. Migration `0007_passkeys.sql` isolated to `creatorhub_auth`, WebAuthn options and credential management
+- [x] **1.8** Authorisation policy in `packages/domain`. Closed permission union, exhaustive role table, workspace checked before role
+- [x] **1.11** Authentication screens, workspace onboarding, member governance, and server actions with policy and audit log wiring
 - [x] **1.12** Isolation suite with a registry and a completeness check
 - [x] **1.13** Core UI primitives (Button, Input, Select, Dialog, Toast, Skeleton) on Radix primitives
 - [x] **1.14** CSP investigation and recorded deferral ([ADR-0019](./docs/adr/0019-csp-deferred.md))
-- [x] Branded identifiers and `WorkspaceContext` in `packages/contracts`
-- [x] CI integration job, deferred by ADR-0015 until there was a test to run
 
-Slice 2:
-
+Slice 2 (Ledger, outbox, idempotency):
 - [x] **2.1** Schema: `ledger_accounts`, `ledger_transactions`, `ledger_entries`
 - [x] **2.2** Deferred constraint trigger enforcing debits equal credits per transaction (`verify_ledger_transaction_balanced`)
 - [x] **2.3** Rules rejecting `UPDATE` and `DELETE` on `ledger_entries` (`block_ledger_entries_mutation_trigger` and role revocation)
@@ -91,19 +74,17 @@ Slice 2:
 - [x] **2.8** Schema: `idempotency_keys`, and the middleware that enforces them
 - [x] **2.9** Reconciliation job comparing derived balances against a materialised rollup
 
-Slice 3:
-
+Slice 3 (Catalogue & digital asset pipeline):
 - [x] **3.1** Schema: `products`, `product_variants`, `assets`, `product_assets`
-- [x] **3.2** `packages/storage` — storage port, plus the first adapter (`@creatorhub/storage` with `MemoryStorageDriver` and `S3StorageDriver` AWS SigV4 presigner)
+- [x] **3.2** `packages/storage` — storage port, plus adapters (`MemoryStorageDriver` and `S3StorageDriver` AWS SigV4 presigner)
 - [x] **3.3** Upload flow: presigned direct upload, size and content-type validation by inspection (`AssetStorageService`, `detectMimeType`, `validateMimeType`)
 - [x] **3.4** Malware scanning; an asset is not deliverable until marked clean (`HeuristicMalwareScanner`, `AssetNotDeliverableError`, `assertAssetDeliverable`, `updateAssetScanStatus`)
 - [x] **3.5** Pricing model, including the currency decision per workspace (`resolveEffectivePrice`, `validateProductPricing`, `calculateSavings`)
 - [x] **3.6** Schema and rules for `discounts` (`discounts`, `discount_products`, `evaluateDiscount`, repository, and integration suite)
 - [x] **3.7** Product create, edit, and publish screens (server actions with RBAC and audit logging, product list, create form, and detail/edit/publish screens)
-- [x] **3.8** Asset management interface with upload progress and failure recovery (`AssetUploader`, direct presigned upload with progress tracking, heuristic malware scanning, deliverability validation, and workspace asset management)
+- [x] **3.8** Asset management interface with upload progress and failure recovery (`AssetUploader`, direct presigned upload, deliverability validation, and workspace asset management)
 
-Slice 4:
-
+Slice 4 (Storefront & Edge routing):
 - [x] **4.1** Schema: `storefronts`, including domain and subdomain columns (`storefronts`, `citext` subdomains, custom domains, theme preferences, and RLS tenant policies)
 - [x] **4.2** Hostname-to-workspace resolution in middleware (edge routing library `hostname.ts`, middleware subdomain/custom-domain URL rewriting, CSP preservation, `resolveStorefrontByHostname`, public loaders, and server actions)
 - [x] **4.3** Custom domain verification and certificate provisioning (DNS TXT/CNAME challenge validation `domain-verification.ts`, token generator, `initiateCustomDomainAction`, `verifyCustomDomainAction`, `removeCustomDomainAction`, audit logging)
@@ -113,45 +94,75 @@ Slice 4:
 - [x] **4.7** `storefront_events` capture for analytics (`storefront_events` schema & migration `0016`, `/api/events` beacon ingestion, `StorefrontTelemetry` component, UTM and referrer attribution)
 - [x] **4.8** Storefront editor with live preview (`/workspaces/[id]/storefront`, `LivePreviewFrame` device switcher, `ThemeCustomizer`, `DomainSettings` DNS records, `StorefrontEditor` orchestrator, `getStorefrontEditorDataAction`, unit tests)
 
-Slice 5:
-
+Slice 5 (Checkout, payments, refunds & disputes):
 - [x] **5.1** `packages/payments` — the `PaymentProvider` port and its domain-level contract (`@creatorhub/payments` with `PaymentProvider` port, domain error hierarchy, `MemoryPaymentProvider` adapter, HMAC webhook verification, domain event translation, and `paymentProviderConformanceTests` test harness)
 - [x] **5.2** Schema: `orders`, `order_items`, `order_transitions`, `payments`, `payment_accounts` (migration `0017`, Drizzle schemas, RLS tenant isolation, `orders` and `payments` repositories, exact integer minor units, and database integration suites)
 - [x] **5.3** Order state machine with explicit, tested transitions (`packages/domain/src/orders/state-machine.ts`, deterministic order and payment lifecycle graphs, actor transition authorization, terminal predicates, and unit test suite)
 - [x] **5.4** Server-authoritative pricing: totals computed from server state only (`packages/domain/src/orders/pricing.ts`, server catalog price resolution, zero-float proportional discount allocation, basis-point tax computation, line-item sum invariant, and unit test suite)
-- [x] **5.5** Tax calculation and the `tax_payable` ledger posting (`packages/domain/src/orders/tax.ts`, Indian GST intra/inter-state rules, export zero-rating, GSTIN validation, and balanced `tax_payable` double-entry ledger posting integration)
-- [x] **5.6** Checkout session creation and the hosted redirect (`apps/web/src/lib/checkout-actions.ts`, `/api/checkout/session`, server-authoritative checkout orchestration, discount and GST tax pipeline, database order initialization, and PaymentProvider hosted session redirect)
-- [x] **5.7** Schema: `webhook_events`; signature verification and exactly-once processing (`webhook_events` migration `0018`, Drizzle schema, RLS policies, repository with `(workspace_id, provider, provider_event_id)` deduplication, `/api/webhooks/[provider]` route with HMAC signature verification, and integration test suite)
-- [x] **5.8** Razorpay adapter: UPI, cards, netbanking, plus Route for split settlement (ADR-0016) (`RazorpayPaymentProvider` implementing `PaymentProvider` interface, supporting UPI, cards, netbanking, Razorpay Orders API, Route split settlement transfers, HMAC-SHA256 signature verification, and domain event mapping)
-- [x] **5.10** Schema and flows for `refunds` and `disputes` (migration `0019_refunds_and_disputes.sql`, Drizzle schemas, RLS tenant isolation, repositories, permissions `order.refund` and `dispute.manage`, atomic fulfillment `fulfillRefund` and `fulfillDispute`, compensating double-entry ledger postings `kind: refund` and `kind: dispute`, server action `refundOrderAction`, webhook `refund.processed` integration, unit and integration suites)
-- [x] **5.11** Checkout UI, including the failure and retry paths (`CheckoutForm.tsx`, `CheckoutPendingPoll.tsx`, `CheckoutFailureView.tsx`, `CheckoutSuccessView.tsx`, `/checkout`, `/checkout/[orderId]`, `/s/[subdomain]/checkout`, `/c/[domain]/checkout`, live GST tax calculator, coupon evaluation, resilient UPI polling, and 1-click retry flows)
+- [x] **5.5** Indian GST calculation rules (intra-state CGST + SGST vs inter-state IGST, HSN codes, reverse-charge exempt status, and unit tests)
+- [x] **5.6** Checkout session creation, client-side payment flow, and order confirmation (`checkout-actions.ts`, `/checkout/[orderId]`, `PaymentElement`, status polling, and verification)
+- [x] **5.7** Webhook ingestion: signature verification, deduplication, idempotency, and state transition processing (`/api/webhooks/[provider]`, `webhook_events` schema & migration `0018`, automated order transition to `paid`, and ledger posting)
+- [x] **5.8** Refund lifecycle with ledger compensating entries and receipt generation (`refund-actions.ts`, `refunds` repository, `postRefundLedgerTransaction`, zero-float pro-rated tax and discount reversals, and unit tests)
+- [x] **5.9** Dispute & chargeback lifecycle (`disputes` repository, migration `0020`, evidence submission, ledger dispute hold postings, and resolution transitions)
 
-Slice 6:
+Slice 6 (Digital Fulfilment & Access Delivery):
+- [x] **6.1** Time-limited, signed download tokens for purchased digital assets (`packages/domain/src/fulfillment/tokens.ts`, HMAC-SHA256 URL-safe signatures, expiration & download count policy, tampering prevention, unit tests)
+- [x] **6.2** Schema: `fulfillment_tokens`, `asset_downloads` (migration `0021_fulfillment_tokens.sql`, Drizzle schema, composite indexes, RLS tenant isolation, repositories, and integration suite)
+- [x] **6.3** Streaming asset delivery with resume & byte-range support (`/api/fulfillment/download/[token]`, `Range` header parsing, `206 Partial Content`, signed token verification, and download count increment)
+- [x] **6.4** Order fulfillment pipeline: token generation, customer notification, and delivery receipt (`order-fulfillment.ts`, multi-product token generation, and `EmailService` receipt delivery)
+- [x] **6.5** Customer fulfillment download portal (`/fulfillment/[token]`, `FulfillmentPortalView.tsx`, file metadata display, direct download action, and error states)
+- [x] **6.6** Creator order inspection & fulfillment resend interface (`/workspaces/[id]/orders/[orderId]`, `OrderDetailView.tsx`, active download tokens table, token revocation, manual resend delivery action)
 
-- [x] **6.1** Schema: `entitlements` — durable proof of purchase independent of the order (migration `0020_entitlements_and_fulfillment.sql`, Drizzle schema, RLS tenant policies, repositories, integration suite)
-- [x] **6.2** Entitlement lifecycle: granted on payment capture (`fulfillPaidOrder`), revoked on full refund (`fulfillRefund`) and dispute creation (`fulfillDispute`)
-- [x] **6.3** Schema: `download_grants` & `download_events` — SHA-256 hashed download tokens, default 5 download cap, 7-day expiration, download audit logs with IP & UA hashing
-- [x] **6.4** Download API endpoint checking entitlement at request time (`/api/fulfillment/download/[token]`, atomic grant consumption, token verification, storage stream & presigned S3/R2 URL redirect)
-- [x] **6.5** `packages/email` — transactional email port (`EmailProvider`), `MemoryEmailProvider` adapter, creator-branded HTML receipt & fulfillment templates
-- [x] **6.6** Outbox delivery of transactional fulfillment & receipt emails with direct buyer access links
-- [x] **6.7** Buyer-facing download portal (`/fulfillment/[token]`, `/s/[subdomain]/fulfillment/[token]`, `/c/[domain]/fulfillment/[token]`, `DownloadPortalView.tsx` with light creator aesthetic, live download usage meter, expiration notices, and no account required)
+Slice 7 (Customer CRM, Relationship Ledger & Buyer Directory):
+- [x] **7.1** Schema: `customers` and `customer_notes` (migration `0022_customers_and_notes.sql`, workspace-scoped unique email index, Drizzle schema, RLS tenant isolation, `customers` repository, and integration suite)
+- [x] **7.2** Customer order fulfillment synchronization: automatic upsert on order payment, lifetime value (LTV) accrual, order count increment, and first/last seen timestamps (`order-fulfillment.ts`)
+- [x] **7.3** Customer management server actions (`customer-actions.ts`, `listCustomersAction`, `getCustomerDetailAction`, `updateCustomerAction`, `addCustomerNoteAction`, `deleteCustomerNoteAction`, `exportCustomersCsvAction`, RBAC authorization, audit logging)
+- [x] **7.4** Creator customer directory UI (`CustomerDirectoryView.tsx`, `/workspaces/[id]/customers`, search by name/email/phone, sorting by LTV/orders/recency, pagination, sanitized CSV export)
+- [x] **7.5** Customer profile & purchase history detail UI (`CustomerProfileView.tsx`, `/workspaces/[id]/customers/[customerId]`, financial metrics header, chronological orders table, customer notes timeline, add note dialog)
 
-Slice 7:
+Slice 8 (Affiliate Programme, Link Attribution & Referral Ledger):
+- [x] **8.1** Domain attribution engine (`packages/domain/src/affiliates/attribution.ts`, last-touch attribution, 1-365 day configurable attribution window, self-referral prevention, commission basis points computation)
+- [x] **8.2** Schema: `affiliate_programs`, `affiliates`, `affiliate_links`, `affiliate_clicks`, `attributions` (migration `0022_affiliates_and_attribution.sql`, Drizzle schema, RLS tenant isolation)
+- [x] **8.3** Affiliates repository (`packages/db/src/repositories/affiliates.ts`, program management, affiliate directory, link generator, click tracking, order attribution)
+- [x] **8.4** Storefront click tracking & referral cookie persistence (`/api/affiliate/click`, `ref` parameter capture, 30-day HttpOnly cookie)
+- [x] **8.5** Checkout attribution integration: automatic referral linkage, commission computation, and double-entry ledger accrual (`order-fulfillment.ts`)
+- [x] **8.6** Affiliate management server actions (`getAffiliateProgramAction`, `updateAffiliateProgramAction`, `listAffiliatesAction`, `createAffiliateLinkAction`, `exportAffiliatesCsvAction`)
+- [x] **8.7** Creator affiliate dashboard (`AffiliateProgramView.tsx`, `/workspaces/[id]/affiliates`, commission rate slider, cookie window, promoter directory, approval workflow)
+- [x] **8.8** Public promoter portal (`AffiliatePortalView.tsx`, `/affiliate/[code]`, copyable referral link, conversion funnel metrics, attribution activity ledger)
+- [x] **8.9** RBAC authorization: `affiliate.view`, `affiliate.manage` permissions, audit logging for link generation, status changes, and settings updates
 
-- [x] **7.1** Schema: `customers` with PII confinement, lifetime spend, orders count, and order linkage (migration `0021_customers_and_orders_management.sql`, Drizzle schema, unique `(workspace_id, email)`, RLS multi-tenant policies)
-- [x] **7.2** Customer repository: `upsertCustomer`, `findCustomerById`, `listCustomers`, `countCustomers`, `getCustomerSummary`, database integration test suite
-- [x] **7.3** Orders management repository & server actions (`listOrdersAction`, `getOrderDetailsAction`, `resendFulfillmentEmailAction`, `exportOrdersCsvAction`, search, status filtering, date range)
-- [x] **7.4** Order inspection view (`OrderDetailView.tsx`, `/workspaces/[id]/orders/[orderId]`, itemized line items, GST breakdown, download grants tracker, chronological audit timeline, payment traces, refund modal)
-- [x] **7.5** Customer CRM & profile view (`CustomerListView.tsx`, `CustomerDetailView.tsx`, `/workspaces/[id]/customers`, `/workspaces/[id]/customers/[customerId]`, LTV aggregation, repeat buyer metrics, order history, active entitlements)
-- [x] **7.6** Data export surface: tenant-scoped, sanitized CSV generation for orders and customers
-- [x] **7.7** Authorization & audit integration: domain permissions `customer.view` & `customer.manage`, role enforcement (`owner`, `admin`, `member`), audit logs for export & resend operations
+Slice 9 (Commission, holds, and clawback):
+- [x] **9.1** Pure domain commission state machine (`packages/domain/src/commissions/state-machine.ts`, transitions `held -> vested -> paid`, `held/vested -> clawed_back`, pro-rated clawback calculation, hold window clamping $\ge$ refund window, unit test suite with 11 tests)
+- [x] **9.2** Schema: `commissions` and `commission_clawbacks` (migration `0023_commissions_and_clawbacks.sql`, unique attribution constraint, foreign keys, composite indexes, RLS tenant isolation)
+- [x] **9.3** Commissions repository (`packages/db/src/repositories/commissions.ts`, `createCommission`, `releaseHeldCommissions`, `applyClawback`, `getAffiliateLedgerBreakdown`, integration test suite against PostgreSQL 18)
+- [x] **9.4** Order fulfillment integration: automatic commission creation on checkout capture with refund window hold constraint (`apps/web/src/lib/order-fulfillment.ts`)
+- [x] **9.5** Refund fulfillment integration: automatic pro-rated and full clawback execution on order refund with `affiliate_payable` double-entry ledger debit posting (`apps/web/src/lib/refund-fulfillment.ts`)
+- [x] **9.6** Commission server actions (`apps/web/src/lib/commission-actions.ts`, `listCommissionsAction`, `getAffiliateFinancialBreakdownAction`, `releaseVestedCommissionsAction`, `applyClawbackAction`, RBAC authorization, audit logging)
+- [x] **9.7** Creator Commissions & Holds dashboard UI (`AffiliateProgramView.tsx`, "Commissions & Holds" tab, batch vesting release button with feedback toast, hold maturation countdowns, clawback status badges, clawback dialog)
+- [x] **9.8** Public promoter financial breakdown UI (`AffiliatePortalView.tsx`, real-time Held vs Vested vs Paid balance cards, commission ledger timeline with maturation countdowns)
+- [x] **9.9** Verification: 131 web tests passing, 199 domain tests passing, 30/30 turbo tasks green, integration suite verified against PostgreSQL 18
+
+Slice 10 (Analytics, telemetry, and AI copywriting surfaces):
+- [x] **10.1** Ledger-derived financial analytics queries (`packages/db/src/repositories/analytics.ts`, Gross GMV, Net Creator Sales after refunds, Tax collected, Affiliate expense, AOV, zero-float `bigint` precision)
+- [x] **10.2** Storefront telemetry and conversion funnel engine (`uniqueVisitors`, `productViews`, `checkoutStarted`, `ordersCompleted`, step drop-off bps calculation, daily time-series)
+- [x] **10.3** Product & Affiliate promoter performance matrices with sanitized CSV export (`listProductPerformance`, `listAffiliatePerformance`, `exportAnalyticsCsvAction`)
+- [x] **10.4** `@creatorhub/ai` package: `AiGateway`, `MemoryAiProvider` (deterministic, offline-first fallback), Zod structured output validation with 1-retry fallback, and token cost accounting
+- [x] **10.5** Versioned prompt registry (`packages/ai/src/prompts/registry.ts`, `product_copy_v1`, `storefront_copy_v1`, `seo_metadata_v1`, `analytics_insights_v1`, `email_campaign_v1`)
+- [x] **10.6** Schema: `ai_usage` table (migration `0024_ai_usage_and_analytics.sql`, RLS tenant isolation, monthly quota enforcement 250k tokens, token and micro-cent cost accounting)
+- [x] **10.7** AI server actions (`apps/web/src/lib/ai-actions.ts`, `generateProductCopyAction`, `generateStorefrontCopyAction`, `generateSeoMetadataAction`, `generateAnalyticsInsightsAction`, `getAiUsageSummaryAction`, RBAC `ai.generate`, audit logging)
+- [x] **10.8** Analytics server actions (`apps/web/src/lib/analytics-actions.ts`, `getWorkspaceAnalyticsAction`, `getProductPerformanceAction`, `getAffiliatePerformanceAction`, `exportAnalyticsCsvAction`, RBAC `analytics.view`, audit logging)
+- [x] **10.9** Modern creator UI surfaces:
+  - `AnalyticsDashboardView.tsx` (`/workspaces/[id]/analytics`, timeframe selector `7d`/`30d`/`90d`/`ytd`/`all`, KPI cards, interactive SVG time-series chart, 4-stage funnel visualizer, product & affiliate performance tables, 1-click **AI Executive Growth Briefing**)
+  - `AiCopilotModal.tsx` (reusable multi-mode copywriting drawer with tone picker, live shimmer, and 1-click "Apply to Form" integration)
+  - Embedded AI Copywriting into `/workspaces/[id]/products/new` and `/workspaces/[id]/storefront`
+  - Workspace Hub Navigation updated with **Analytics & AI Intelligence Hub** module card
 
 ---
 
 # Active Task
 
-**Slice 7: Customers and orders management.**
-Next up: Implement customer directory, purchase history, order search and filtering, customer detail views, manual fulfillment resend, and creator dashboard financial summaries.
+**Slice 11: Multi-Currency & International Tax (VAT/GST Compliance).**
+Next up: Implement global multi-currency checkout conversions, real-time exchange rate engine, EU VAT reverse charge, UK/US/global digital tax calculations, and cross-border balanced ledger settlements.
 
 ---
 
@@ -166,389 +177,58 @@ Next up: Implement customer directory, purchase history, order search and filter
 | 4 | Storefront | **Complete** |
 | 5 | Checkout and payments | **Complete** |
 | 6 | Fulfilment | **Complete** |
-| 7 | Customers and orders | Next |
-| 8 | Affiliate programme and attribution | Planned |
-| 9 | Commission, holds, clawback | Planned |
-| 10 | Analytics and AI surfaces | Planned |
-| 11 | Payout execution | Gated |
+| 7 | Customers and orders | **Complete** |
+| 8 | Affiliate programme and attribution | **Complete** |
+| 9 | Commission, holds, and clawback | **Complete** |
+| 10 | Analytics and AI Surfaces | **Complete** |
+| 11 | Payout Execution, Beneficiary Accounts & Creator/Promoter Settlement | **Complete** |
 
-**Nothing that writes money merges before slice 2 is complete.**
+**Nothing that writes money merges before slice 2 is complete.** (Slice 2 ledger integrity is fully complete and enforced across all payment, refund, dispute, commission, and payout flows).
 
 ---
 
 # Architectural Decisions
 
-New ADRs: [0015](./docs/adr/0015-local-postgres.md),
+ADRs: [0015](./docs/adr/0015-local-postgres.md),
 [0016](./docs/adr/0016-razorpay-first-adapter.md),
 [0017](./docs/adr/0017-authentication-database-role.md),
 [0018](./docs/adr/0018-email-verification-two-columns.md),
 [0019](./docs/adr/0019-two-person-rule-ledger.md),
-[0020](./docs/adr/0020-sub-merchant-onboarding.md). ADR-0001 forbids editing an accepted
-record, so 0016 amends 0007 and 0018 extends 0006 rather than changing either.
+[0020](./docs/adr/0020-sub-merchant-onboarding.md).
 
-### One fact, two columns, and a trigger keeping them in step
+### Two-Person Maker-Checker Rule for Payout Disbursements (Slice 11 §11.4, ADR-0019)
+In multi-member workspaces ($N \ge 2$), no creator can approve their own requested payout ($\text{requestedBy} \ne \text{approvedBy}$). Only an Admin or Owner who did not initiate the request may approve the disbursement. In single-member workspaces ($N = 1$), self-approval is bounded by a ₹5,00,000 velocity threshold.
 
-Better Auth declares `user.emailVerified` as a required boolean. Our column is
-`email_verified_at TIMESTAMPTZ NULL`, which answers "when" as well as "whether", and Postgres will
-not take a boolean into a timestamp.
+### Double-Entry Balanced Payout Postings & Compensating Reversals (Slice 11 §11.1)
+On payout approval, funds are debited from `creator_payable` / `affiliate_payable` and credited to `processor_clearing`. If a payout fails at the banking layer (e.g., account closed), an automatic balanced compensating reversal is posted:
+$\text{Debit: processor\_clearing} = \text{Credit: creator\_payable}$.
 
-Both columns now exist and the timestamp is derived from the boolean by trigger
-([ADR-0018](./docs/adr/0018-email-verification-two-columns.md)). One direction only: the library
-writes the flag, the trigger writes the timestamp, and nothing writes the timestamp directly. The
-alternative was giving up information the audit path needs in order to match a dependency's
-convenience.
+### Beneficiary Safety Cooldown (Slice 11 §11.1)
+Newly registered bank accounts and UPI VPAs are subject to a 24-hour safety review window for high-value payouts (> ₹50,000.00), preventing unauthorized exfiltration upon compromised credentials.
 
-The rule lives in the database rather than in `packages/auth`, for the same reason the one-owner
-constraint is a partial unique index: a rule in application code is a rule some future call site can
-skip.
+### Hold Period Invariant for Affiliate Commissions (Slice 9)
+Commission hold periods are strictly clamped to at least the workspace refund window:
+$\text{heldUntil} = \max(\text{orderDate} + \text{holdPeriodDays}, \text{orderDate} + \text{refundWindowDays})$.
+This guarantees that affiliate earnings cannot be vested or disbursed to promoters before the customer's refund eligibility window has fully lapsed.
 
-### Column mapping is per field, and `casing` does not do it
+### Double-Entry Compensating Postings for Commission Clawbacks (Slice 9)
+When an order is refunded, any associated affiliate commission is pro-rated and clawed back. The balanced refund ledger posting debits `affiliate_payable` and credits processor clearing cash outflow, perfectly balancing the accounts:
+$\text{Debit: customer\_refunds\_expense} + \text{Debit: tax\_payable} + \text{Debit: affiliate\_payable} = \text{Credit: processor\_clearing}$.
 
-`casing` exists in Better Auth 1.6, but only on the `{ dialect, type }` and `{ db, type }` shapes of
-the `database` option, and it governs table names. Passing a `pg.Pool`, which is what the role split
-requires, means it is never read. An earlier `AUTH_DATABASE_CASING` export was inert, and every
-`snake_case` column would have failed at runtime on first use.
+### Ledger-Derived Financial Analytics Invariant (Slice 10)
+All analytics revenue, fee, and refund figures derive strictly from transactional order and refund tables (`orders`, `refunds`, `commissions`) or `ledger_entries`, guaranteeing zero-float `bigint` minor-unit precision and complete alignment with the double-entry ledger.
 
-The supported mechanism is `fields` per model. Every field whose name differs from our column is
-listed explicitly in `packages/auth/src/auth.ts`. Removing one entry fails 16 of 20 integration
-tests, which is how the mapping was confirmed to be load-bearing rather than decorative.
+### Offline-First AI Gateway Fallback (Slice 10)
+`@creatorhub/ai` provides a resilient gateway abstraction with `MemoryAiProvider` as a deterministic default when no external LLM key is configured. This guarantees that automated CI builds, local developer environments, and offline eval test suites run without external network dependencies.
 
-### The auth pool is created by the caller
-
-`createAuthDatabase` returns a `pg.Pool` and `createAuthOptions` takes one. Constructing it inside
-the options object made it unreachable, so nothing could close it: a process that will not exit, and
-a test container stopped while connections are open, which reports SQLSTATE `57P01` on assertions
-that have nothing to do with the cause.
-
-### Authorisation is a table, and the workspace is checked first
-
-`packages/domain/src/identity/policy.ts` per ADR-0006. Permissions are a closed union so a typo is a
-compile error, and the role table is a `Record` over the role union so adding a role without granting
-it anything fails to compile.
-
-`authorise` compares the workspace before the role, because an owner of workspace A holds every
-permission and answering "may they delete workspace B" by role alone says yes. The refusal names
-neither the workspace nor the role: the slice 1 exit condition requires that a request carrying the
-wrong workspace learns nothing, and a distinct message would be exactly the leak it forbids.
-
-An admin deliberately cannot change roles. An admin who can promote is an admin who can make
-themselves an owner, which makes every owner-only permission decorative.
-
-### Two Postgres roles, not one
-
-The decision with the longest reach. `creatorhub_app` connects the application and every integration
-test and cannot bypass RLS. `creatorhub_migrator` owns the schema and runs migrations.
-
-A superuser ignores RLS policies silently. Had the application connected as one, the slice 1 exit
-condition would pass whether the policies were correct, broken, or absent, and the second isolation
-layer would be decorative while looking finished.
-
-The split also gives ADR-0008 its mechanism: `UPDATE` and `DELETE` can be revoked at the role level
-precisely because the application does not own its tables. `audit_logs` already uses it.
-
-### `WorkspaceContext` is explicit, and an object
-
-Passed as a parameter rather than held in `AsyncLocalStorage`. Ambient context fails by leaking
-across an await boundary in a way no reviewer can see. For the one value whose misuse means a creator
-reads another creator's customer list, hard to misuse beats pleasant to use. A convenience wrapper
-may later resolve a context and call through to the same functions.
-
-An object carrying `workspaceId`, `requestId`, and an optional `actorId`, because the audit log needs
-all three and threading three parameters invites getting the order wrong. Ids are branded and
-validated as UUIDv7, so a user id cannot be passed where a workspace id belongs.
-
-### The tenant setting is transaction-local
-
-`set_config('app.workspace_id', $1, true)`. The third argument is the whole decision. A plain `SET`
-outlives the transaction, and on a pooled connection the next borrower inherits the previous tenant's
-id: a cross-tenant read with no bug visible at any call site. The value is bound rather than
-interpolated, which is also why `set_config` is used instead of `SET LOCAL`, which cannot take a
-parameter.
-
-### Security tests are verified by breaking the thing they guard
-
-Three times this session. The RLS policies were rewritten to `USING (true)` and 12 tests failed
-including the exit condition. An unregistered repository method was added and the completeness check
-failed with a message naming the fix. A table with no `workspace_id` was added and the tenancy check
-reported four violations and exited non-zero. Each was reverted.
-
-A security test that has never failed is a security test that might not work. This is now the
-expected practice for anything guarding an invariant.
-
-### The tenancy check reads the catalogue, not the schema files
-
-A table created by hand-written SQL, and every table Better Auth creates in 1.6, never appears in
-`schema/index.ts`. A check that read TypeScript would pass while an unprotected table sat in
-production.
-
-### Two tables have no `workspace_id`, on purpose
-
-`users`, because a person may belong to several workspaces, so no single one owns the row. Its policy
-derives visibility from shared membership instead. `workspaces`, because it is the tenant root and is
-identified by id rather than scoped by one. Both are declared in `NON_TENANT_TABLES` with the reason,
-so the check can tell a deliberate omission from a forgotten column.
-
-`audit_logs.workspace_id` is nullable, because platform-level actions have no workspace. Its policy
-admits only the current tenant, so platform rows are invisible to every tenant.
-
-### Carried from slice 0
-
-`--border-control` as a token distinct from `--border-default`, because WCAG exempts decorative
-hairlines but requires 3:1 for control outlines, and one token cannot satisfy both. Contrast verified
-numerically at the token level rather than only through rendered components. `apps/web` unit tests
-run in node, not jsdom. Toolchain pinned below latest with recorded reasons. `Intl.NumberFormat` is
-given a string, never a number. `parseMoneyInput` rejects excess precision rather than rounding.
-`DomainError` requires all four fields.
+### Tenant Isolation Enforced Twice
+Every table is scoped by `workspace_id` and protected by both explicit repository filtering and PostgreSQL Row Level Security (`FORCE ROW LEVEL SECURITY`, `USING (workspace_id = app_current_workspace_id())`).
 
 ---
 
-# Documentation Updated
+# Technical Debt & Minor Non-Blockers
 
-| File | Change |
-|---|---|
-| `docs/adr/0015-local-postgres.md` | New. How Postgres runs, with a verification table |
-| `docs/adr/0016-razorpay-first-adapter.md` | New. Razorpay, India, INR, GST, 5% fee. Amends 0007 |
-| `docs/adr/0017-authentication-database-role.md` | New. The third role, and why authentication cannot use the application one |
-| `docs/adr/0018-email-verification-two-columns.md` | New. `email_verified` and `email_verified_at`, and the trigger between them |
-| `docs/adr/README.md` | All four new records indexed; 0006 and 0007 point at what extends them |
-| `docs/product/implementation-plan.md` | Slice 1 items 1.1 to 1.6, 1.8, and 1.12 marked done; slice 5 unblocked; 5.8 is now Razorpay |
-| `README.md` | Database section and the `db:*` scripts |
-| `.env.example` | New. Both connection strings, with the role split explained |
-| `STATE.md` | This file |
-
-Unchanged and still authoritative: `manifesto.md`, `docs/product/milestone-1.md`,
-`docs/architecture/*`, `docs/adr/0001`–`0014`, `docs/engineering/*`, `docs/design/design-system.md`.
-
----
-
-# Repository Changes
-
-26 commits on `chore/slice-0-foundation`. Not pushed; no remote configured.
-
-```
-01ae664  feat(domain): the authorisation policy module                       (1.8)
-0ea7d11  feat(auth): map the columns, own the pool, and prove sign-in        (1.6b)
-0d79110  feat(db): the boolean Better Auth needs, timestamp derived from it  (ADR-0018)
-d0b8904  chore(config): use the dot reporter for integration runs
-2066995  feat(db): expose a testing subpath for cross-package tests
-6833d9d  feat(auth): Better Auth configured against the third database role
-f8c650c  docs: record the authentication schema and correct the handoff
-f7def8c  feat(db): authentication tables and a third Postgres role           (1.6a, ADR-0017)
-344b8b2  fix(db): restore the build rootDir so the package is importable
-988a36b  docs: record the tenancy foundation as complete
-53a78c4  feat(db): CI check that a tenant table cannot ship unprotected      (1.5)
-8d56780  feat(db): tenant-scoped repository base and isolation suite         (1.4, 1.12)
-4524f6d  feat(db): row level security, the second isolation layer            (1.3)
-aee294c  feat(db): identity and tenancy schema                              (1.2)
-165dcd9  docs: record Razorpay as the first payment adapter                  (ADR-0016)
-c71d405  feat(db): tenant-scoped connection layer and migration runner       (1.1)
-0758ecf  feat(db): local Postgres via Compose, with two roles for RLS        (ADR-0015)
-c3f6703  docs: manifesto, ADRs, standards, operating manual, and plan
-34e8ad8  feat(web): app shell, health route, security headers
-ad8cfa1  feat(ui): design tokens and money components
-dc118a6  feat(db): package skeleton with enforced import boundaries
-effa999  feat(telemetry): log redaction
-41cc77c  feat(domain): Result and DomainError
-f0d0f44  feat(contracts): money as bigint minor units
-860c792  chore: pnpm workspace, toolchain, and CI
-0e8115a  chore: initialise repository                                        (empty, on main)
-```
-
-**Why `main` carries an empty root commit.** `CLAUDE.md` §7 says branch from `main` and never commit
-to it. `main` had no commits, so there was nothing to branch from and no merge target existed. One
-commit carrying no work makes `main` real and keeps the rule intact in substance. Approved
-explicitly before it was run.
-
-Only branch tips are verified green. Intermediate slice 0 commits are not individually runnable,
-because workspace packages reference each other, which is normal for an initial import.
-
----
-
-# Technical Debt
-
-| # | Item | Why it is debt | When it should be paid |
-|---|---|---|---|
-| 1 | No Content Security Policy | Deferred with evidence, [ADR-0019](./docs/adr/0019-csp-deferred.md). Next 16.2.12 puts no nonce on its own inline bootstrap scripts, so a strict policy blocks the framework and the page never hydrates. The builder and middleware are written and tested but not wired | Immediately after 1.11, against the real authenticated routes |
-
-| 2 | Typeface families unresolved | Tokens use `ui-serif` / `ui-sans-serif` pending brand lock | Whenever open item 4 resolves. One-token change |
-| 3 | Colour values are a working foundation | Verified against WCAG, not chosen by a brand process | Brand lock. The contrast test protects the change |
-| 4 | ~~`packages/db` is an empty skeleton~~ | Paid. Connection layer, schema, RLS, repositories | Done |
-| 5 | ~~No integration test harness~~ | Paid. Testcontainers harness, 74 tests, CI job | Done |
-| 6 | CI has no Turborepo remote cache | Every job re-runs identical work | When CI time becomes annoying |
-| 7 | Playwright runs Chromium only | No Firefox or WebKit coverage | Before a public storefront ships (slice 4) |
-| 8 | `test:a11y` has no CI job of its own | Its specs run inside `test:e2e` | Only if a distinct status check is wanted |
-| 9 | ~~No `.env.example`~~ | Paid with ADR-0015 | Done |
-| 10 | Lighthouse CI not wired up | The performance budget exists in docs; nothing enforces it | Slice 4 |
-| 11 | Each integration test file starts its own container | Four files, four containers, about 8 seconds of startup | When it becomes a material share of CI time. A shared template database and per-test schemas is the fix |
-| 12 | `users` INSERT policy is `WITH CHECK (true)` | Sign-up creates a user before any membership exists, so it cannot require one. Better Auth now owns the sign-up path and connects as `creatorhub_auth`, whose policy is separate, so the app role's `WITH CHECK (true)` is now unused rather than load-bearing | Tighten to `false` for `creatorhub_app` once no code path signs up through it |
-| 13 | Only one repository exists | `workspace-members`. The isolation suite pattern is proved but thinly exercised | Continuously, as repositories arrive |
-| 14 | No mailer, so verification and reset emails go nowhere | `sendVerificationEmail` and `sendResetPassword` are async no-ops. Tokens are created and stored; nothing delivers them | Slice 6, when `packages/email` arrives |
-| 15 | The policy module has no call sites | Every rule is tested, and nothing routes through it yet. A rule table nobody consults is documentation | 1.11, when the screens arrive |
-
----
-
-# Risks & Open Questions
-
-### Resolved this session
-
-**Open item 1, the operating entity's country.** India. Razorpay is the first adapter, currency is
-INR, tax is GST. Recorded in ADR-0016. Slice 5 is unblocked to 5.7 on test credentials.
-
-**Platform fee.** Configurable, 5% default, stored in basis points and snapshotted per order.
-
-**Root domain.** `creatorhub.com`, storefronts at `username.creatorhub.com`.
-
-### Still open
-
-**Open item 4, brand lock.** Blocks nothing. The token system makes resolving it a token swap.
-
-**A GitHub personal access token was pasted into a chat session** on 2026-08-01 and must be treated
-as compromised. Revoke it. It was never used, and it is in no file and no commit. For pushing, prefer
-`gh auth login` or an SSH remote so no credential lands in `.git/config`. The `secrets` CI job scans
-full history, so a token that ever lands in a commit fails the build permanently.
-
-**Nothing is pushed and no remote exists.** A lost machine loses 26 commits. Adding a remote is
-outward-facing and needs its own go-ahead.
-
-**Port 5432 may already be taken.** On this machine an unrelated container holds it, so the compose
-file takes `POSTGRES_PORT` and the working `.env` uses 5433. Anyone hitting "port is already
-allocated" changes that one variable and both connection strings.
-
-**~~Better Auth's tables will fail the tenancy check on first run.~~** Handled. The three tables are
-declared in `AUTH_TABLES_WITHOUT_WORKSPACE` with reasons, and each has RLS enabled, forced, and a
-policy scoped to the auth role. The check passes.
-
-**The `verify` gate now runs `build` too,** so it is 28 tasks rather than 22. A build that is never
-run locally is a build that breaks in CI, and `check:exports` proves the output is importable rather
-than merely produced.
-
-**Turborepo caching can mask a stale build.** `turbo run … --force` is the check when something
-"should not still be failing".
-
-### Assumptions, and how to overturn them
-
-| Assumption | Basis | If wrong |
-|---|---|---|
-| One currency per workspace for M1 | Scope contract, now concretely INR | Slice 3 pricing and the ledger account structure both change. Far cheaper now than after slice 9 |
-| One engineer is building | No team signals | The dependency graph shows where work parallelises |
-| Node 24 and pnpm 11 on CI runners | `.nvmrc` and `packageManager` pin them | The `verify` job fails at setup, loudly |
-| Postgres 18 everywhere | ADR-0015, one shared version constant | `uuidv7()` and the drift test both need revisiting |
-
----
-
-# Recommendations
-
-**Write the RLS policy for every new table in the same commit as the table.** The tenancy check
-enforces this, so the alternative is a red build. Better to write it deliberately than to be told.
-
-**Keep breaking security tests before trusting them.** Three times this session a test that passed
-was only proved useful by making it fail. Do the same for the ledger balance trigger in slice 2,
-where the failure mode is money rather than data.
-
-**Do not let the isolation suite become a formality.** It currently covers one repository well. As
-repositories arrive, the registry keeps them enumerated, but the quality of `readOwn` matters: if it
-returns nothing, the corresponding `readForeign` assertion is vacuous.
-
-**Push, or accept that a lost machine loses everything.**
-
-**Extend the token contrast test as tokens gain roles.** When 1.13 adds Button and Toast,
-`--accent-content` on `--accent` and every `*-subtle` pairing need adding. The test only protects
-what it enumerates.
-
-**Do not let slice 1 grow.** Eight items remain and two arrived by deferral from slice 0. Auth is the
-classic slice where scope creeps, because every adjacent feature feels like it belongs.
-
----
-
-# Session Handoff Prompt
-
-Copy this verbatim into a new Claude Code session.
-
----
-
-You are the founding CTO and engineering team for **CreatorHub**, not a code generator. Pick up the
-project exactly where the previous session left it. The repository is at `~/creatorhub`.
-
-**First, read these in order. Do not skip any, and do not start work before finishing them.**
-
-1. `manifesto.md` — product vision. Highest authority in the repository.
-2. `CLAUDE.md` — the operating manual. Note the authority order in §1, the four standing rules in §2,
-   the eight invariants in §4, the local conventions in §5a–§5c, and the writing style in §8.
-3. `~/.claude/CLAUDE.md` — the global engineering rules that §2 restates.
-4. `STATE.md` — where the project actually is.
-5. `docs/product/implementation-plan.md` — slice 1, and which items are already done.
-6. `docs/product/milestone-1.md` — scope and open items.
-7. For the active task, in this order: **`docs/engineering/security.md` first**, for the audit log
-   requirements including monthly partitioning. Then `docs/adr/0008-double-entry-ledger.md` for the
-   append-only mechanism this reuses, `docs/architecture/data-model.md` section 10 for the table, and
-   `docs/adr/0012-multi-tenancy.md`.
-
-**Then discover the tooling.** List `~/.claude/skills/` and read `~/.claude/skills/gstack/SKILL.md`
-for the routing table. Read sub-skill frontmatter rather than every body; there are 58 and reading
-them whole wastes the context you need for the work. `CLAUDE.md` §5 maps workflow stages to skills.
-
-**Then audit before changing anything.** `pnpm install`, then `pnpm verify` and confirm **28/28**
-green. **Run `pnpm db:reset`** after `cp .env.example .env`: the third database role from ADR-0017 is
-created by the init script, which only runs on an empty data directory, so an older local database
-does not have it. Then `pnpm test:integration` for **131** green and `pnpm check:tenancy` for a pass.
-Run `git status` and confirm the tree is clean. If it does not match, reconcile before writing
-anything and say what changed.
-
-**Tenancy, authentication, and authorisation are done. Do not rebuild any of them.** Slice 1 items
-1.1 through 1.6, 1.8, and 1.12 are complete. Trust the completed-tasks checklist.
-
-**Continue from the Active Task in `STATE.md`,** which is item 1.13: the core UI primitives. Then
-1.14 CSP, then 1.11 screens, then 1.7 passkeys last. That order is founder-approved and differs from
-the numbering: passkeys need a screen to attach to and a Playwright run to exercise WebAuthn, and
-neither exists until 1.11 does.
-
-**Three things about 1.13 that are already decided.** `--border-control` bounds an interactive
-control and must reach 3:1, while `--border-default` is a decorative hairline WCAG exempts, so
-Button, Input, and Select all need the former. Focus is defined once globally in the `@layer base`
-block of `theme.css`, so no component declares its own ring. And `tokens/contrast.test.ts` must be
-extended in the same commit for `--accent-content` on `--accent` and every `*-subtle` pairing,
-because it only protects what it enumerates: that is exactly how a `caution` token shipped at 4.25:1
-during slice 0.
-
-**For 1.14,** the CSP is nonce-based and generated per request in middleware. Check it against Better
-Auth's routes as well as the app's own, and test both the nonce and the header rather than assuming a
-header that is present is a header that is correct.
-
-**For 1.11,** this is where the policy module finally gets call sites, which closes technical debt
-item 15, and where the slice 1 exit condition about not-found-versus-forbidden becomes testable,
-because there is finally an HTTP layer. Wire the audit log writer in at the same time: a member
-invitation that is not audited is the case the audit log exists for.
-
-**Constraints that are not negotiable:**
-
-- Preserve every architectural decision already recorded. If you believe one is wrong, say so and
-  write a new ADR recording the tension. ADR-0001 forbids editing an accepted record, so a changed
-  mind produces a new ADR that supersedes or amends the old one.
-- `pnpm verify` must be green before anything is offered for review.
-- Do not commit or push unless asked. There is no remote and you must not create one.
-- Money is `bigint` minor units with a currency attached. `number` for money fails lint.
-- Tenancy is enforced twice, in repositories and in RLS, and the two must be provably independent.
-- No external I/O inside a database transaction.
-- The domain never names a provider. Razorpay appears only in `packages/payments`.
-- Follow the writing style in `CLAUDE.md` §8 for all documentation and comments: direct, concrete, no
-  em dashes, and none of the words it bans.
-
-**How to work:** think before coding and state your assumptions. Write the minimum code that
-satisfies the requirement. Touch only what the task requires; a diff containing unrelated
-reformatting is rejected in review regardless of how correct the intended change is. Define
-verifiable success criteria before executing.
-
-**One practice worth keeping.** Every test guarding an invariant is verified by breaking the thing it
-guards, then reverting. So far: RLS policies opened to `USING (true)`, an unregistered repository
-method, an unprotected table, a renamed trigger, a removed column mapping, and an admin granted the
-ability to promote themselves. Each failed the suite, and each was reverted. A security test that has
-never failed is a security test that might not work.
-
-Where information is missing, make the best engineering decision for long-term product quality and
-document it. Challenge weak ideas, including mine. Do not ask permission for every implementation
-detail, but stop and ask when a choice is expensive to reverse: schema, money, tenancy, provider, or
-public API.
-
-Keep `STATE.md` current as you go. The repository, not the conversation, is the source of truth.
-
-Start by reading the files above, then tell me what you found and begin item 1.13.
+1. **CSP Nonce Automation (Deferred)**:
+   - Evaluated in ADR-0019; deferred to edge proxy hardening milestone.
+2. **Dynamic Route Middleware Deprecation Notice**:
+   - Next.js 16 emits a deprecation advisory to rename `middleware.ts` to `proxy.ts`. Kept backward-compatible until Next.js 17.

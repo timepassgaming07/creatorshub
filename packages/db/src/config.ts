@@ -84,7 +84,9 @@ export class DatabaseConfigError extends Error {
  * does not echo the values back: a malformed connection string usually contains
  * a password, and an error message is the least controlled place it can land.
  */
-export function loadDatabaseConfig(env: Record<string, string | undefined>): DatabaseConfig {
+export function loadDatabaseConfig(
+  env: Record<string, string | undefined> = process.env,
+): DatabaseConfig {
   const result = configSchema.safeParse({
     databaseUrl: env['DATABASE_URL'],
     databaseMigrationUrl: env['DATABASE_MIGRATION_URL'],

@@ -21,6 +21,7 @@ export type WorkspaceRecord = {
   readonly name: string
   readonly timezone: string
   readonly defaultCurrency: string
+  readonly platformFeeBps: number
   readonly status: WorkspaceStatus
   readonly createdAt: Date
   readonly updatedAt: Date
@@ -41,6 +42,7 @@ export async function findCurrentWorkspace(
       name: workspaces.name,
       timezone: workspaces.timezone,
       defaultCurrency: workspaces.defaultCurrency,
+      platformFeeBps: workspaces.platformFeeBps,
       status: workspaces.status,
       createdAt: workspaces.createdAt,
       updatedAt: workspaces.updatedAt,
@@ -60,6 +62,7 @@ export async function findCurrentWorkspace(
     name: row.name,
     timezone: row.timezone,
     defaultCurrency: row.defaultCurrency,
+    platformFeeBps: row.platformFeeBps,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

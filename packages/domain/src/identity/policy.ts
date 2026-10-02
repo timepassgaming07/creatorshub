@@ -111,6 +111,17 @@ export type Permission =
   | 'affiliate.view'
   | 'affiliate.manage'
 
+  // Analytics & AI Surfaces (Slice 10)
+  | 'analytics.view'
+  | 'ai.generate'
+  | 'ai.manage_quota'
+
+  // Payouts & Settlements (Slice 11)
+  | 'payout.view'
+  | 'payout.request'
+  | 'payout.approve'
+  | 'payout.manage_beneficiaries'
+
 /**
  * Which permissions each role holds.
  *
@@ -158,6 +169,13 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'customer.manage',
     'affiliate.view',
     'affiliate.manage',
+    'analytics.view',
+    'ai.generate',
+    'ai.manage_quota',
+    'payout.view',
+    'payout.request',
+    'payout.approve',
+    'payout.manage_beneficiaries',
   ],
 
   /**
@@ -192,6 +210,13 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'customer.manage',
     'affiliate.view',
     'affiliate.manage',
+    'analytics.view',
+    'ai.generate',
+    'ai.manage_quota',
+    'payout.view',
+    'payout.request',
+    'payout.approve',
+    'payout.manage_beneficiaries',
   ],
 
   /**
@@ -210,6 +235,9 @@ const ROLE_PERMISSIONS: Record<WorkspaceRole, readonly Permission[]> = {
     'order.view',
     'customer.view',
     'affiliate.view',
+    'analytics.view',
+    'ai.generate',
+    'payout.view',
   ],
 }
 

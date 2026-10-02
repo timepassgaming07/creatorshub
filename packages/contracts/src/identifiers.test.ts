@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import {
   InvalidIdentifierError,
+  aiUsageId,
+  aiUsageIdSchema,
+  beneficiaryAccountId,
+  beneficiaryAccountIdSchema,
+  clawbackIdSchema,
+  commissionIdSchema,
+  payoutId,
+  payoutIdSchema,
+  payoutItemId,
+  payoutItemIdSchema,
   requestId,
   requestIdSchema,
   userId,
@@ -128,5 +138,27 @@ describe('schemas', () => {
 
   it('reject a request id carrying a newline', () => {
     expect(requestIdSchema.safeParse('req\ninjected').success).toBe(false)
+  })
+
+  it('validates commissionId and clawbackId', () => {
+    expect(commissionIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(clawbackIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(aiUsageIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(aiUsageId(VALID_V7)).toBe(VALID_V7)
+    expect(commissionIdSchema.safeParse('bad-uuid').success).toBe(false)
+    expect(clawbackIdSchema.safeParse('bad-uuid').success).toBe(false)
+    expect(aiUsageIdSchema.safeParse('bad-uuid').success).toBe(false)
+  })
+
+  it('validates payoutId, payoutItemId, and beneficiaryAccountId', () => {
+    expect(payoutIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(payoutItemIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(beneficiaryAccountIdSchema.parse(VALID_V7)).toBe(VALID_V7)
+    expect(payoutId(VALID_V7)).toBe(VALID_V7)
+    expect(payoutItemId(VALID_V7)).toBe(VALID_V7)
+    expect(beneficiaryAccountId(VALID_V7)).toBe(VALID_V7)
+    expect(payoutIdSchema.safeParse('bad-uuid').success).toBe(false)
+    expect(payoutItemIdSchema.safeParse('bad-uuid').success).toBe(false)
+    expect(beneficiaryAccountIdSchema.safeParse('bad-uuid').success).toBe(false)
   })
 })

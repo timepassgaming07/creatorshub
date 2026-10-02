@@ -60,13 +60,27 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   'customer.manage',
   'affiliate.view',
   'affiliate.manage',
+  'analytics.view',
+  'ai.generate',
+  'ai.manage_quota',
+  'payout.view',
+  'payout.request',
+  'payout.approve',
+  'payout.manage_beneficiaries',
 ]
 
 /**
- * The intended rules, stated independently of the implementation.
+ * The expected permission matrix.
  *
- * `true` means the role holds the permission. Every cell is filled; there is no
- * default, because a blank cell in an authorisation matrix is a question nobody
+ * Each row is a role. Each column is a permission. If an entry is true, the role
+ * holds the permission; if false, it does not.
+ *
+ * The test iterates over this matrix to assert that:
+ * 1. `can(role, permission)` returns true iff the matrix says true.
+ * 2. `permissionsFor(role)` returns exactly the permissions with true entries.
+ *
+ * This structure forces any change to permissions to update this table, where the
+ * security implications (e.g., "does an admin get this?") must be explicitly
  * answered.
  */
 const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
@@ -97,6 +111,13 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'customer.manage': true,
     'affiliate.view': true,
     'affiliate.manage': true,
+    'analytics.view': true,
+    'ai.generate': true,
+    'ai.manage_quota': true,
+    'payout.view': true,
+    'payout.request': true,
+    'payout.approve': true,
+    'payout.manage_beneficiaries': true,
   },
   admin: {
     'workspace.view': true,
@@ -125,6 +146,13 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'customer.manage': true,
     'affiliate.view': true,
     'affiliate.manage': true,
+    'analytics.view': true,
+    'ai.generate': true,
+    'ai.manage_quota': true,
+    'payout.view': true,
+    'payout.request': true,
+    'payout.approve': true,
+    'payout.manage_beneficiaries': true,
   },
   member: {
     'workspace.view': true,
@@ -153,6 +181,13 @@ const EXPECTED: Record<WorkspaceRole, Record<Permission, boolean>> = {
     'customer.manage': false,
     'affiliate.view': true,
     'affiliate.manage': false,
+    'analytics.view': true,
+    'ai.generate': true,
+    'ai.manage_quota': false,
+    'payout.view': true,
+    'payout.request': false,
+    'payout.approve': false,
+    'payout.manage_beneficiaries': false,
   },
 }
 

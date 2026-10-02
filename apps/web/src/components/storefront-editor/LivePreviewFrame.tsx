@@ -22,6 +22,7 @@ import { ProductGrid } from '../storefront/ProductGrid'
 import { StorefrontFooter } from '../storefront/StorefrontFooter'
 import { StorefrontHeader } from '../storefront/StorefrontHeader'
 import { StorefrontHero } from '../storefront/StorefrontHero'
+import { LinkInBioSection } from '../storefront/LinkInBioSection'
 import { StorefrontThemeProvider } from '../storefront/StorefrontThemeProvider'
 
 export type ViewportDevice = 'desktop' | 'tablet' | 'mobile'
@@ -98,6 +99,9 @@ export function LivePreviewFrame({
     heroSubheadline: themeConfig?.heroSubheadline,
     logoAssetId: themeConfig?.logoAssetId,
     bannerAssetId: themeConfig?.bannerAssetId,
+    bio: themeConfig?.bio,
+    socialLinks: themeConfig?.socialLinks ?? [],
+    customLinks: themeConfig?.customLinks ?? [],
   }
 
   const mockStorefront: StorefrontRecord = {
@@ -240,6 +244,10 @@ export function LivePreviewFrame({
               <div>
                 <StorefrontHeader storefront={mockStorefront} basePath="" />
                 <StorefrontHero storefront={mockStorefront} basePath="" />
+                <LinkInBioSection
+                  theme={previewTheme}
+                  creatorName={title || 'Your Storefront'}
+                />
                 <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
                   <ProductGrid
                     products={effectiveProducts}

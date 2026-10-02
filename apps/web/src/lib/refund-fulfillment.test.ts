@@ -72,6 +72,19 @@ vi.mock('@creatorhub/db', () => ({
   fulfillment: {
     revokeEntitlementsByOrderId: vi.fn().mockResolvedValue(1),
   },
+  workspaces: {
+    findCurrentWorkspace: vi.fn().mockResolvedValue({
+      id: '018f9e2b-7c5e-7a2e-8c3b-000000000001',
+      slug: 'test-workspace',
+      name: 'Test Workspace',
+      timezone: 'Asia/Kolkata',
+      defaultCurrency: 'INR',
+      platformFeeBps: 500,
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  },
 }))
 
 describe('Refund Fulfillment Service (§5.10)', () => {

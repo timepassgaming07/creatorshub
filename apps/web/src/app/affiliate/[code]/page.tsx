@@ -47,6 +47,8 @@ export default async function AffiliatePortalPage(props: {
       code={code}
       affiliate={res.data.affiliate}
       link={res.data.link}
+      financialBreakdown={res.data.financialBreakdown}
+      commissions={res.data.commissions}
       attributions={res.data.attributions}
     />
   )

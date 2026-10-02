@@ -57,6 +57,8 @@ describe('getStorefrontThemeTokens', () => {
       accentColor: '#4f46e5',
       fontPreset: 'sans',
       layoutPreset: 'showcase',
+      socialLinks: [],
+      customLinks: [],
     }
 
     const tokens = getStorefrontThemeTokens(theme)
@@ -73,6 +75,8 @@ describe('getStorefrontThemeTokens', () => {
       accentColor: '#fbbf24', // Light amber
       fontPreset: 'serif',
       layoutPreset: 'editorial',
+      socialLinks: [],
+      customLinks: [],
     }
 
     const tokens = getStorefrontThemeTokens(theme)
@@ -87,6 +91,8 @@ describe('getStorefrontThemeTokens', () => {
       accentColor: '#10b981',
       fontPreset: 'mono',
       layoutPreset: 'minimal',
+      socialLinks: [],
+      customLinks: [],
     }
 
     const tokens = getStorefrontThemeTokens(theme)

@@ -81,11 +81,25 @@ export default function ProductDetailPage({
   // Edit Product Form State
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [description, setDescription] = useState('')
   const [basePriceStr, setBasePriceStr] = useState('0.00')
   const [compareAtPriceStr, setCompareAtPriceStr] = useState('')
   const [visibility, setVisibility] = useState<'public' | 'unlisted' | 'private'>('public')
   const [saving, setSaving] = useState(false)
+
+  const numBase = parseFloat(basePriceStr || '0')
+  const numCompare = parseFloat(compareAtPriceStr || '0')
+  const hasDiscount = numCompare > numBase && numBase > 0
+  const savingsAmount = hasDiscount ? numCompare - numBase : 0
+  const savingsPct = hasDiscount ? Math.round((savingsAmount / numCompare) * 100) : 0
+
+  const applyQuickDiscount = (pct: number) => {
+    if (numBase > 0) {
+      const calculatedOriginal = Math.round(numBase / (1 - pct / 100))
+      setCompareAtPriceStr(calculatedOriginal.toString())
+    }
+  }
 
   // Add Variant Dialog State
   const [variantDialogOpen, setVariantDialogOpen] = useState(false)
@@ -443,7 +457,17 @@ export default function ProductDetailPage({
                   label="Title"
                   value={title}
                   onChange={(e) => {
-                    setTitle(e.target.value)
+                    const newTitle = e.target.value
+                    setTitle(newTitle)
+                    if (!slugManuallyEdited) {
+                      setSlug(
+                        newTitle
+                          .toLowerCase()
+                          .trim()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/^-+|-+$/g, ''),
+                      )
+                    }
                   }}
                   disabled={!canUpdate}
                   required
@@ -453,9 +477,11 @@ export default function ProductDetailPage({
                   label="URL Slug"
                   value={slug}
                   onChange={(e) => {
+                    setSlugManuallyEdited(true)
                     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
                   }}
                   disabled={!canUpdate}
+                  hint="Custom link path on your storefront (auto-generated from title)"
                   required
                 />
 
@@ -479,40 +505,90 @@ export default function ProductDetailPage({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
-                  <Input
-                    label={`Base Price (${product.currency})`}
-                    type="text"
-                    inputMode="decimal"
-                    value={basePriceStr}
-                    onChange={(e) => {
-                      setBasePriceStr(e.target.value)
-                    }}
-                    disabled={!canUpdate}
-                    required
-                  />
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 dark:border-neutral-800 dark:bg-neutral-950/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                      Pricing & Discounts
+                    </span>
+                    {hasDiscount && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        🔥 {savingsPct}% OFF · Saves {product.currency}{' '}
+                        {savingsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </div>
 
-                  <Input
-                    label={`Compare-At Price (${product.currency})`}
-                    type="text"
-                    inputMode="decimal"
-                    value={compareAtPriceStr}
-                    onChange={(e) => {
-                      setCompareAtPriceStr(e.target.value)
-                    }}
-                    disabled={!canUpdate}
-                  />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Input
+                      label={`Selling Price (${product.currency})`}
+                      type="text"
+                      inputMode="decimal"
+                      hint="What your customer actually pays at checkout"
+                      value={basePriceStr}
+                      onChange={(e) => {
+                        setBasePriceStr(e.target.value)
+                      }}
+                      disabled={!canUpdate}
+                      required
+                    />
+
+                    <Input
+                      label={`Original Price (${product.currency}) — Before Discount`}
+                      type="text"
+                      inputMode="decimal"
+                      hint="Crossed-out MRP shown to buyers (e.g. ~~₹1,999~~)"
+                      value={compareAtPriceStr}
+                      onChange={(e) => {
+                        setCompareAtPriceStr(e.target.value)
+                      }}
+                      disabled={!canUpdate}
+                    />
+                  </div>
+
+                  {canUpdate && numBase > 0 && (
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
+                        ⚡ Quick Discount Presets:
+                      </span>
+                      {[15, 25, 35, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => applyQuickDiscount(pct)}
+                          className="rounded-lg border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 transition-colors"
+                        >
+                          {pct}% Off
+                        </button>
+                      ))}
+                      {compareAtPriceStr && (
+                        <button
+                          type="button"
+                          onClick={() => setCompareAtPriceStr('')}
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-neutral-500 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 transition-colors"
+                        >
+                          Clear Discount
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <Select
-                  label="Visibility"
-                  options={VISIBILITY_OPTIONS}
-                  value={visibility}
-                  onValueChange={(val) => {
-                    setVisibility(val as 'public' | 'unlisted' | 'private')
-                  }}
-                  disabled={!canUpdate}
-                />
+                <div>
+                  <Select
+                    label="Visibility"
+                    options={VISIBILITY_OPTIONS}
+                    value={visibility}
+                    onValueChange={(val) => {
+                      setVisibility(val as 'public' | 'unlisted' | 'private')
+                    }}
+                    disabled={!canUpdate}
+                  />
+                  <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                    {visibility === 'public' && 'Visible to everyone browsing your storefront catalog.'}
+                    {visibility === 'unlisted' && 'Hidden from your store catalog, but purchasable by anyone with the direct link (ideal for private deals, newsletter subscribers, or exclusive promos).'}
+                    {visibility === 'private' && 'Draft mode — hidden from customers and only visible to you and your workspace team.'}
+                  </p>
+                </div>
 
                 {canUpdate && (
                   <div className="flex justify-end pt-4 border-t border-neutral-200 dark:border-neutral-800">

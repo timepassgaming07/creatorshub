@@ -82,6 +82,44 @@ export const customDomainSchema = z
   .toLowerCase()
   .regex(CUSTOM_DOMAIN_PATTERN, 'Custom domain must be a valid FQDN (e.g. shop.example.com).')
 
+/**
+ * Supported social platforms for the link-in-bio section.
+ * Icons are rendered on the public storefront by platform key.
+ */
+export const SOCIAL_PLATFORMS = [
+  'instagram',
+  'youtube',
+  'twitter',
+  'tiktok',
+  'linkedin',
+  'github',
+  'discord',
+  'telegram',
+  'spotify',
+  'twitch',
+  'facebook',
+  'pinterest',
+  'dribbble',
+  'behance',
+  'website',
+] as const
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
+
+export const socialLinkSchema = z.object({
+  platform: z.enum(SOCIAL_PLATFORMS),
+  url: z.string().url('Must be a valid URL.').max(500),
+})
+
+export type SocialLink = z.infer<typeof socialLinkSchema>
+
+export const customLinkSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  url: z.string().url('Must be a valid URL.').max(500),
+  emoji: z.string().max(4).optional(),
+})
+
+export type CustomLink = z.infer<typeof customLinkSchema>
+
 export const storefrontThemeSchema = z.object({
   accentColor: z
     .string()
@@ -93,6 +131,12 @@ export const storefrontThemeSchema = z.object({
   heroSubheadline: z.string().max(500).optional(),
   logoAssetId: assetIdSchema.optional(),
   bannerAssetId: assetIdSchema.optional(),
+  /** Creator bio text shown in the link-in-bio section. */
+  bio: z.string().max(300).optional(),
+  /** Social platform links displayed as icon row. Max 10. */
+  socialLinks: z.array(socialLinkSchema).max(10).default([]),
+  /** Custom link buttons displayed below products. Max 20. */
+  customLinks: z.array(customLinkSchema).max(20).default([]),
 })
 
 export type StorefrontTheme = z.infer<typeof storefrontThemeSchema>
@@ -104,7 +148,7 @@ export const createStorefrontInputSchema = z.object({
   title: z.string().trim().min(1, 'Title is required.').max(100),
   tagline: z.string().trim().max(200).optional(),
   description: z.string().trim().max(1000).optional(),
-  themeConfig: storefrontThemeSchema.optional(),
+  themeConfig: storefrontThemeSchema.partial().optional(),
 })
 
 export type CreateStorefrontInput = z.infer<typeof createStorefrontInputSchema>

@@ -254,6 +254,59 @@ export async function createCheckoutSessionAction(
 
       const pricing = pricingResult.value
 
+      // 2e-free. Lead Magnet / Free Download Flow (Total Amount === 0n)
+      if (pricing.totalAmount === 0n) {
+        const freeSessionId = `free_sess_${randomUUID().replace(/-/g, '').slice(0, 16)}`
+        const { order: createdOrder } = await orders.createOrder(scope, {
+          customerEmail: input.customerEmail,
+          customerName: input.customerName ?? null,
+          customerPhone: input.customerPhone ?? null,
+          currency: pricing.currency,
+          subtotalAmount: pricing.subtotalAmount,
+          discountAmount: pricing.discountAmount,
+          taxAmount: 0n,
+          totalAmount: 0n,
+          checkoutSessionId: freeSessionId,
+          items: pricing.items.map((it) => ({
+            productId: it.productId,
+            variantId: it.variantId ?? null,
+            productTitle: it.title,
+            unitAmount: it.unitAmount,
+            quantity: it.quantity,
+            subtotalAmount: it.subtotalAmount,
+            discountAmount: it.discountAmount,
+            taxAmount: 0n,
+            totalAmount: 0n,
+          })),
+          metadata: {
+            discountCode: input.discountCode ?? null,
+            isFreeClaim: true,
+          },
+        })
+
+        // Auto-fulfill free digital access
+        await fulfillPaidOrder(scope, {
+          orderId: createdOrder.id,
+          provider: 'memory',
+          providerPaymentId: `free_pay_${randomUUID().slice(0, 12)}`,
+          amount: 0n,
+          currency: pricing.currency,
+          method: 'free_claim',
+          capturedAt: new Date(),
+        })
+
+        return {
+          ok: true,
+          data: {
+            orderId: createdOrder.id,
+            checkoutSessionId: freeSessionId,
+            checkoutUrl: `/checkout/${createdOrder.id}`,
+            totalAmount: '0',
+            currency: pricing.currency,
+          },
+        }
+      }
+
       // 2e. Create connected checkout session with PaymentProvider
       const hostUrl = process.env['NEXT_PUBLIC_APP_URL'] ?? 'http://localhost:3000'
       const successUrl =
@@ -315,7 +368,13 @@ export async function createCheckoutSessionAction(
         })),
         metadata: {
           discountCode: input.discountCode ?? null,
-          taxBreakdown: taxResult.ok ? taxResult.value.components : [],
+          taxBreakdown: taxResult.ok
+            ? taxResult.value.components.map((c) => ({
+                name: c.name,
+                rateBasisPoints: c.rateBasisPoints,
+                amount: c.amount.toString(),
+              }))
+            : [],
         },
       })
 
@@ -503,6 +562,91 @@ export async function verifyAndFulfillCheckoutSessionAction(
   }
 }
 
+/**
+ * 1-Click Instant Payment Simulator for Test & Dev Environments (Slice 5 §5.11).
+ *
+ * Allows creators, testers, and automated browser audits to instantly approve
+ * simulated UPI / card payments for rapid verification without external dependencies.
+ */
+export async function simulateCheckoutPaymentSuccessAction(
+  checkoutSessionId: string,
+  workspaceIdParam?: string,
+): Promise<VerifyCheckoutResult> {
+  if (!checkoutSessionId) {
+    return {
+      ok: false,
+      error: { code: 'INVALID_SESSION_ID', message: 'Checkout session ID is required.' },
+    }
+  }
+
+  const db = getDatabase()
+  const reqId = requestId(`req-sim-${randomUUID().slice(0, 8)}`)
+
+  try {
+    const wsId = workspaceId(workspaceIdParam ?? '018f9e2b-7c5e-7a2e-8c3b-000000000001')
+    const context = workspaceContext({
+      workspaceId: wsId,
+      actorId: userId('018f9e2b-7c5e-7a2e-8c3b-000000000001'),
+      requestId: reqId,
+    })
+
+    return await db.withWorkspace(context, async (tx) => {
+      const scope = { tx, context }
+      const orderRecord = await orders.findOrderByCheckoutSessionId(scope, checkoutSessionId)
+
+      if (!orderRecord) {
+        return {
+          ok: false,
+          error: { code: 'ORDER_NOT_FOUND', message: 'Order for this session was not found.' },
+        }
+      }
+
+      if (orderRecord.status === 'paid') {
+        return {
+          ok: true,
+          data: {
+            orderId: orderRecord.id,
+            status: orderRecord.status,
+            paymentStatus: orderRecord.paymentStatus,
+            totalAmount: orderRecord.totalAmount.toString(),
+            currency: orderRecord.currency,
+          },
+        }
+      }
+
+      const fulfillResult = await fulfillPaidOrder(scope, {
+        orderId: orderRecord.id,
+        provider: 'memory',
+        providerPaymentId: `pay_sim_${randomUUID().slice(0, 12)}`,
+        amount: orderRecord.totalAmount,
+        currency: orderRecord.currency,
+        method: 'upi_test_simulation',
+        capturedAt: new Date(),
+      })
+
+      return {
+        ok: true,
+        data: {
+          orderId: fulfillResult.order.id,
+          status: fulfillResult.order.status,
+          paymentStatus: fulfillResult.order.paymentStatus,
+          totalAmount: fulfillResult.order.totalAmount.toString(),
+          currency: fulfillResult.order.currency,
+        },
+      }
+    })
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : 'Simulation failed.'
+    return {
+      ok: false,
+      error: {
+        code: 'SIMULATION_FAILED',
+        message: errMessage,
+      },
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Additional Checkout Actions (Slice 5 §5.11)
 // ---------------------------------------------------------------------------
@@ -629,6 +773,8 @@ export async function getPublicCheckoutProductData(
                   accentColor: '#4f46e5',
                   fontPreset: 'sans',
                   layoutPreset: 'showcase',
+                  socialLinks: [],
+                  customLinks: [],
                 },
           },
           workspace: {

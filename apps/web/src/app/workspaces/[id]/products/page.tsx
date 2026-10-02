@@ -1,19 +1,20 @@
 'use client'
 
 /**
- * Workspace Products List Screen (Item 3.7).
+ * Workspace Products List Screen — Production-Grade.
  *
  * Responsibilities:
- * - Render product catalogue table across all 4 states (loading, empty, error, populated).
+ * - Render product catalogue table across all states.
+ * - Quick Smart File Upload & Auto-Generate details directly from this page.
  * - Display title, slug, status badges (Draft, Published, Archived), currency, and price.
- * - "New Product" primary action button if authorized.
- * - Links to product edit / publish screens.
+ * - "New Product" & "Smart Upload" actions.
  */
 import { use, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'motion/react'
 import { Button, Skeleton, SkeletonText } from '@creatorhub/ui'
-
 import { getProductListDataAction, type ProductListData } from '@/lib/catalogue-actions'
+import { SmartProductUpload } from '@/components/products/SmartProductUpload'
 
 function formatPriceDisplay(amountStr: string, currencyCode: string): string {
   try {
@@ -34,6 +35,7 @@ export default function ProductsListPage({ params }: { readonly params: Promise<
   const [data, setData] = useState<ProductListData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ title: string; detail: string; status: number } | null>(null)
+  const [showQuickUpload, setShowQuickUpload] = useState(false)
 
   const loadProducts = useCallback(async () => {
     try {
@@ -93,197 +95,229 @@ export default function ProductsListPage({ params }: { readonly params: Promise<
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-neutral-50 px-4 py-8 dark:bg-neutral-950 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl space-y-6">
-          <div className="flex items-center justify-between border-b border-neutral-200 pb-5 dark:border-neutral-800">
-            <div>
-              <Skeleton className="h-8 w-44" shape="text" />
-              <SkeletonText lines={1} className="mt-2 w-48" />
-            </div>
-            <Skeleton className="h-10 w-32" shape="block" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-44" shape="text" />
+            <SkeletonText lines={1} className="w-48" />
           </div>
-          <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-            <SkeletonText lines={6} />
-          </div>
+          <Skeleton className="h-10 w-32" shape="block" />
         </div>
-      </main>
+        <div className="rounded-2xl border border-border-subtle bg-surface-raised p-6 shadow-xs">
+          <SkeletonText lines={6} />
+        </div>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <main className="min-h-screen bg-neutral-50 px-4 py-8 dark:bg-neutral-950 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-8 dark:border-red-900/50 dark:bg-red-950/20">
-            <h1 className="text-xl font-semibold text-red-900 dark:text-red-300">{error.title}</h1>
-            <p className="mt-2 text-sm text-red-700 dark:text-red-400">{error.detail}</p>
-            <div className="mt-6 flex justify-center gap-3">
-              <Link href={`/workspaces/${workspaceId}`}>
-                <Button variant="secondary">Back to Workspace</Button>
-              </Link>
-              <Button onClick={() => void loadProducts()}>Try Again</Button>
-            </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="w-full max-w-md rounded-3xl border border-red-500/30 bg-surface-raised p-8 text-center shadow-xl">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-600">
+            ⚠️
+          </div>
+          <h2 className="mt-4 text-lg font-bold text-content-primary">{error.title}</h2>
+          <p className="mt-1 text-xs text-content-secondary leading-relaxed">{error.detail}</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href={`/workspaces/${workspaceId}`}>
+              <Button variant="secondary">Back to Hub</Button>
+            </Link>
+            <Button onClick={() => void loadProducts()}>Try Again</Button>
           </div>
         </div>
-      </main>
+      </div>
     )
   }
 
   const products = data?.products ?? []
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8 dark:bg-neutral-950 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-8">
-        {/* Navigation & Header */}
+    <div className="space-y-6">
+      {/* Header Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-border-subtle"
+      >
         <div>
-          <nav className="mb-4 flex items-center text-sm font-medium text-neutral-500 dark:text-neutral-400">
-            <Link
-              href={`/workspaces/${workspaceId}`}
-              className="hover:text-neutral-900 dark:hover:text-neutral-100"
-            >
+          <div className="flex items-center gap-2 text-xs font-semibold text-content-tertiary">
+            <Link href={`/workspaces/${workspaceId}`} className="hover:text-content-primary transition-colors">
               {data?.workspace.name}
             </Link>
-            <span className="mx-2">/</span>
-            <span className="text-neutral-900 dark:text-neutral-100">Products</span>
-          </nav>
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200 pb-5 dark:border-neutral-800">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-                Products
-              </h1>
-              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                Manage your digital courses, downloads, and catalogue items.
-              </p>
-            </div>
-            {data?.canCreate && (
-              <Link href={`/workspaces/${workspaceId}/products/new`}>
-                <Button variant="primary">New Product</Button>
-              </Link>
-            )}
+            <span>/</span>
+            <span className="text-content-primary">Products</span>
           </div>
+          <h1 className="mt-1 text-2xl font-black text-content-primary tracking-tight">
+            Product Catalogue
+          </h1>
+          <p className="mt-0.5 text-xs text-content-secondary">
+            Manage your digital courses, templates, deliverables, and pricing.
+          </p>
         </div>
 
-        {/* Product Roster */}
-        {products.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center dark:border-neutral-800 dark:bg-neutral-900">
-            <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-              No products yet
-            </h2>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              Get started by creating your first digital product or course.
-            </p>
-            {data?.canCreate && (
-              <div className="mt-6">
-                <Link href={`/workspaces/${workspaceId}/products/new`}>
-                  <Button variant="primary">Create Product</Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-            <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-800">
-              <thead className="bg-neutral-50 dark:bg-neutral-950/50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider dark:text-neutral-400"
-                  >
-                    Product
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider dark:text-neutral-400"
-                  >
-                    Status
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider dark:text-neutral-400"
-                  >
-                    Price
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider dark:text-neutral-400"
-                  >
-                    Visibility
-                  </th>
-                  <th scope="col" className="relative px-6 py-3.5">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className="hover:bg-neutral-50/50 transition-colors dark:hover:bg-neutral-800/30"
-                  >
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div>
-                        <Link
-                          href={`/workspaces/${workspaceId}/products/${product.id}`}
-                          className="font-medium text-neutral-900 hover:underline dark:text-neutral-100"
-                        >
-                          {product.title}
-                        </Link>
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                          /{product.slug}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <StatusBadge status={product.status} />
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                      {formatPriceDisplay(product.basePrice, product.currency)}
-                      {product.compareAtPrice && (
-                        <span className="ml-2 text-xs text-neutral-400 line-through">
-                          {formatPriceDisplay(product.compareAtPrice, product.currency)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-500 capitalize dark:text-neutral-400">
-                      {product.visibility}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <Link
-                        href={`/workspaces/${workspaceId}/products/${product.id}`}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                      >
-                        Manage
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {data?.canCreate && (
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="secondary"
+              onClick={() => setShowQuickUpload(!showQuickUpload)}
+              className="rounded-xl border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 hover:bg-indigo-500/10"
+            >
+              {showQuickUpload ? '✕ Close Quick Upload' : '⚡ Quick File Auto-List'}
+            </Button>
+            <Link href={`/workspaces/${workspaceId}/products/new`}>
+              <Button variant="primary" className="rounded-xl">
+                + New Product
+              </Button>
+            </Link>
           </div>
         )}
-      </div>
-    </main>
+      </motion.div>
+
+      {/* Expandable Smart File Auto-List Dropzone */}
+      <AnimatePresence>
+        {showQuickUpload && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <SmartProductUpload
+              workspaceId={workspaceId}
+              onProductCreated={() => {
+                setShowQuickUpload(false)
+                void loadProducts()
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Product Table or Empty State */}
+      {products.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-3xl border border-dashed border-border-control bg-surface-raised p-12 text-center shadow-xs space-y-6"
+        >
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-2xl text-accent">
+            📦
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-base font-bold text-content-primary">
+              No products in your catalogue yet
+            </h2>
+            <p className="mx-auto max-w-sm text-xs text-content-secondary leading-relaxed">
+              Upload your first digital file (ZIP, MP4, PDF, Preset) to auto-generate details and list it in 1 click.
+            </p>
+          </div>
+
+          {data?.canCreate && (
+            <div className="max-w-xl mx-auto pt-2">
+              <SmartProductUpload
+                workspaceId={workspaceId}
+                onProductCreated={() => void loadProducts()}
+              />
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-xs"
+        >
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-border-subtle bg-surface-sunken font-semibold text-content-secondary">
+              <tr>
+                <th scope="col" className="px-6 py-3.5">
+                  Product
+                </th>
+                <th scope="col" className="px-6 py-3.5">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3.5">
+                  Price
+                </th>
+                <th scope="col" className="px-6 py-3.5">
+                  Visibility
+                </th>
+                <th scope="col" className="px-6 py-3.5 text-right">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {products.map((product) => (
+                <tr
+                  key={product.id}
+                  className="hover:bg-surface-overlay/50 transition-colors"
+                >
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/workspaces/${workspaceId}/products/${product.id}`}
+                      className="font-bold text-content-primary hover:text-accent transition-colors block"
+                    >
+                      {product.title}
+                    </Link>
+                    <span className="font-mono text-[11px] text-content-tertiary">
+                      /{product.slug}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={product.status} />
+                  </td>
+                  <td className="px-6 py-4 font-bold text-content-primary">
+                    {formatPriceDisplay(product.basePrice, product.currency)}
+                    {product.compareAtPrice && (
+                      <span className="ml-2 text-[11px] text-content-tertiary font-normal line-through">
+                        {formatPriceDisplay(product.compareAtPrice, product.currency)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 capitalize text-content-secondary">
+                    {product.visibility}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Link
+                      href={`/workspaces/${workspaceId}/products/${product.id}`}
+                      className="inline-flex items-center gap-1 font-bold text-accent hover:underline transition-colors"
+                    >
+                      <span>Edit</span>
+                      <span>→</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </motion.div>
+      )}
+    </div>
   )
 }
 
 function StatusBadge({ status }: { readonly status: string }) {
-  if (status === 'published') {
+  if (status === 'active' || status === 'published') {
     return (
-      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-        Published
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        Live
       </span>
     )
   }
   if (status === 'archived') {
     return (
-      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-surface-sunken border border-border-subtle px-2.5 py-0.5 text-[10px] font-bold text-content-tertiary">
+        <span className="h-1.5 w-1.5 rounded-full bg-content-tertiary" />
         Archived
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
       Draft
     </span>
   )

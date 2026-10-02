@@ -21,9 +21,13 @@
 import type { UserId } from '@creatorhub/contracts'
 
 import type { RepositoryScope } from '../repository.js'
+import * as aiUsageRepo from './ai-usage.js'
+import * as analyticsRepo from './analytics.js'
 import * as auditLogRepo from './audit-log.js'
 import * as affiliatesRepo from './affiliates.js'
+import * as beneficiaryAccountsRepo from './beneficiary-accounts.js'
 import * as catalogueRepo from './catalogue.js'
+import * as commissionsRepo from './commissions.js'
 import * as customersRepo from './customers.js'
 import * as discountsRepo from './discounts.js'
 import * as disputesRepo from './disputes.js'
@@ -34,6 +38,7 @@ import * as ledgerRepo from './ledger.js'
 import * as ordersRepo from './orders.js'
 import * as outboxRepo from './outbox.js'
 import * as paymentsRepo from './payments.js'
+import * as payoutsRepo from './payouts.js'
 import * as reconciliationRepo from './reconciliation.js'
 import * as refundsRepo from './refunds.js'
 import * as storefrontsRepo from './storefronts.js'
@@ -142,6 +147,10 @@ export const WRITE_CASES: readonly WriteCase[] = [
  * every file in `src/repositories` except this one.
  */
 export const REPOSITORY_MODULES = {
+  'ai-usage': aiUsageRepo,
+  analytics: analyticsRepo,
+  'beneficiary-accounts': beneficiaryAccountsRepo,
+  payouts: payoutsRepo,
   'workspace-members': workspaceMembersRepo,
   'audit-log': auditLogRepo,
   workspaces: workspacesRepo,
@@ -161,6 +170,7 @@ export const REPOSITORY_MODULES = {
   fulfillment: fulfillmentRepo,
   customers: customersRepo,
   affiliates: affiliatesRepo,
+  commissions: commissionsRepo,
 } as const
 
 /**
@@ -570,4 +580,91 @@ export const ISOLATION_EXEMPT: Readonly<Record<string, string>> = {
 
   'affiliates.listAttributionsForAffiliate':
     'Lists attributions for an affiliate scoped to current workspace. Tested in affiliates repository integration suite.',
+
+  'commissions.createCommission':
+    'Stamps workspace from scope. Tested in commissions repository integration suite.',
+
+  'commissions.findCommissionById':
+    'Reads commission by ID scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.findCommissionByAttributionId':
+    'Reads commission by attribution ID scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.findCommissionByOrderId':
+    'Reads commission by order ID scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.listCommissionsForAffiliate':
+    'Lists commissions for an affiliate scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.listWorkspaceCommissions':
+    'Lists commissions matching filters scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.releaseHeldCommissions':
+    'Batch vesting query scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.applyClawback':
+    'Applies refund clawback and updates affiliate totals scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'commissions.getAffiliateLedgerBreakdown':
+    'Computes affiliate financial breakdown scoped to current workspace. Tested in commissions repository integration suite.',
+
+  'ai-usage.recordUsage':
+    'Stamps workspace from scope and records token usage. Tested in analytics and AI repository integration suite.',
+
+  'ai-usage.getMonthlyUsageSummary':
+    'Aggregates monthly token consumption scoped to current workspace. Tested in analytics and AI repository integration suite.',
+
+  'ai-usage.listRecentUsage':
+    'Lists recent AI generations scoped to current workspace. Tested in analytics and AI repository integration suite.',
+
+  'analytics.getWorkspaceAnalyticsSummary':
+    'Derives financial aggregates and funnel telemetry scoped to current workspace. Tested in analytics repository integration suite.',
+
+  'analytics.listProductPerformance':
+    'Itemizes product sales and conversion metrics scoped to current workspace. Tested in analytics repository integration suite.',
+
+  'analytics.listAffiliatePerformance':
+    'Itemizes affiliate conversion and referral metrics scoped to current workspace. Tested in analytics repository integration suite.',
+
+  'beneficiary-accounts.createBeneficiaryAccount':
+    'Stamps workspace from scope and masks account numbers. Tested in payouts repository integration suite.',
+
+  'beneficiary-accounts.findBeneficiaryAccountById':
+    'Reads beneficiary account by ID scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'beneficiary-accounts.listBeneficiaryAccounts':
+    'Lists beneficiary accounts scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'beneficiary-accounts.setDefaultBeneficiaryAccount':
+    'Sets default account flag scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'beneficiary-accounts.deleteBeneficiaryAccount':
+    'Deletes beneficiary account scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.requestPayout':
+    'Stamps workspace from scope and validates beneficiary. Tested in payouts repository integration suite.',
+
+  'payouts.approvePayout':
+    'Updates payout status to approved with maker-checker audit stamp and ledger posting. Tested in payouts repository integration suite.',
+
+  'payouts.rejectPayout':
+    'Updates payout status to failed with rejection reason scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.recordPayoutProcessing':
+    'Updates payout status to processing with provider payout ID scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.recordPayoutSettlement':
+    'Updates payout status to paid with settlement timestamp scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.recordPayoutFailure':
+    'Updates payout status to failed with failure reason and compensating ledger entry. Tested in payouts repository integration suite.',
+
+  'payouts.findPayoutById':
+    'Reads payout by ID with beneficiary linkage scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.listPayouts':
+    'Lists payouts matching filters scoped to current workspace. Tested in payouts repository integration suite.',
+
+  'payouts.getPayoutBalanceOverview':
+    'Aggregates orders, refunds, and payouts to derive available, in-transit, and settled balances. Tested in payouts repository integration suite.',
 }

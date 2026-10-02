@@ -22,6 +22,7 @@ import {
   boolean,
   customType,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -155,6 +156,13 @@ export const workspaces = pgTable(
      * global truth.
      */
     defaultCurrency: text('default_currency').notNull().default('INR'),
+
+    /**
+     * Platform fee in basis points. 500 = 5.00%, 250 = 2.50%.
+     * Deducted from every sale before the creator receives their payout.
+     * Configurable per workspace so high-volume creators can negotiate lower rates.
+     */
+    platformFeeBps: integer('platform_fee_bps').notNull().default(500),
 
     status: workspaceStatus('status').notNull().default('active'),
     createdAt: createdAt(),

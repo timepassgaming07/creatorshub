@@ -90,10 +90,10 @@ export function CustomerListView({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-content-primary">
             Customers
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-content-secondary mt-1">
             Build relationships with your audience, track buyer lifetime value, and view purchase histories.
           </p>
         </div>
@@ -101,7 +101,7 @@ export function CustomerListView({
         <button
           onClick={handleExportCsv}
           disabled={exporting}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-raised border border-border-subtle text-sm font-semibold text-content-secondary shadow-xs hover:bg-surface-sunken hover:text-content-primary transition-all disabled:opacity-50 cursor-pointer"
         >
           {exporting ? 'Exporting...' : '📥 Export CSV'}
         </button>
@@ -109,59 +109,59 @@ export function CustomerListView({
 
       {/* Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Total Customers
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-content-primary mt-2">
             {summary.totalCustomers}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Unique buyers</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Unique buyers</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Customer Lifetime Value
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">
             {formatMinor(summary.totalLifetimeValue)}
           </div>
-          <div className="text-xs text-emerald-600 font-medium mt-1">Total revenue generated</div>
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">Total revenue generated</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Average Order Value
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">
             {formatMinor(summary.averageOrderValue)}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Per transaction avg</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Per transaction avg</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Repeat Buyers
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">
             {summary.repeatCustomersCount}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Customers with &gt;1 orders</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Customers with &gt;1 orders</div>
         </div>
       </div>
 
       {/* Search Input */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="bg-surface-raised p-4 rounded-2xl border border-border-subtle shadow-xs">
         <div className="relative w-full sm:max-w-md">
           <input
             type="text"
             placeholder="Search by customer name or email..."
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-sunken border border-border-control text-sm text-content-primary placeholder:text-content-tertiary focus:outline-none focus:border-indigo-500 transition-all"
           />
           <svg
-            className="absolute left-3.5 top-3 w-4 h-4 text-slate-400"
+            className="absolute left-3.5 top-3 w-4 h-4 text-content-tertiary"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -172,11 +172,11 @@ export function CustomerListView({
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+      <div className="bg-surface-raised rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-border-subtle bg-surface-sunken text-[11px] font-bold text-content-secondary uppercase tracking-wider">
                 <th className="py-3.5 px-6">Customer</th>
                 <th className="py-3.5 px-6">Total Spend</th>
                 <th className="py-3.5 px-6">Orders</th>
@@ -185,13 +185,13 @@ export function CustomerListView({
                 <th className="py-3.5 px-6 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-border-subtle text-sm">
               {customersList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-content-tertiary">
                     <div className="text-3xl mb-2">👥</div>
-                    <div className="font-semibold text-slate-700">No customers found</div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <div className="font-semibold text-content-primary">No customers found</div>
+                    <p className="text-xs text-content-secondary mt-1">
                       {query ? 'Try a different search query' : 'Your customer list will grow as sales arrive!'}
                     </p>
                   </td>
@@ -212,35 +212,35 @@ export function CustomerListView({
                   return (
                     <tr
                       key={cust.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                      className="hover:bg-surface-sunken/50 transition-colors group cursor-pointer"
                     >
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                          <div className="w-9 h-9 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
                             {(cust.name || cust.email).charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900">
+                            <div className="font-semibold text-content-primary">
                               {cust.name || cust.email.split('@')[0]}
                             </div>
-                            <div className="text-xs text-slate-400">{cust.email}</div>
+                            <div className="text-xs text-content-secondary">{cust.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-6 font-bold text-slate-900">
+                      <td className="py-4 px-6 font-bold text-content-primary">
                         {formatMinor(cust.totalSpend)}
                       </td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-sunken text-content-secondary border border-border-subtle">
                           {cust.ordersCount} {cust.ordersCount === 1 ? 'order' : 'orders'}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-500">{firstDate}</td>
-                      <td className="py-4 px-6 text-xs text-slate-500">{lastDate}</td>
+                      <td className="py-4 px-6 text-xs text-content-secondary">{firstDate}</td>
+                      <td className="py-4 px-6 text-xs text-content-secondary">{lastDate}</td>
                       <td className="py-4 px-6 text-right">
                         <Link
                           href={`/workspaces/${workspaceId}/customers/${cust.id}`}
-                          className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform"
+                          className="inline-flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline group-hover:translate-x-0.5 transition-transform"
                         >
                           View History &rarr;
                         </Link>
@@ -254,7 +254,7 @@ export function CustomerListView({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 bg-surface-sunken border-t border-border-subtle flex items-center justify-between text-xs text-content-secondary">
           <span>
             Showing {customersList.length} of {totalCount} customers
           </span>

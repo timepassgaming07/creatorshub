@@ -20,6 +20,7 @@ import {
   requestId,
   storefrontId,
   type StorefrontRecord,
+  type StorefrontTheme,
   type UpdateStorefrontInput,
   updateStorefrontInputSchema,
   userId,
@@ -109,11 +110,24 @@ function mapStorefront(row: {
   readonly createdAt: Date
   readonly updatedAt: Date
 }): StorefrontRecord {
+  const rawTheme = (row.themeConfig ?? {}) as Partial<StorefrontTheme>
+  const safeTheme: StorefrontTheme = {
+    accentColor: rawTheme.accentColor ?? '#4f46e5',
+    fontPreset: rawTheme.fontPreset ?? 'sans',
+    layoutPreset: rawTheme.layoutPreset ?? 'showcase',
+    heroHeadline: rawTheme.heroHeadline,
+    heroSubheadline: rawTheme.heroSubheadline,
+    logoAssetId: rawTheme.logoAssetId,
+    bannerAssetId: rawTheme.bannerAssetId,
+    bio: rawTheme.bio,
+    socialLinks: Array.isArray(rawTheme.socialLinks) ? rawTheme.socialLinks : [],
+    customLinks: Array.isArray(rawTheme.customLinks) ? rawTheme.customLinks : [],
+  }
   return {
     ...row,
     id: storefrontId(row.id),
     workspaceId: workspaceId(row.workspaceId),
-    themeConfig: row.themeConfig as StorefrontRecord['themeConfig'],
+    themeConfig: safeTheme,
   }
 }
 

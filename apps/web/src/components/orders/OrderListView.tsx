@@ -43,42 +43,42 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'paid':
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Paid
         </span>
       )
     case 'refunded':
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
           Refunded
         </span>
       )
     case 'partially_refunded':
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
           Partial Refund
         </span>
       )
     case 'pending':
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80">
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-sunken text-content-secondary border border-border-subtle">
+          <span className="w-1.5 h-1.5 rounded-full bg-content-tertiary" />
           Pending
         </span>
       )
     case 'failed':
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/80">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
           Failed
         </span>
       )
     default:
       return (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-sunken text-content-secondary border border-border-subtle">
           {status}
         </span>
       )
@@ -145,8 +145,8 @@ export function OrderListView({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Orders</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-content-primary">Orders</h1>
+          <p className="text-sm text-content-secondary mt-1">
             Track, search, and manage your digital storefront sales and customer fulfillments.
           </p>
         </div>
@@ -155,7 +155,7 @@ export function OrderListView({
           <button
             onClick={handleExportCsv}
             disabled={exporting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-raised border border-border-subtle text-sm font-semibold text-content-secondary shadow-xs hover:bg-surface-sunken hover:text-content-primary transition-all disabled:opacity-50 cursor-pointer"
           >
             {exporting ? 'Exporting...' : '📥 Export CSV'}
           </button>
@@ -164,49 +164,49 @@ export function OrderListView({
 
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Gross Revenue
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-content-primary mt-2">
             {formatMinor(summary.totalGrossRevenue)}
           </div>
-          <div className="text-xs text-emerald-600 font-medium mt-1">From settled orders</div>
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">From settled orders</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Total Orders
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-content-primary mt-2">
             {summary.totalOrders}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Lifetime customer transactions</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Lifetime customer transactions</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Paid & Fulfilled
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">
             {summary.paidOrdersCount}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Active delivered sales</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Active delivered sales</div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-xs">
+          <div className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
             Refunded
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-2">
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2">
             {summary.refundedOrdersCount}
           </div>
-          <div className="text-xs text-slate-400 font-medium mt-1">Returned or compensated</div>
+          <div className="text-xs text-content-tertiary font-medium mt-1">Returned or compensated</div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+      <div className="bg-surface-raised p-4 rounded-2xl border border-border-subtle shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:max-w-md">
             <input
@@ -214,10 +214,10 @@ export function OrderListView({
               placeholder="Search by order ID, customer name, email..."
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-surface-sunken border border-border-control text-sm text-content-primary placeholder:text-content-tertiary focus:outline-none focus:border-indigo-500 transition-all"
             />
             <svg
-              className="absolute left-3.5 top-3 w-4 h-4 text-slate-400"
+              className="absolute left-3.5 top-3 w-4 h-4 text-content-tertiary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -234,8 +234,8 @@ export function OrderListView({
                 onClick={() => handleStatusFilter(status)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold capitalize whitespace-nowrap transition-all cursor-pointer ${
                   selectedStatus === status
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-surface-sunken text-content-secondary border border-border-subtle hover:text-content-primary'
                 }`}
               >
                 {status}
@@ -246,11 +246,11 @@ export function OrderListView({
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+      <div className="bg-surface-raised rounded-2xl border border-border-subtle shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-border-subtle bg-surface-sunken text-[11px] font-bold text-content-secondary uppercase tracking-wider">
                 <th className="py-3.5 px-6">Order</th>
                 <th className="py-3.5 px-6">Customer</th>
                 <th className="py-3.5 px-6">Status</th>
@@ -259,13 +259,13 @@ export function OrderListView({
                 <th className="py-3.5 px-6 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody className="divide-y divide-border-subtle text-sm">
               {ordersList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-content-tertiary">
                     <div className="text-3xl mb-2">📦</div>
-                    <div className="font-semibold text-slate-700">No orders found</div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <div className="font-semibold text-content-primary">No orders found</div>
+                    <p className="text-xs text-content-secondary mt-1">
                       {query ? 'Try adjusting your search criteria' : 'Share your storefront link to get sales!'}
                     </p>
                   </td>
@@ -283,9 +283,9 @@ export function OrderListView({
                   return (
                     <tr
                       key={order.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                      className="hover:bg-surface-sunken/50 transition-colors group cursor-pointer"
                     >
-                      <td className="py-4 px-6 font-mono text-xs font-semibold text-indigo-600">
+                      <td className="py-4 px-6 font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         <Link
                           href={`/workspaces/${workspaceId}/orders/${order.id}`}
                           className="hover:underline"
@@ -294,20 +294,20 @@ export function OrderListView({
                         </Link>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="font-medium text-slate-900">
+                        <div className="font-medium text-content-primary">
                           {order.customerName || order.customerEmail.split('@')[0]}
                         </div>
-                        <div className="text-xs text-slate-400">{order.customerEmail}</div>
+                        <div className="text-xs text-content-secondary">{order.customerEmail}</div>
                       </td>
                       <td className="py-4 px-6">{getStatusBadge(order.status)}</td>
-                      <td className="py-4 px-6 font-semibold text-slate-900">
+                      <td className="py-4 px-6 font-semibold text-content-primary">
                         {formatMinor(order.totalAmount, order.currency)}
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-500">{dateStr}</td>
+                      <td className="py-4 px-6 text-xs text-content-secondary">{dateStr}</td>
                       <td className="py-4 px-6 text-right">
                         <Link
                           href={`/workspaces/${workspaceId}/orders/${order.id}`}
-                          className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-700 group-hover:translate-x-0.5 transition-transform"
+                          className="inline-flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline group-hover:translate-x-0.5 transition-transform"
                         >
                           Manage &rarr;
                         </Link>
@@ -321,7 +321,7 @@ export function OrderListView({
         </div>
 
         {/* Table Footer */}
-        <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-4 bg-surface-sunken border-t border-border-subtle flex items-center justify-between text-xs text-content-secondary">
           <span>
             Showing {ordersList.length} of {totalCount} orders
           </span>

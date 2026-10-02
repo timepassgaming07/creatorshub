@@ -22,6 +22,7 @@ pnpm-debug.log*
 # Per-machine agent permissions. Shared agent config belongs in CLAUDE.md,
 # which is checked in.
 .claude/settings.local.json
+.agents/
 
 test-results/
 playwright-report/

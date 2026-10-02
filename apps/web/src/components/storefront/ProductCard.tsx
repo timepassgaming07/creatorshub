@@ -27,7 +27,8 @@ export function ProductCard({ product, basePath, accentColor = '#4f46e5' }: Prod
     ? money(BigInt(product.compareAtPrice), product.currency as CurrencyCode)
     : null
 
-  const hasDiscount = compareAtMoney && compareAtMoney.amount > baseMoney.amount
+  const isFree = baseMoney.amount === 0n
+  const hasDiscount = !isFree && compareAtMoney && compareAtMoney.amount > baseMoney.amount
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[var(--border-hover)] hover:shadow-md">
@@ -56,11 +57,15 @@ export function ProductCard({ product, basePath, accentColor = '#4f46e5' }: Prod
                 {product.title}
               </Link>
             </h3>
-            {hasDiscount && (
+            {isFree ? (
+              <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                Free
+              </span>
+            ) : hasDiscount ? (
               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 Sale
               </span>
-            )}
+            ) : null}
           </div>
 
           {product.description && (
@@ -72,20 +77,28 @@ export function ProductCard({ product, basePath, accentColor = '#4f46e5' }: Prod
 
         <div className="mt-4 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-base font-bold text-[var(--text-primary)]">
-              <MoneyDisplay value={baseMoney} />
-            </span>
-            {hasDiscount && (
-              <span className="text-xs text-[var(--text-tertiary)] line-through">
-                <MoneyDisplay value={compareAtMoney} />
+            {isFree ? (
+              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                Free Download
               </span>
+            ) : (
+              <>
+                <span className="text-base font-bold text-[var(--text-primary)]">
+                  <MoneyDisplay value={baseMoney} />
+                </span>
+                {hasDiscount && (
+                  <span className="text-xs text-[var(--text-tertiary)] line-through">
+                    <MoneyDisplay value={compareAtMoney} />
+                  </span>
+                )}
+              </>
             )}
           </div>
           <span
             className="text-xs font-semibold text-[var(--accent-primary)] transition-transform group-hover:translate-x-0.5"
             style={{ color: accentColor }}
           >
-            View &rarr;
+            {isFree ? 'Download \u2192' : 'View \u2192'}
           </span>
         </div>
       </div>

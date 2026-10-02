@@ -13,6 +13,8 @@
 @import 'tailwindcss';
 @import './tokens.css';
 
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
   /* Colour — semantic roles only. There is deliberately no `blue-500`. */
   --color-surface-base: var(--surface-base);

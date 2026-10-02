@@ -10,6 +10,7 @@ import { StorefrontThemeProvider } from '@/components/storefront/StorefrontTheme
 import { StorefrontTelemetry } from '@/components/storefront/StorefrontTelemetry'
 import { StorefrontHeader } from '@/components/storefront/StorefrontHeader'
 import { StorefrontHero } from '@/components/storefront/StorefrontHero'
+import { LinkInBioSection } from '@/components/storefront/LinkInBioSection'
 import { ProductGrid } from '@/components/storefront/ProductGrid'
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 
@@ -62,6 +63,7 @@ export default async function SubdomainStorefrontPage({
         <StorefrontHeader storefront={storefront} basePath={basePath} />
         <main className="flex-1">
           <StorefrontHero storefront={storefront} basePath={basePath} />
+          <LinkInBioSection theme={storefront.themeConfig} creatorName={storefront.title} />
           <section id="products" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
             <div className="mb-8 flex items-end justify-between">
               <div>

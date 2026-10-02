@@ -26,7 +26,7 @@ export default async function WorkspaceOrdersPage(props: {
   if (!result.ok) {
     if (result.error.code === 'FORBIDDEN') {
       return (
-        <div className="p-8 text-center text-slate-500">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500">
           You do not have permission to view orders in this workspace.
         </div>
       )
@@ -35,13 +35,11 @@ export default async function WorkspaceOrdersPage(props: {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <OrderListView
-        workspaceId={id}
-        initialOrders={result.data.orders}
-        initialTotalCount={result.data.totalCount}
-        initialSummary={result.data.summary}
-      />
-    </div>
+    <OrderListView
+      workspaceId={id}
+      initialOrders={result.data.orders}
+      initialTotalCount={result.data.totalCount}
+      initialSummary={result.data.summary}
+    />
   )
 }

@@ -57,6 +57,33 @@ const INDIAN_STATES = [
   'Other',
 ] as const
 
+const GSTIN_STATE_MAP: Record<string, string> = {
+  '01': 'Jammu and Kashmir',
+  '02': 'Himachal Pradesh',
+  '03': 'Punjab',
+  '04': 'Chandigarh',
+  '05': 'Uttarakhand',
+  '06': 'Haryana',
+  '07': 'Delhi',
+  '08': 'Rajasthan',
+  '09': 'Uttar Pradesh',
+  '10': 'Bihar',
+  '18': 'Assam',
+  '19': 'West Bengal',
+  '20': 'Jharkhand',
+  '21': 'Odisha',
+  '22': 'Chhattisgarh',
+  '23': 'Madhya Pradesh',
+  '24': 'Gujarat',
+  '27': 'Maharashtra',
+  '29': 'Karnataka',
+  '30': 'Goa',
+  '32': 'Kerala',
+  '33': 'Tamil Nadu',
+  '36': 'Telangana',
+  '37': 'Andhra Pradesh',
+}
+
 type CheckoutFormProps = {
   readonly checkoutData: PublicCheckoutProductData
   readonly initialDiscountCode?: string
@@ -75,6 +102,27 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
   const [customerState, setCustomerState] = useState('Delhi')
   const [isB2B, setIsB2B] = useState(false)
   const [gstin, setGstin] = useState('')
+
+  // Auto-restore previous checkout details for fast 1-click return experience
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('creatorhub_saved_buyer')
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          email?: string
+          name?: string
+          phone?: string
+          customerState?: string
+        }
+        if (parsed.email) setEmail(parsed.email)
+        if (parsed.name) setName(parsed.name)
+        if (parsed.phone) setPhone(parsed.phone)
+        if (parsed.customerState) setCustomerState(parsed.customerState)
+      }
+    } catch {
+      // Ignore local storage security or quota limits
+    }
+  }, [])
 
   // Discount Code State
   const [discountCodeInput, setDiscountCodeInput] = useState(initialDiscountCode)
@@ -179,6 +227,21 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
       return
     }
 
+    // Save buyer details for fast 1-click return checkout
+    try {
+      localStorage.setItem(
+        'creatorhub_saved_buyer',
+        JSON.stringify({
+          email: email.trim(),
+          name: name.trim(),
+          phone: phone.trim(),
+          customerState,
+        }),
+      )
+    } catch {
+      // Ignore local storage quota
+    }
+
     setCheckoutStep('processing')
 
     startTransition(async () => {
@@ -206,19 +269,38 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
       setActiveOrderId(result.data.orderId)
       setActiveSessionId(result.data.checkoutSessionId)
 
-      // If checkout URL is an external hosted redirect (e.g. Razorpay payment page), redirect
-      if (result.data.checkoutUrl.startsWith('http')) {
-        window.location.href = result.data.checkoutUrl
+      // Instant fulfillment for free downloads / 100% discount
+      if (result.data.totalAmount === '0') {
+        const summaryRes = await getPublicOrderSummaryAction(result.data.orderId, workspace.id)
+        if (summaryRes.ok) {
+          setConfirmedOrderSummary(summaryRes.data)
+        }
+        setCheckoutStep('success')
         return
       }
 
-      // For local memory adapter / mock flows or UPI collect polling
-      if (result.data.checkoutUrl.includes('collect') || result.data.checkoutUrl.includes('upi')) {
+      // For local memory adapter, test domains, or UPI collect polling, transition to pending approval view
+      if (
+        result.data.checkoutUrl.includes('checkout.test') ||
+        result.data.checkoutUrl.includes('collect') ||
+        result.data.checkoutUrl.includes('upi') ||
+        result.data.checkoutUrl.startsWith('/')
+      ) {
         setCheckoutStep('pending_upi')
         return
       }
 
-      // Default to polling or verification transition
+      // If checkout URL is an external live hosted redirect (e.g. Razorpay live page), redirect
+      if (
+        result.data.checkoutUrl.startsWith('http') &&
+        (result.data.checkoutUrl.includes('razorpay.com') ||
+          result.data.checkoutUrl.includes('stripe.com'))
+      ) {
+        window.location.href = result.data.checkoutUrl
+        return
+      }
+
+      // Default to pending polling
       setCheckoutStep('pending_upi')
     })
   }
@@ -295,6 +377,7 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
       : null
   const taxMoney =
     BigInt(taxAmount) > 0n ? money(BigInt(taxAmount), product.currency as CurrencyCode) : null
+  const isFreeOrder = BigInt(totalAmount) === 0n
 
   return (
     <div className="min-h-screen bg-[#FBFBFC] text-slate-900 selection:bg-indigo-500 selection:text-white">
@@ -414,10 +497,10 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs text-white">
                   2
                 </span>
-                Tax & Location
+                Billing Details
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Select your billing state for accurate GST calculation.
+                We need your state to calculate taxes correctly.
               </p>
 
               <div className="mt-5 space-y-4">
@@ -454,7 +537,7 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                       }}
                       className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />
-                    <span>I am purchasing for a registered business (Claim GST Input Credit)</span>
+                    <span>I'm buying for a business (to claim GST credit)</span>
                   </label>
 
                   {isB2B && (
@@ -470,12 +553,24 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                         type="text"
                         value={gstin}
                         onChange={(e) => {
-                          setGstin(e.target.value.toUpperCase())
+                          const val = e.target.value.toUpperCase()
+                          setGstin(val)
+                          if (val.length >= 2) {
+                            const code = val.slice(0, 2)
+                            if (GSTIN_STATE_MAP[code]) {
+                              setCustomerState(GSTIN_STATE_MAP[code])
+                            }
+                          }
                         }}
-                        placeholder="22AAAAA0000A1Z5"
+                        placeholder="27AAAAA0000A1Z5"
                         maxLength={15}
                         className="mt-1.5 w-full uppercase tracking-wider font-mono rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all"
                       />
+                      {gstin.length >= 2 && GSTIN_STATE_MAP[gstin.slice(0, 2)] && (
+                        <p className="mt-1 text-[11px] font-medium text-indigo-600">
+                          ✓ State auto-detected as {GSTIN_STATE_MAP[gstin.slice(0, 2)]}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -489,16 +584,18 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
               </div>
             )}
 
-            {/* Step 3: Payment CTA */}
+            {/* Step 3: Payment CTA / Free Download Claim */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs text-white">
-                  3
+                  {isFreeOrder ? '✓' : '3'}
                 </span>
-                Payment Options
+                {isFreeOrder ? 'Instant Download Claim' : 'Payment Options'}
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Instant UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, and Netbanking.
+                {isFreeOrder
+                  ? 'No payment or card required. Your files will be available for download instantly.'
+                  : 'Instant UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, and Netbanking.'}
               </p>
 
               <div className="mt-5">
@@ -525,8 +622,10 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      <span>Securing Order...</span>
+                      <span>{isFreeOrder ? 'Preparing Download...' : 'Securing Order...'}</span>
                     </span>
+                  ) : isFreeOrder ? (
+                    <span>Get Free Download &rarr;</span>
                   ) : (
                     <span>
                       Pay {`₹${(Number(totalAmount) / 100).toLocaleString('en-IN')}`} & Complete
@@ -538,9 +637,9 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                 <div className="mt-4 flex items-center justify-center gap-4 text-xs font-semibold text-slate-400">
                   <span>⚡ Instant Delivery</span>
                   <span>•</span>
-                  <span>🔒 UPI & Cards</span>
+                  <span>{isFreeOrder ? '🎁 100% Free' : '🔒 UPI & Cards'}</span>
                   <span>•</span>
-                  <span>📄 GST Invoice</span>
+                  <span>{isFreeOrder ? '📄 Email Confirmation' : '📄 GST Invoice'}</span>
                 </div>
               </div>
             </div>
@@ -647,7 +746,11 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Subtotal</span>
                   <span className="font-semibold text-slate-900">
-                    <MoneyDisplay value={subtotalMoney} />
+                    {subtotalMoney.amount === 0n ? (
+                      <span className="text-emerald-600 font-bold">Free</span>
+                    ) : (
+                      <MoneyDisplay value={subtotalMoney} />
+                    )}
                   </span>
                 </div>
 
@@ -685,7 +788,11 @@ export function CheckoutForm({ checkoutData, initialDiscountCode = '' }: Checkou
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-base font-extrabold text-slate-950">
                   <span>Total Amount</span>
                   <span>
-                    <MoneyDisplay value={totalMoney} />
+                    {isFreeOrder ? (
+                      <span className="text-emerald-600 font-bold">Free</span>
+                    ) : (
+                      <MoneyDisplay value={totalMoney} />
+                    )}
                   </span>
                 </div>
               </div>

@@ -93,34 +93,34 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
         <div>
           <Link
             href={`/workspaces/${workspaceId}/orders`}
-            className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-2"
+            className="inline-flex items-center text-xs font-semibold text-content-secondary hover:text-content-primary transition-colors mb-2"
           >
             &larr; Back to Orders
           </Link>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-content-primary">
               Order #{order.id.slice(0, 8)}
             </h1>
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold capitalize ${
                 order.status === 'paid'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                   : order.status === 'refunded'
-                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                    : 'bg-slate-100 text-slate-700'
+                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                    : 'bg-surface-sunken text-content-secondary border border-border-subtle'
               }`}
             >
               {order.status}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">{dateStr}</p>
+          <p className="text-xs text-content-tertiary mt-1">{dateStr}</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleResendReceipt}
             disabled={resending}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-raised border border-border-subtle text-xs font-semibold text-content-secondary shadow-xs hover:bg-surface-sunken hover:text-content-primary transition-all disabled:opacity-50 cursor-pointer"
           >
             {resending ? 'Sending...' : '✉️ Resend Receipt Email'}
           </button>
@@ -128,7 +128,7 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
           {order.status === 'paid' && (
             <button
               onClick={() => setRefundModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200/80 text-xs font-semibold text-rose-700 shadow-xs hover:bg-rose-100/70 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400 shadow-xs hover:bg-rose-500/20 transition-all cursor-pointer"
             >
               Issue Refund
             </button>
@@ -137,13 +137,13 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
       </div>
 
       {resendStatus && (
-        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-xs font-semibold text-indigo-800 animate-fadeIn">
+        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 animate-fadeIn">
           {resendStatus}
         </div>
       )}
 
       {refundSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-800 animate-fadeIn">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 animate-fadeIn">
           {refundSuccess}
         </div>
       )}
@@ -155,19 +155,19 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Itemized Order Products Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-6">
-            <h2 className="text-base font-bold text-slate-900">Purchased Items</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-6">
+            <h2 className="text-base font-bold text-content-primary">Purchased Items</h2>
 
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-border-subtle">
               {items.map((item) => (
                 <div key={item.id} className="py-4 flex items-center justify-between gap-4">
                   <div>
-                    <div className="font-semibold text-slate-900">{item.productTitle}</div>
-                    <div className="text-xs text-slate-400">
+                    <div className="font-semibold text-content-primary">{item.productTitle}</div>
+                    <div className="text-xs text-content-secondary">
                       Qty: {item.quantity} &times; {formatMinor(item.unitAmount, order.currency)}
                     </div>
                   </div>
-                  <div className="font-bold text-slate-900">
+                  <div className="font-bold text-content-primary">
                     {formatMinor(item.totalAmount, order.currency)}
                   </div>
                 </div>
@@ -175,22 +175,22 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
             </div>
 
             {/* Totals Breakdown */}
-            <div className="border-t border-slate-100 pt-4 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-500">
+            <div className="border-t border-border-subtle pt-4 space-y-2 text-xs">
+              <div className="flex justify-between text-content-secondary">
                 <span>Subtotal</span>
                 <span>{formatMinor(order.subtotalAmount, order.currency)}</span>
               </div>
               {order.discountAmount !== '0' && (
-                <div className="flex justify-between text-emerald-600 font-medium">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                   <span>Discount Applied</span>
                   <span>-{formatMinor(order.discountAmount, order.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-500">
-                <span>GST Tax (Included)</span>
+              <div className="flex justify-between text-content-secondary">
+                <span>Tax (Included)</span>
                 <span>{formatMinor(order.taxAmount, order.currency)}</span>
               </div>
-              <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-100">
+              <div className="flex justify-between text-base font-bold text-content-primary pt-2 border-t border-border-subtle">
                 <span>Total Paid</span>
                 <span>{formatMinor(order.totalAmount, order.currency)}</span>
               </div>
@@ -198,32 +198,32 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
           </div>
 
           {/* Digital Fulfilment & Entitlements Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-6">
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Digital Asset Delivery</h2>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
-                Durable Entitlement
+              <h2 className="text-base font-bold text-content-primary">Digital Asset Delivery</h2>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                Active Access
               </span>
             </div>
 
             {entitlements.length === 0 ? (
-              <p className="text-xs text-slate-400">No digital entitlements issued for this order.</p>
+              <p className="text-xs text-content-tertiary">No digital entitlements issued for this order.</p>
             ) : (
               <div className="space-y-4">
                 {entitlements.map((ent) => (
                   <div
                     key={ent.id}
-                    className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-3"
+                    className="p-4 rounded-xl border border-border-subtle bg-surface-sunken space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700">
+                      <span className="text-xs font-bold text-content-primary">
                         Entitlement #{ent.id.slice(0, 8)}
                       </span>
                       <span
                         className={`text-[11px] font-bold px-2 py-0.5 rounded-md capitalize ${
                           ent.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-800'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                         }`}
                       >
                         {ent.status}
@@ -233,22 +233,22 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
                     {ent.downloadGrants.map((grant) => (
                       <div
                         key={grant.id}
-                        className="bg-white p-3 rounded-lg border border-slate-200/80 flex items-center justify-between text-xs"
+                        className="bg-surface-raised p-3 rounded-lg border border-border-subtle flex items-center justify-between text-xs"
                       >
                         <div>
-                          <div className="font-medium text-slate-800">
+                          <div className="font-medium text-content-primary">
                             Download Grant #{grant.id.slice(0, 8)}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
+                          <div className="text-[11px] text-content-secondary mt-0.5">
                             {grant.remainingDownloads} of {grant.maxDownloads} downloads remaining &bull;{' '}
                             Expires {new Date(grant.expiresAt).toLocaleDateString()}
                           </div>
                         </div>
                         <div>
                           {grant.isExpired ? (
-                            <span className="text-amber-600 font-bold text-[11px]">Expired</span>
+                            <span className="text-amber-600 dark:text-amber-400 font-bold text-[11px]">Expired</span>
                           ) : (
-                            <span className="text-emerald-600 font-bold text-[11px]">Active</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">Active</span>
                           )}
                         </div>
                       </div>
@@ -260,18 +260,18 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
           </div>
 
           {/* Chronological Audit & Transition Timeline */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Order Timeline</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-4">
+            <h2 className="text-base font-bold text-content-primary">Order Timeline</h2>
 
-            <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+            <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border-subtle">
               {transitions.map((t, idx) => (
                 <div key={idx} className="relative">
-                  <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white bg-indigo-600 shadow-xs" />
-                  <div className="text-xs font-semibold text-slate-800">
-                    Status changed: <span className="text-indigo-600">{t.fromStatus}</span> &rarr;{' '}
-                    <span className="text-emerald-600">{t.toStatus}</span>
+                  <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-surface-raised bg-indigo-600 shadow-xs" />
+                  <div className="text-xs font-semibold text-content-primary">
+                    Status changed: <span className="text-indigo-600 dark:text-indigo-400">{t.fromStatus}</span> &rarr;{' '}
+                    <span className="text-emerald-600 dark:text-emerald-400">{t.toStatus}</span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
+                  <div className="text-[11px] text-content-secondary mt-0.5">
                     Actor: {t.actorType} &bull;{' '}
                     {new Date(t.createdAt).toLocaleString('en-IN')}
                     {t.reason && ` &bull; ${t.reason}`}
@@ -287,37 +287,37 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
         <div className="space-y-6">
           
           {/* Customer Profile Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Customer</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-4">
+            <h2 className="text-base font-bold text-content-primary">Customer</h2>
 
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
                 {(order.customerName || order.customerEmail).charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-slate-900 truncate">
+                <div className="font-bold text-content-primary truncate">
                   {order.customerName || 'Anonymous Buyer'}
                 </div>
-                <div className="text-xs text-slate-400 truncate">{order.customerEmail}</div>
+                <div className="text-xs text-content-secondary truncate">{order.customerEmail}</div>
               </div>
             </div>
 
             {customer && (
-              <div className="border-t border-slate-100 pt-4 space-y-2 text-xs">
-                <div className="flex justify-between text-slate-500">
+              <div className="border-t border-border-subtle pt-4 space-y-2 text-xs">
+                <div className="flex justify-between text-content-secondary">
                   <span>Lifetime Spend</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-content-primary">
                     {formatMinor(customer.totalSpend)}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-content-secondary">
                   <span>Total Orders</span>
-                  <span className="font-semibold text-slate-900">{customer.ordersCount}</span>
+                  <span className="font-semibold text-content-primary">{customer.ordersCount}</span>
                 </div>
                 <div className="pt-2">
                   <Link
                     href={`/workspaces/${workspaceId}/customers/${customer.id}`}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
                   >
                     View Customer Profile &rarr;
                   </Link>
@@ -327,26 +327,26 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
           </div>
 
           {/* Payment & Settlement Summary */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Payment Details</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-4">
+            <h2 className="text-base font-bold text-content-primary">Payment Details</h2>
 
             {payments.map((p) => (
-              <div key={p.id} className="space-y-2 text-xs text-slate-600">
+              <div key={p.id} className="space-y-2 text-xs text-content-secondary">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Provider</span>
-                  <span className="font-semibold uppercase text-slate-800">{p.provider}</span>
+                  <span className="text-content-tertiary">Provider</span>
+                  <span className="font-semibold uppercase text-content-primary">{p.provider}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Payment ID</span>
-                  <span className="font-mono text-slate-800">{p.providerPaymentId}</span>
+                  <span className="text-content-tertiary">Payment ID</span>
+                  <span className="font-mono text-content-primary">{p.providerPaymentId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Status</span>
-                  <span className="font-semibold capitalize text-emerald-600">{p.status}</span>
+                  <span className="text-content-tertiary">Status</span>
+                  <span className="font-semibold capitalize text-emerald-600 dark:text-emerald-400">{p.status}</span>
                 </div>
                 {p.capturedAt && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Captured At</span>
+                    <span className="text-content-tertiary">Captured At</span>
                     <span>{new Date(p.capturedAt).toLocaleTimeString()}</span>
                   </div>
                 )}
@@ -354,12 +354,12 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
             ))}
 
             {refunds.length > 0 && (
-              <div className="border-t border-slate-100 pt-3 space-y-2">
-                <span className="text-xs font-bold text-amber-700">Refunds Recorded</span>
+              <div className="border-t border-border-subtle pt-3 space-y-2">
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Refunds Recorded</span>
                 {refunds.map((r) => (
-                  <div key={r.id} className="p-2.5 rounded-lg bg-amber-50 text-xs flex justify-between">
-                    <span className="text-amber-900">{r.reason || 'Refund'}</span>
-                    <span className="font-bold text-amber-900">
+                  <div key={r.id} className="p-2.5 rounded-lg bg-amber-500/10 text-xs flex justify-between">
+                    <span className="text-amber-700 dark:text-amber-300">{r.reason || 'Refund'}</span>
+                    <span className="font-bold text-amber-700 dark:text-amber-300">
                       -{formatMinor(r.amount, order.currency)}
                     </span>
                   </div>
@@ -374,24 +374,24 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
 
       {/* Refund Modal */}
       {refundModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-surface-raised rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-border-subtle space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Issue Refund</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Refunding this order will immediately revoke the buyer&apos;s digital download access and post a balanced refund ledger transaction.
+              <h3 className="text-lg font-bold text-content-primary">Issue Refund</h3>
+              <p className="text-xs text-content-secondary mt-1">
+                Refunding this order will revoke digital download access and post a balanced refund ledger transaction.
               </p>
             </div>
 
             {refundError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400">
                 {refundError}
               </div>
             )}
 
             <form onSubmit={handleRefundSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-content-primary mb-1">
                   Refund Amount ({order.currency})
                 </label>
                 <input
@@ -400,36 +400,36 @@ export function OrderDetailView({ workspaceId, data }: OrderDetailViewProps) {
                   max={(Number(order.totalAmount) / 100).toFixed(2)}
                   value={refundAmountMajor}
                   onChange={(e) => setRefundAmountMajor(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-control bg-surface-sunken text-sm text-content-primary focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-content-primary mb-1">
                   Reason for Refund
                 </label>
                 <input
                   type="text"
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-border-control bg-surface-sunken text-sm text-content-primary focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
                 <button
                   type="button"
                   onClick={() => setRefundModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-content-secondary hover:text-content-primary cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={refunding}
-                  className="px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-500 disabled:opacity-50 cursor-pointer"
                 >
                   {refunding ? 'Processing...' : 'Confirm Refund'}
                 </button>

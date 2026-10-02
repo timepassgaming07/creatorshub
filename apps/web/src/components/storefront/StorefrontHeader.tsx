@@ -33,6 +33,15 @@ export function StorefrontHeader({ storefront, basePath }: StorefrontHeaderProps
           </div>
         </Link>
         <nav className="flex items-center gap-4">
+          {((storefront.themeConfig?.socialLinks?.length ?? 0) > 0 ||
+            (storefront.themeConfig?.customLinks?.length ?? 0) > 0) && (
+            <Link
+              href={`${basePath}#links`}
+              className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            >
+              Links
+            </Link>
+          )}
           <Link
             href={`${basePath}#products`}
             className="text-sm font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"

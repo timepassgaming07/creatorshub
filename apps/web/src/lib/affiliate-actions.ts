@@ -11,6 +11,7 @@
 
 import { createHash } from 'node:crypto'
 import {
+  affiliateId as toAffiliateId,
   createAffiliateLinkSchema,
   createAffiliateSchema,
   requestId as toRequestId,
@@ -26,6 +27,7 @@ import {
 import {
   affiliates,
   auditLog,
+  commissions,
   workspaceMembers,
   type AffiliateFilter,
   type AffiliateProgramRow,
@@ -411,6 +413,25 @@ export async function getAffiliatePortalDataAction(
     workspaceId: string
     affiliate: { name: string | null; email: string; status: string; totalEarnings: string; totalConversions: number }
     link: { code: string; clicksCount: number; conversionsCount: number; destinationUrl: string | null }
+    financialBreakdown: {
+      held: string
+      vested: string
+      paid: string
+      clawedBack: string
+      totalEarned: string
+    }
+    commissions: readonly {
+      id: string
+      orderId: string
+      grossSaleAmount: string
+      commissionBps: number
+      grossAmount: string
+      netAmount: string
+      status: string
+      heldUntil: string
+      currency: string
+      createdAt: string
+    }[]
     attributions: readonly { id: string; commissionAmount: string; status: string; attributedAt: string }[]
   }>
 > {
@@ -446,7 +467,11 @@ export async function getAffiliatePortalDataAction(
       return { ok: false, error: { code: 'NOT_FOUND', message: 'Affiliate profile not found.' } }
     }
 
-    const recentAttributions = await affiliates.listAttributionsForAffiliate(scope, aff.id)
+    const [recentAttributions, breakdown, affiliateCommissions] = await Promise.all([
+      affiliates.listAttributionsForAffiliate(scope, toAffiliateId(aff.id)),
+      commissions.getAffiliateLedgerBreakdown(scope, toAffiliateId(aff.id)),
+      commissions.listCommissionsForAffiliate(scope, toAffiliateId(aff.id)),
+    ])
 
     return {
       ok: true,
@@ -465,6 +490,25 @@ export async function getAffiliatePortalDataAction(
           conversionsCount: link.conversionsCount,
           destinationUrl: link.destinationUrl,
         },
+        financialBreakdown: {
+          held: breakdown.heldMinor.toString(),
+          vested: breakdown.vestedMinor.toString(),
+          paid: breakdown.paidMinor.toString(),
+          clawedBack: breakdown.clawedBackMinor.toString(),
+          totalEarned: breakdown.totalEarnedMinor.toString(),
+        },
+        commissions: affiliateCommissions.map((c) => ({
+          id: c.id,
+          orderId: c.orderId,
+          grossSaleAmount: c.grossSaleAmount.toString(),
+          commissionBps: c.commissionBps,
+          grossAmount: c.grossAmount.toString(),
+          netAmount: c.netAmount.toString(),
+          status: c.status,
+          heldUntil: c.heldUntil.toISOString(),
+          currency: c.currency,
+          createdAt: c.createdAt.toISOString(),
+        })),
         attributions: recentAttributions.slice(0, 20).map((a) => ({
           id: a.id,
           commissionAmount: a.commissionAmount.toString(),

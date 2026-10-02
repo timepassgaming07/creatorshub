@@ -67,6 +67,18 @@ export {
   affiliateClickIdSchema,
   attributionId,
   attributionIdSchema,
+  commissionId,
+  commissionIdSchema,
+  clawbackId,
+  clawbackIdSchema,
+  aiUsageId,
+  aiUsageIdSchema,
+  payoutId,
+  payoutIdSchema,
+  payoutItemId,
+  payoutItemIdSchema,
+  beneficiaryAccountId,
+  beneficiaryAccountIdSchema,
   downloadEventId,
   downloadEventIdSchema,
   downloadGrantId,
@@ -106,7 +118,16 @@ export {
 } from './identifiers.js'
 
 export type {
+  AffiliateClickId,
+  AffiliateId,
+  AffiliateLinkId,
+  AffiliateProgramId,
+  AiUsageId,
   AssetId,
+  AttributionId,
+  BeneficiaryAccountId,
+  ClawbackId,
+  CommissionId,
   CustomerId,
   DiscountId,
   DisputeId,
@@ -122,6 +143,8 @@ export type {
   OrderTransitionId,
   PaymentAccountId,
   PaymentId,
+  PayoutId,
+  PayoutItemId,
   ProductAssetId,
   ProductId,
   RefundId,
@@ -254,13 +277,16 @@ export {
   RESERVED_SUBDOMAINS,
   STOREFRONT_EVENT_TYPES,
   STOREFRONT_STATUSES,
+  SOCIAL_PLATFORMS,
   SUBDOMAIN_PATTERN,
   THEME_LAYOUT_PRESETS,
   buildDomainChallenge,
   createStorefrontInputSchema,
   customDomainSchema,
   customDomainStatusSchema,
+  customLinkSchema,
   recordStorefrontEventInputSchema,
+  socialLinkSchema,
   storefrontEventTypeSchema,
   storefrontStatusSchema,
   storefrontThemeSchema,
@@ -275,7 +301,10 @@ export type {
   CustomDomainChallenge,
   CustomDomainStatus,
   CustomDomainVerificationResult,
+  CustomLink,
   RecordStorefrontEventInput,
+  SocialLink,
+  SocialPlatform,
   StorefrontEventRecord,
   StorefrontEventType,
   StorefrontRecord,
@@ -383,6 +412,100 @@ export type {
   UpdateAffiliateProgramInput,
 } from './affiliates.js'
 
+export {
+  CLAWBACK_STATUSES,
+  COMMISSION_STATUSES,
+  clawbackStatusSchema,
+  commissionStatusSchema,
+  createClawbackSchema,
+  createCommissionSchema,
+} from './commissions.js'
+
+export type {
+  AffiliateLedgerBreakdown,
+  AffiliateLedgerBreakdownDTO,
+  ClawbackDTO,
+  ClawbackStatus,
+  CommissionDTO,
+  CommissionStatus,
+  CreateClawbackInput,
+  CreateCommissionInput,
+} from './commissions.js'
+
+export {
+  ANALYTICS_TIMEFRAMES,
+  analyticsTimeframeSchema,
+} from './analytics.js'
+
+export type {
+  AffiliatePerformanceDTO,
+  AnalyticsSummaryDTO,
+  AnalyticsTimeframe,
+  FunnelStepDTO,
+  ProductPerformanceDTO,
+  TimeSeriesDataPoint,
+} from './analytics.js'
+
+export {
+  AI_PROMPT_IDS,
+  AI_PROVIDERS,
+  analyticsInsightsOutputSchema,
+  emailCampaignOutputSchema,
+  productCopyOutputSchema,
+  seoMetadataOutputSchema,
+  storefrontCopyOutputSchema,
+} from './ai.js'
+
+export type {
+  AiPromptId,
+  AiProviderType,
+  AiUsageRecordDTO,
+  AiUsageSummaryDTO,
+  AnalyticsInsightsOutput,
+  EmailCampaignOutput,
+  ProductCopyOutput,
+  SeoMetadataOutput,
+  StorefrontCopyOutput,
+} from './ai.js'
+
 export { withWorkspaceId, workspaceContext } from './workspace-context.js'
 
 export type { WorkspaceContext } from './workspace-context.js'
+
+export {
+  BENEFICIARY_ACCOUNT_TYPES,
+  BENEFICIARY_STATUSES,
+  IFSC_PATTERN,
+  PAYEE_TYPES,
+  PAYOUT_ITEM_SOURCE_TYPES,
+  PAYOUT_STATUSES,
+  UPI_VPA_PATTERN,
+  approvePayoutSchema,
+  beneficiaryAccountTypeSchema,
+  beneficiaryStatusSchema,
+  createBeneficiaryAccountSchema,
+  payeeTypeSchema,
+  payoutFilterSchema,
+  payoutItemSourceTypeSchema,
+  payoutStatusSchema,
+  rejectPayoutSchema,
+  requestPayoutSchema,
+} from './payouts.js'
+
+export type {
+  ApprovePayoutInput,
+  BeneficiaryAccountDTO,
+  BeneficiaryAccountType,
+  BeneficiaryStatus,
+  CreateBeneficiaryAccountInput,
+  PayeeType,
+  PayoutBalanceOverviewDTO,
+  PayoutDTO,
+  PayoutFilter,
+  PayoutItemDTO,
+  PayoutItemSourceType,
+  PayoutStatus,
+  PayoutSummaryDTO,
+  RejectPayoutInput,
+  RequestPayoutInput,
+} from './payouts.js'

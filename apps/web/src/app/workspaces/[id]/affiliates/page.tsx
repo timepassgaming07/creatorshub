@@ -10,6 +10,7 @@ import {
   getAffiliateProgramAction,
   listAffiliatesAction,
 } from '../../../../lib/affiliate-actions'
+import { listCommissionsAction } from '../../../../lib/commission-actions'
 import { getServerSession } from '../../../../lib/server-session'
 
 export const dynamic = 'force-dynamic'
@@ -24,9 +25,10 @@ export default async function WorkspaceAffiliatesPage(props: {
     redirect('/sign-in')
   }
 
-  const [progRes, listRes] = await Promise.all([
+  const [progRes, listRes, commRes] = await Promise.all([
     getAffiliateProgramAction(id),
     listAffiliatesAction(id),
+    listCommissionsAction(id),
   ])
 
   if (!progRes.ok) {
@@ -47,6 +49,8 @@ export default async function WorkspaceAffiliatesPage(props: {
       initialSummary={progRes.data.summary}
       initialAffiliates={listRes.ok ? listRes.data.items : []}
       initialTotalAffiliates={listRes.ok ? listRes.data.total : 0}
+      initialCommissions={commRes.ok ? commRes.data.items : []}
+      initialTotalCommissions={commRes.ok ? commRes.data.total : 0}
     />
   )
 }

@@ -10,7 +10,6 @@
  * - Append audit logs for state changes (workspace.created, member.invited, member.role_changed, member.removed)
  * - Return not-found (404-like) for cross-workspace access attempts, preventing enumeration leaks.
  */
-import { randomUUID } from 'node:crypto'
 import { requestId, userId, workspaceContext, workspaceId } from '@creatorhub/contracts'
 import { auditLog, workspaceMembers, workspaces } from '@creatorhub/db'
 import {
@@ -24,6 +23,7 @@ import {
 import { getAuthPool } from './auth'
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
+import { generateUuidV7 } from './uuidv7'
 
 const AUDIT_SALT =
   process.env['AUDIT_IP_SALT'] ?? 'development-audit-ip-salt-at-least-32-chars-long'
@@ -97,7 +97,7 @@ export async function createWorkspaceAction(
     }
   }
 
-  const newWorkspaceId = workspaceId(randomUUID())
+  const newWorkspaceId = workspaceId(generateUuidV7())
   const reqId = requestId(`req-${Date.now().toString()}`)
   const context = workspaceContext({
     workspaceId: newWorkspaceId,
@@ -183,6 +183,7 @@ export type WorkspaceData = {
     readonly name: string
     readonly slug: string
     readonly defaultCurrency: string
+    readonly platformFeeBps: number
     readonly timezone: string
     readonly status: string
   }
@@ -314,6 +315,7 @@ export async function getWorkspaceDataAction(
             name: wsRecord.name,
             slug: wsRecord.slug,
             defaultCurrency: wsRecord.defaultCurrency,
+            platformFeeBps: wsRecord.platformFeeBps,
             timezone: wsRecord.timezone,
             status: wsRecord.status,
           },

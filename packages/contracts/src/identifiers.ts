@@ -68,6 +68,12 @@ export type AffiliateId = string & { readonly __brand: 'AffiliateId' }
 export type AffiliateLinkId = string & { readonly __brand: 'AffiliateLinkId' }
 export type AffiliateClickId = string & { readonly __brand: 'AffiliateClickId' }
 export type AttributionId = string & { readonly __brand: 'AttributionId' }
+export type CommissionId = string & { readonly __brand: 'CommissionId' }
+export type ClawbackId = string & { readonly __brand: 'ClawbackId' }
+export type AiUsageId = string & { readonly __brand: 'AiUsageId' }
+export type PayoutId = string & { readonly __brand: 'PayoutId' }
+export type PayoutItemId = string & { readonly __brand: 'PayoutItemId' }
+export type BeneficiaryAccountId = string & { readonly __brand: 'BeneficiaryAccountId' }
 
 /**
  * Correlates every log line, audit row, and outbox event produced while serving
@@ -275,6 +281,36 @@ export function attributionId(value: string): AttributionId {
   return value as AttributionId
 }
 
+export function commissionId(value: string): CommissionId {
+  assertUuidV7(value, 'commission id')
+  return value as CommissionId
+}
+
+export function clawbackId(value: string): ClawbackId {
+  assertUuidV7(value, 'clawback id')
+  return value as ClawbackId
+}
+
+export function aiUsageId(value: string): AiUsageId {
+  assertUuidV7(value, 'ai usage id')
+  return value as AiUsageId
+}
+
+export function payoutId(value: string): PayoutId {
+  assertUuidV7(value, 'payout id')
+  return value as PayoutId
+}
+
+export function payoutItemId(value: string): PayoutItemId {
+  assertUuidV7(value, 'payout item id')
+  return value as PayoutItemId
+}
+
+export function beneficiaryAccountId(value: string): BeneficiaryAccountId {
+  assertUuidV7(value, 'beneficiary account id')
+  return value as BeneficiaryAccountId
+}
+
 export function requestId(value: string): RequestId {
   if (value.length < 1 || value.length > REQUEST_ID_MAX_LENGTH) {
     throw new InvalidIdentifierError(
@@ -444,6 +480,36 @@ export const attributionIdSchema = z
   .string()
   .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
   .transform((value) => value as AttributionId)
+
+export const commissionIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as CommissionId)
+
+export const clawbackIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as ClawbackId)
+
+export const aiUsageIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as AiUsageId)
+
+export const payoutIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as PayoutId)
+
+export const payoutItemIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as PayoutItemId)
+
+export const beneficiaryAccountIdSchema = z
+  .string()
+  .regex(UUID_V7_PATTERN, 'Expected a UUIDv7.')
+  .transform((value) => value as BeneficiaryAccountId)
 
 export const requestIdSchema = z
   .string()

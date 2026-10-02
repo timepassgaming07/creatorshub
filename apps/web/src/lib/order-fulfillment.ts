@@ -11,6 +11,8 @@
  */
 import { createHash, randomBytes } from 'node:crypto'
 import {
+  affiliateId,
+  attributionId,
   basisPoints,
   currency,
   ledgerAccountId,
@@ -26,17 +28,20 @@ import {
   affiliates,
   auditLog,
   catalogue,
+  commissions,
   customers,
   fulfillment,
   ledger,
   orders,
   outbox,
   payments,
+  workspaces,
   type OrderRecord,
   type PaymentRowRecord,
   type RepositoryScope,
 } from '@creatorhub/db'
 import {
+  calculateHeldUntil,
   canTransitionOrderStatus,
   createOrderPaymentPosting,
   evaluateAttribution,
@@ -215,71 +220,77 @@ export async function fulfillPaidOrder(
     },
   })
 
-  // 4. Find or create tenant ledger accounts
-  const processorClearingAcc = await ledger.findOrCreateWorkspaceAccount(
-    scope,
-    'processor_clearing',
-    curr,
-  )
-  const creatorPayableAcc = await ledger.findOrCreateWorkspaceAccount(
-    scope,
-    'creator_payable',
-    curr,
-  )
-  const platformRevenueAcc = await ledger.findOrCreateWorkspaceAccount(
-    scope,
-    'platform_revenue',
-    curr,
-  )
+  let ledgerTxResult: Awaited<ReturnType<typeof ledger.postTransaction>> | null = null
 
-  let taxPayableAccId = undefined
-  if (orderRecord.taxAmount > 0n) {
-    const taxAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'tax_payable', curr)
-    taxPayableAccId = ledgerAccountId(taxAcc.id)
+  if (orderRecord.totalAmount > 0n) {
+    // 4. Find or create tenant ledger accounts
+    const processorClearingAcc = await ledger.findOrCreateWorkspaceAccount(
+      scope,
+      'processor_clearing',
+      curr,
+    )
+    const creatorPayableAcc = await ledger.findOrCreateWorkspaceAccount(
+      scope,
+      'creator_payable',
+      curr,
+    )
+    const platformRevenueAcc = await ledger.findOrCreateWorkspaceAccount(
+      scope,
+      'platform_revenue',
+      curr,
+    )
+
+    let taxPayableAccId = undefined
+    if (orderRecord.taxAmount > 0n) {
+      const taxAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'tax_payable', curr)
+      taxPayableAccId = ledgerAccountId(taxAcc.id)
+    }
+
+    let affiliatePayableAccId = undefined
+    if (input.affiliateCommission && input.affiliateCommission > 0n) {
+      const affAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'affiliate_payable', curr)
+      affiliatePayableAccId = ledgerAccountId(affAcc.id)
+    }
+
+    // 5. Look up the workspace's configured platform fee rate
+    const workspaceRecord = await workspaces.findCurrentWorkspace(scope)
+    const workspaceFeeBps = workspaceRecord?.platformFeeBps ?? 500
+    const grossMoney = money(orderRecord.totalAmount, curr)
+    const taxMoney = money(orderRecord.taxAmount, curr)
+    const feeBps = basisPoints(workspaceFeeBps)
+    // Platform fee computed on subtotal amount (pre-tax base)
+    const baseMoney = money(orderRecord.subtotalAmount, curr)
+    const platformFeeMoney = percentage(baseMoney, feeBps)
+
+    const affiliateMoney = input.affiliateCommission
+      ? money(input.affiliateCommission, curr)
+      : undefined
+
+    const postingResult = createOrderPaymentPosting({
+      workspaceId: scope.context.workspaceId,
+      orderId: orderRecord.id,
+      idempotencyKey: ledgerIdempotencyKey,
+      currency: curr,
+      grossAmount: grossMoney,
+      platformFee: platformFeeMoney,
+      ...(orderRecord.taxAmount > 0n ? { taxAmount: taxMoney } : {}),
+      ...(affiliateMoney ? { affiliateCommission: affiliateMoney } : {}),
+      accounts: {
+        processorClearingAccountId: ledgerAccountId(processorClearingAcc.id),
+        creatorPayableAccountId: ledgerAccountId(creatorPayableAcc.id),
+        platformRevenueAccountId: ledgerAccountId(platformRevenueAcc.id),
+        ...(taxPayableAccId ? { taxPayableAccountId: taxPayableAccId } : {}),
+        ...(affiliatePayableAccId ? { affiliatePayableAccountId: affiliatePayableAccId } : {}),
+      },
+    })
+
+    if (!postingResult.ok) {
+      throw new Error(`Failed to construct balanced ledger posting: ${postingResult.error.detail}`)
+    }
+
+    // 6. Post balanced double-entry transaction atomically
+    ledgerTxResult = await ledger.postTransaction(scope, postingResult.value)
   }
-
-  let affiliatePayableAccId = undefined
-  if (input.affiliateCommission && input.affiliateCommission > 0n) {
-    const affAcc = await ledger.findOrCreateWorkspaceAccount(scope, 'affiliate_payable', curr)
-    affiliatePayableAccId = ledgerAccountId(affAcc.id)
-  }
-
-  // 5. Calculate platform fee & double-entry posting proposal
-  const grossMoney = money(orderRecord.totalAmount, curr)
-  const taxMoney = money(orderRecord.taxAmount, curr)
-  const feeBps = basisPoints(input.platformFeeBps ?? 500) // Default 5.00%
-  // Platform fee computed on subtotal amount (pre-tax base)
-  const baseMoney = money(orderRecord.subtotalAmount, curr)
-  const platformFeeMoney = percentage(baseMoney, feeBps)
-
-  const affiliateMoney = input.affiliateCommission
-    ? money(input.affiliateCommission, curr)
-    : undefined
-
-  const postingResult = createOrderPaymentPosting({
-    workspaceId: scope.context.workspaceId,
-    orderId: orderRecord.id,
-    idempotencyKey: ledgerIdempotencyKey,
-    currency: curr,
-    grossAmount: grossMoney,
-    platformFee: platformFeeMoney,
-    ...(orderRecord.taxAmount > 0n ? { taxAmount: taxMoney } : {}),
-    ...(affiliateMoney ? { affiliateCommission: affiliateMoney } : {}),
-    accounts: {
-      processorClearingAccountId: ledgerAccountId(processorClearingAcc.id),
-      creatorPayableAccountId: ledgerAccountId(creatorPayableAcc.id),
-      platformRevenueAccountId: ledgerAccountId(platformRevenueAcc.id),
-      ...(taxPayableAccId ? { taxPayableAccountId: taxPayableAccId } : {}),
-      ...(affiliatePayableAccId ? { affiliatePayableAccountId: affiliatePayableAccId } : {}),
-    },
-  })
-
-  if (!postingResult.ok) {
-    throw new Error(`Failed to construct balanced ledger posting: ${postingResult.error.detail}`)
-  }
-
-  // 6. Post balanced double-entry transaction atomically
-  const ledgerTxResult = await ledger.postTransaction(scope, postingResult.value)
 
   // 7. Enqueue domain event to transactional outbox
   await outbox.writeOutboxEvent(scope, {
@@ -294,13 +305,13 @@ export async function fulfillPaidOrder(
       totalAmount: orderRecord.totalAmount.toString(),
       currency: orderRecord.currency,
       providerPaymentId: input.providerPaymentId,
-      transactionId: ledgerTxResult.transaction.id,
+      ...(ledgerTxResult ? { transactionId: ledgerTxResult.transaction.id } : {}),
     },
   })
 
   // 8. Audit log entry
   await auditLog.writeAuditLog(scope, auditOptions, {
-    action: 'order.payment_captured',
+    action: orderRecord.totalAmount === 0n ? 'order.free_claimed' : 'order.payment_captured',
     targetType: 'order',
     targetId: orderRecord.id,
     actorType: 'system',
@@ -310,7 +321,7 @@ export async function fulfillPaidOrder(
       providerPaymentId: input.providerPaymentId,
       totalAmount: orderRecord.totalAmount.toString(),
       currency: orderRecord.currency,
-      ledgerTransactionId: ledgerTxResult.transaction.id,
+      ...(ledgerTxResult ? { ledgerTransactionId: ledgerTxResult.transaction.id } : {}),
     },
   })
 
@@ -416,7 +427,7 @@ export async function fulfillPaidOrder(
             orderDate: orderRecord.createdAt,
           })
 
-          await affiliates.createAttribution(scope, {
+          const attr = await affiliates.createAttribution(scope, {
             orderId: orderRecord.id,
             affiliateId: link.affiliateId,
             affiliateLinkId: link.id,
@@ -425,6 +436,20 @@ export async function fulfillPaidOrder(
             status: decision.status,
             rejectionReason: decision.rejectionReason,
           })
+
+          if (decision.status === 'attributed' && decision.commissionAmountMinor > 0n) {
+            const heldUntil = calculateHeldUntil(orderRecord.createdAt, 30, 14)
+            await commissions.createCommission(scope, {
+              attributionId: attributionId(attr.id),
+              affiliateId: affiliateId(link.affiliateId),
+              orderId: orderId(orderRecord.id),
+              grossSaleAmount: orderRecord.subtotalAmount,
+              commissionBps: decision.commissionBps,
+              grossAmount: decision.commissionAmountMinor,
+              heldUntil,
+              currency: curr,
+            })
+          }
         }
       }
     }
@@ -436,8 +461,8 @@ export async function fulfillPaidOrder(
     success: true,
     order: updatedOrder,
     payment: paymentRecord,
-    idempotentReplay: ledgerTxResult.idempotentReplay,
-    transactionId: ledgerTxResult.transaction.id,
+    idempotentReplay: ledgerTxResult?.idempotentReplay ?? false,
+    ...(ledgerTxResult ? { transactionId: ledgerTxResult.transaction.id } : {}),
     downloadGrants: issuedDownloadGrants,
   }
 }

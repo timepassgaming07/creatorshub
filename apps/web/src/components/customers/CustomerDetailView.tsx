@@ -51,7 +51,7 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
       <div>
         <Link
           href={`/workspaces/${workspaceId}/customers`}
-          className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-2"
+          className="inline-flex items-center text-xs font-semibold text-content-secondary hover:text-content-primary transition-colors mb-2"
         >
           &larr; Back to Customers
         </Link>
@@ -61,22 +61,22 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
               {(customer.name || customer.email).charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-content-primary">
                 {customer.name || customer.email.split('@')[0]}
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">{customer.email}</p>
+              <p className="text-xs text-content-secondary mt-0.5">{customer.email}</p>
             </div>
           </div>
 
-          <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+          <div className="bg-surface-raised px-5 py-3 rounded-2xl border border-border-subtle shadow-xs flex items-center gap-4">
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase">Lifetime Value</div>
-              <div className="text-xl font-bold text-emerald-600">{formatMinor(customer.totalSpend)}</div>
+              <div className="text-[11px] font-semibold text-content-tertiary uppercase">Lifetime Value</div>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatMinor(customer.totalSpend)}</div>
             </div>
-            <div className="w-px h-8 bg-slate-100" />
+            <div className="w-px h-8 bg-border-subtle" />
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase">Orders Count</div>
-              <div className="text-xl font-bold text-slate-900">{customer.ordersCount}</div>
+              <div className="text-[11px] font-semibold text-content-tertiary uppercase">Orders Count</div>
+              <div className="text-xl font-bold text-content-primary">{customer.ordersCount}</div>
             </div>
           </div>
         </div>
@@ -89,13 +89,13 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
         <div className="lg:col-span-2 space-y-6">
           
           {/* Orders History Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-6">
-            <h2 className="text-base font-bold text-slate-900">Order History</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-6">
+            <h2 className="text-base font-bold text-content-primary">Order History</h2>
 
             {orders.length === 0 ? (
-              <p className="text-xs text-slate-400">No orders recorded for this customer.</p>
+              <p className="text-xs text-content-tertiary">No orders recorded for this customer.</p>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border-subtle">
                 {orders.map((ord) => {
                   const dateFormatted = new Date(ord.createdAt).toLocaleDateString('en-IN', {
                     month: 'short',
@@ -106,36 +106,36 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
                   return (
                     <div
                       key={ord.id}
-                      className="py-4 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors"
+                      className="py-4 flex items-center justify-between gap-4 hover:bg-surface-sunken/50 transition-colors"
                     >
                       <div>
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/workspaces/${workspaceId}/orders/${ord.id}`}
-                            className="font-mono text-xs font-bold text-indigo-600 hover:underline"
+                            className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                           >
                             #{ord.id.slice(0, 8)}
                           </Link>
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
                               ord.status === 'paid'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-slate-100 text-slate-700'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-surface-sunken text-content-secondary'
                             }`}
                           >
                             {ord.status}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-400 mt-1">{dateFormatted}</div>
+                        <div className="text-xs text-content-secondary mt-1">{dateFormatted}</div>
                       </div>
 
                       <div className="text-right">
-                        <div className="font-bold text-slate-900">
+                        <div className="font-bold text-content-primary">
                           {formatMinor(ord.totalAmount, ord.currency)}
                         </div>
                         <Link
                           href={`/workspaces/${workspaceId}/orders/${ord.id}`}
-                          className="text-xs font-semibold text-indigo-600 hover:underline mt-0.5 block"
+                          className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline mt-0.5 block"
                         >
                           View Details &rarr;
                         </Link>
@@ -148,31 +148,31 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
           </div>
 
           {/* Active Digital Entitlements */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Active Digital Entitlements</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-4">
+            <h2 className="text-base font-bold text-content-primary">Active Digital Entitlements</h2>
 
             {entitlements.length === 0 ? (
-              <p className="text-xs text-slate-400">No active digital entitlements.</p>
+              <p className="text-xs text-content-tertiary">No active digital entitlements.</p>
             ) : (
               <div className="space-y-3">
                 {entitlements.map((ent) => (
                   <div
                     key={ent.id}
-                    className="p-3.5 bg-slate-50/60 rounded-xl border border-slate-100 flex items-center justify-between text-xs"
+                    className="p-3.5 bg-surface-sunken rounded-xl border border-border-subtle flex items-center justify-between text-xs"
                   >
                     <div>
-                      <div className="font-semibold text-slate-800">
+                      <div className="font-semibold text-content-primary">
                         Product ID: {ent.productId.slice(0, 8)}...
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
+                      <div className="text-[11px] text-content-secondary mt-0.5">
                         Granted on {new Date(ent.grantedAt).toLocaleDateString()}
                       </div>
                     </div>
                     <span
                       className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full capitalize ${
                         ent.status === 'active'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-rose-100 text-rose-800'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {ent.status}
@@ -188,37 +188,37 @@ export function CustomerDetailView({ workspaceId, data }: CustomerDetailViewProp
         {/* Right Col: Customer Profile Info */}
         <div className="space-y-6">
           
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4 text-xs">
-            <h2 className="text-base font-bold text-slate-900">Customer Details</h2>
+          <div className="bg-surface-raised p-6 rounded-2xl border border-border-subtle shadow-sm space-y-4 text-xs">
+            <h2 className="text-base font-bold text-content-primary">Customer Details</h2>
 
-            <div className="space-y-3 pt-2 text-slate-600">
+            <div className="space-y-3 pt-2 text-content-secondary">
               <div>
-                <div className="text-slate-400">Email Address</div>
-                <div className="font-semibold text-slate-900">{customer.email}</div>
+                <div className="text-content-tertiary">Email Address</div>
+                <div className="font-semibold text-content-primary">{customer.email}</div>
               </div>
 
               {customer.name && (
                 <div>
-                  <div className="text-slate-400">Full Name</div>
-                  <div className="font-semibold text-slate-900">{customer.name}</div>
+                  <div className="text-content-tertiary">Full Name</div>
+                  <div className="font-semibold text-content-primary">{customer.name}</div>
                 </div>
               )}
 
               {customer.phone && (
                 <div>
-                  <div className="text-slate-400">Phone Number</div>
-                  <div className="font-semibold text-slate-900">{customer.phone}</div>
+                  <div className="text-content-tertiary">Phone Number</div>
+                  <div className="font-semibold text-content-primary">{customer.phone}</div>
                 </div>
               )}
 
-              <div className="border-t border-slate-100 pt-3">
-                <div className="text-slate-400">Customer Since</div>
-                <div className="font-semibold text-slate-800">{firstDate}</div>
+              <div className="border-t border-border-subtle pt-3">
+                <div className="text-content-tertiary">Customer Since</div>
+                <div className="font-semibold text-content-primary">{firstDate}</div>
               </div>
 
               <div>
-                <div className="text-slate-400">Last Purchase Activity</div>
-                <div className="font-semibold text-slate-800">{lastDate}</div>
+                <div className="text-content-tertiary">Last Purchase Activity</div>
+                <div className="font-semibold text-content-primary">{lastDate}</div>
               </div>
             </div>
           </div>

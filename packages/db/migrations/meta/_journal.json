@@ -162,6 +162,27 @@
       "when": 1772332000000,
       "tag": "0022_affiliate_program_and_attribution",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1772333000000,
+      "tag": "0023_commissions_and_clawbacks",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1772334000000,
+      "tag": "0024_ai_usage_and_analytics",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1772335000000,
+      "tag": "0025_payouts_and_settlements",
+      "breakpoints": true
     }
   ]
 }

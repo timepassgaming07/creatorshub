@@ -153,3 +153,50 @@ export {
   type EvaluateAttributionParams,
 } from './affiliates/attribution.js'
 
+/**
+ * Commission holds, vesting, and clawbacks state machine (Slice 9 §9.1, §9.3, §9.5, §9.7).
+ */
+export {
+  calculateClawbackMinor,
+  calculateHeldUntil,
+  canVestCommission,
+  evaluateClawback,
+  isValidCommissionStatusTransition,
+} from './commissions/state-machine.js'
+
+/**
+ * Analytics and performance metrics (Slice 10 §10.1).
+ */
+export {
+  calculateAverageOrderValue,
+  calculateConversionRateBps,
+  calculateDropoffRateBps,
+  calculateGrossProfit,
+  calculateNetSales,
+  calculateRefundRateBps,
+} from './analytics/metrics.js'
+
+/**
+ * Payout state machine, two-person rule, and validation (Slice 11 §11.3, §11.6).
+ */
+export {
+  MAX_SELF_APPROVAL_THRESHOLD_PAISE,
+  VALID_PAYOUT_TRANSITIONS,
+  canTransitionPayout,
+  isPayoutTerminal,
+  transitionPayout,
+  validateMakerCheckerApproval,
+} from './payouts/state-machine.js'
+
+export {
+  BENEFICIARY_SAFETY_COOLDOWN_MS,
+  HIGH_VALUE_SAFETY_THRESHOLD_PAISE,
+  MAX_SINGLE_PAYOUT_AMOUNT_PAISE,
+  MIN_PAYOUT_AMOUNT_PAISE,
+  checkBeneficiarySafetyCooldown,
+  validateIfscCode,
+  validatePayoutAmount,
+  validateUpiVpa,
+} from './payouts/validation.js'
+
+

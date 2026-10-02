@@ -10,14 +10,15 @@
  * Multi-tenancy: One storefront per workspace root.
  * Subdomains: Case-insensitive unique identifier across the platform.
  */
-import type {
-  CreateStorefrontInput,
-  CustomDomainStatus,
-  ProductId,
-  StorefrontEventType,
-  StorefrontId,
-  StorefrontTheme,
-  UpdateStorefrontInput,
+import {
+  type CreateStorefrontInput,
+  type CustomDomainStatus,
+  type ProductId,
+  type StorefrontEventType,
+  type StorefrontId,
+  type StorefrontTheme,
+  storefrontThemeSchema,
+  type UpdateStorefrontInput,
 } from '@creatorhub/contracts'
 import { eq } from 'drizzle-orm'
 
@@ -50,7 +51,7 @@ export async function createStorefront(
         title: input.title,
         tagline: input.tagline ?? null,
         description: input.description ?? null,
-        themeConfig: input.themeConfig ?? ({} as StorefrontTheme),
+        themeConfig: storefrontThemeSchema.parse(input.themeConfig ?? {}),
         status: 'draft',
       }),
     )

@@ -30,6 +30,14 @@ vi.mock('./payments', () => ({
   getPaymentProvider: () => memoryPaymentProvider,
 }))
 
+const mockFulfillPaidOrder = vi.fn().mockResolvedValue({
+  success: true,
+  order: { id: 'ord_12345', status: 'paid', paymentStatus: 'paid' },
+})
+vi.mock('./order-fulfillment', () => ({
+  fulfillPaidOrder: (...args: unknown[]) => mockFulfillPaidOrder(...args) as unknown,
+}))
+
 const mockFindProductById = vi.fn()
 const mockListAssetsForProduct = vi.fn()
 const mockFindDiscountByCode = vi.fn()
@@ -100,6 +108,11 @@ describe('Checkout Server Actions (§5.6, §5.11)', () => {
     mockWriteAuditLog.mockReset()
     mockFindStorefrontByWorkspaceId.mockReset()
     mockFindCurrentWorkspace.mockReset()
+    mockFulfillPaidOrder.mockReset()
+    mockFulfillPaidOrder.mockResolvedValue({
+      success: true,
+      order: { id: 'ord_12345', status: 'paid', paymentStatus: 'paid' },
+    })
 
     mockWithWorkspace.mockImplementation((_ctx, fn) => {
       const tx = {}
@@ -196,6 +209,62 @@ describe('Checkout Server Actions (§5.6, §5.11)', () => {
       expect(res.data.currency).toBe('INR')
       expect(res.data.totalAmount).toBe('353882')
     }
+  })
+
+  it('orchestrates instant free order creation and fulfillment without payment gateway redirect', async () => {
+    const wsId = '018f9e2b-7c5e-7a2e-8c3b-000000000001'
+    const freeProdId = '018f9e2b-7c5e-7a2e-8c3b-000000000099'
+
+    mockResolveStorefrontByHostname.mockResolvedValueOnce({
+      workspaceId: wsId,
+      status: 'published',
+    })
+
+    mockFindProductById.mockResolvedValue({
+      id: freeProdId,
+      title: 'Free Lead Magnet Guide',
+      basePrice: 0n, // ₹0.00 Free download
+      currency: 'INR',
+      status: 'published',
+    })
+
+    const mockFreeOrder = {
+      id: 'ord_free_123',
+      workspaceId: wsId,
+      status: 'pending',
+      totalAmount: 0n,
+    }
+
+    mockCreateOrder.mockResolvedValue({
+      order: mockFreeOrder,
+      items: [],
+    })
+
+    const res = await createCheckoutSessionAction({
+      storefrontIdentifier: { type: 'subdomain', value: 'demo-store' },
+      items: [{ productId: freeProdId, quantity: 1 }],
+      customerEmail: 'lead@example.com',
+      customerName: 'Lead Magnet Subscriber',
+      customerCountry: 'IN',
+    })
+
+    expect(res.ok).toBe(true)
+    if (res.ok) {
+      expect(res.data.orderId).toBe('ord_free_123')
+      expect(res.data.totalAmount).toBe('0')
+      expect(res.data.checkoutUrl).toBe('/checkout/ord_free_123')
+      expect(res.data.checkoutSessionId).toContain('free_sess_')
+    }
+
+    expect(mockFulfillPaidOrder).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        orderId: 'ord_free_123',
+        provider: 'memory',
+        amount: 0n,
+        method: 'free_claim',
+      }),
+    )
   })
 
   it('calculates live checkout estimate with GST breakdown', async () => {

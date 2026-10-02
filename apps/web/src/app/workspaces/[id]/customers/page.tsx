@@ -26,7 +26,7 @@ export default async function WorkspaceCustomersPage(props: {
   if (!result.ok) {
     if (result.error.code === 'FORBIDDEN') {
       return (
-        <div className="p-8 text-center text-slate-500">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-500">
           You do not have permission to view customers in this workspace.
         </div>
       )
@@ -35,13 +35,11 @@ export default async function WorkspaceCustomersPage(props: {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-      <CustomerListView
-        workspaceId={id}
-        initialCustomers={result.data.customers}
-        initialTotalCount={result.data.totalCount}
-        initialSummary={result.data.summary}
-      />
-    </div>
+    <CustomerListView
+      workspaceId={id}
+      initialCustomers={result.data.customers}
+      initialTotalCount={result.data.totalCount}
+      initialSummary={result.data.summary}
+    />
   )
 }

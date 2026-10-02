@@ -28,10 +28,12 @@ import {
   verifyCustomDomainAction,
 } from '../../lib/storefront-actions'
 import { DomainSettings } from './DomainSettings'
+import { LinksEditor } from './LinksEditor'
 import { LivePreviewFrame } from './LivePreviewFrame'
 import { ThemeCustomizer } from './ThemeCustomizer'
+import { AiCopilotModal } from '../ai/AiCopilotModal'
 
-export type EditorTab = 'details' | 'theme' | 'domain'
+export type EditorTab = 'details' | 'links' | 'theme' | 'domain'
 
 type StorefrontEditorProps = {
   readonly workspaceId: string
@@ -325,6 +327,19 @@ export function StorefrontEditor({ workspaceId, initialData }: StorefrontEditorP
               <button
                 type="button"
                 onClick={() => {
+                  setActiveTab('links')
+                }}
+                className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  activeTab === 'links'
+                    ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white'
+                    : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'
+                }`}
+              >
+                Links & Bio
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setActiveTab('theme')
                 }}
                 className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
@@ -354,6 +369,24 @@ export function StorefrontEditor({ workspaceId, initialData }: StorefrontEditorP
             <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
               {activeTab === 'details' && (
                 <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-neutral-100 pb-3 dark:border-neutral-800">
+                    <div>
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                        Brand & Copy
+                      </h2>
+                    </div>
+                    <AiCopilotModal
+                      workspaceId={workspaceId}
+                      mode="storefront"
+                      initialContext={{ creatorName: title, brandNiche: tagline }}
+                      onApplyStorefrontCopy={(copy) => {
+                        setTitle(copy.heroHeadline)
+                        setTagline(copy.heroSubhead)
+                        setDescription(copy.valueProps.map((v) => `${v.title}: ${v.description}`).join(' • '))
+                      }}
+                    />
+                  </div>
+
                   <div>
                     <label
                       htmlFor="store-title-input"
@@ -414,6 +447,14 @@ export function StorefrontEditor({ workspaceId, initialData }: StorefrontEditorP
                     />
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'links' && (
+                <LinksEditor
+                  themeConfig={themeConfig}
+                  onChange={setThemeConfig}
+                  disabled={!canManage}
+                />
               )}
 
               {activeTab === 'theme' && (

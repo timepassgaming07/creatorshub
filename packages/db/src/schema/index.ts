@@ -169,3 +169,30 @@ export {
   type NewAffiliateRow,
   type NewAttributionRow,
 } from './affiliates.js'
+
+export {
+  commissionClawbacks,
+  commissions,
+  type CommissionClawbackRow,
+  type CommissionRow,
+  type NewCommissionClawbackRow,
+  type NewCommissionRow,
+} from './commissions.js'
+
+export {
+  aiUsage,
+  type AiUsageRow,
+  type InsertAiUsageRow,
+} from './ai.js'
+
+export {
+  beneficiaryAccounts,
+  payoutItems,
+  payouts,
+  type BeneficiaryAccount,
+  type NewBeneficiaryAccount,
+  type NewPayout,
+  type NewPayoutItem,
+  type Payout,
+  type PayoutItem,
+} from './payouts.js'
