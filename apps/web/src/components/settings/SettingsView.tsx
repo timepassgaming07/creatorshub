@@ -579,19 +579,19 @@ const PLANS = [
     name: 'Starter',
     price: 'Free',
     feeBps: 500,
-    points: ['Unlimited products', 'Storefront and checkout', 'Affiliates and discounts'],
+    points: ['Unlimited products', 'Custom domain and AI copilot', 'Affiliates and discounts'],
   },
   {
     name: 'Pro',
     price: '₹1,499 / month',
     feeBps: 200,
-    points: ['Everything in Starter', 'Custom domain', 'AI copilot'],
+    points: ['Everything in Starter', '2% fee instead of 5%', 'Priority email support'],
   },
   {
     name: 'Team',
     price: '₹3,999 / month',
     feeBps: 0,
-    points: ['Everything in Pro', 'Team roles', 'Priority support'],
+    points: ['Everything in Pro', 'No fee on sales', 'Onboarding help'],
   },
 ]
 
