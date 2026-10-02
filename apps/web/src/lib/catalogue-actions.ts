@@ -160,6 +160,13 @@ async function requireAuthorizedWorkspace(
 // Create Product
 // ---------------------------------------------------------------------------
 
+class ProductNotReadyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ProductNotReadyError'
+  }
+}
+
 export async function createProductAction(
   wIdStr: string,
   input: Omit<CreateProductInput, 'workspaceId'>,
@@ -469,6 +476,18 @@ export async function publishProductAction(
         throw new Error('Product not found')
       }
 
+      // A buyer who pays must receive something. Publishing waits for a file
+      // that has finished its safety scan.
+      const files = await catalogue.listAssetsForProduct(scope, pIdParsed.data)
+      const deliverable = files.some(
+        (f) => f.productAsset.role === 'deliverable' && f.asset.scanStatus === 'clean',
+      )
+      if (!deliverable) {
+        throw new ProductNotReadyError(
+          'Add the file buyers receive before publishing. It needs to finish uploading and pass the safety check.',
+        )
+      }
+
       const res = await catalogue.updateProduct(scope, pIdParsed.data, {
         status: 'published',
       })
@@ -499,10 +518,13 @@ export async function publishProductAction(
     return {
       success: false,
       error: {
-        code: 'PUBLISH_FAILED',
-        title: 'Failed to Publish Product',
-        detail: err instanceof Error ? err.message : 'Database error',
-        status: 500,
+        code: err instanceof ProductNotReadyError ? 'PRODUCT_NOT_READY' : 'PUBLISH_FAILED',
+        title: err instanceof ProductNotReadyError ? 'Not ready to publish' : 'Could not publish',
+        detail:
+          err instanceof ProductNotReadyError
+            ? err.message
+            : 'Something went wrong publishing this product. Try again.',
+        status: err instanceof ProductNotReadyError ? 400 : 500,
       },
     }
   }

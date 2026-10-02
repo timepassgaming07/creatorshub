@@ -24,7 +24,7 @@ export class LogEmailProvider extends MemoryEmailProvider {
     )[]
     const to = recipients.map((r) => (typeof r === 'string' ? r : r.email)).join(', ')
     const links = [...input.html.matchAll(/href="([^"]+)"/g)]
-      .map((m) => m[1] ?? '')
+      .map((m) => (m[1] ?? '').replaceAll('&amp;', '&'))
       .filter((href) => href.startsWith('http'))
     this.write(`[email] to=${to} subject=${JSON.stringify(input.subject)}`)
     for (const link of new Set(links)) {

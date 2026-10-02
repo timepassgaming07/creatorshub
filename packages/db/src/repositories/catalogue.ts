@@ -222,6 +222,7 @@ export async function createAsset(
     .insert(assets)
     .values(
       insertValues<NewAssetRecord>(scope, {
+        ...(input.id ? { id: input.id } : {}),
         storageKey: input.storageKey,
         originalFilename: input.originalFilename,
         mimeType: input.mimeType,

@@ -1,311 +1,532 @@
 'use client'
 
 /**
- * DashboardShell — Shared Workspace Navigation & Layout.
- *
- * Provides:
- * - Persistent desktop sidebar with route highlighting, theme toggle, and quick storefront link
- * - Top navigation bar with breadcrumbs, tenant switcher, and user actions
- * - Mobile responsive drawer navigation with smooth slide-in transition
- * - Consistent page framing for all creator workspace modules
+ * The creator dashboard frame: sidebar navigation, a command palette on ⌘K,
+ * the email-verification nudge, and the workspace context every screen reads.
  */
-import { useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'motion/react'
-import { signOut } from '@/lib/auth-client'
-import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import {
+  BarChart3,
+  ChevronsUpDown,
+  Command,
+  ExternalLink,
+  FolderOpen,
+  Home,
+  LogOut,
+  Mail,
+  Menu,
+  Package,
+  Percent,
+  Plus,
+  Receipt,
+  Search,
+  Settings,
+  Store,
+  Users,
+  Wallet,
+  Waypoints,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 
-interface DashboardShellProps {
-  workspaceId: string
-  workspaceName?: string
-  workspaceSlug?: string
-  children: ReactNode
+import { cn, LogoMark } from '@/components/ds'
+import { useTheme } from '@/components/theme/ThemeProvider'
+import { authClient, signOut } from '@/lib/auth-client'
+
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+
+export type WorkspaceInfo = {
+  readonly id: string
+  readonly name: string
+  readonly slug: string
+  readonly currency: string
 }
 
-interface NavItem {
-  href: string
-  label: string
-  exact?: boolean
-  icon: (active: boolean) => ReactNode
-  badge?: string
+export type StorefrontInfo = {
+  readonly subdomain: string
+  readonly status: string
+  readonly url: string
+} | null
+
+type WorkspaceContextValue = {
+  readonly workspace: WorkspaceInfo
+  readonly storefront: StorefrontInfo
+  readonly role: string
+  readonly basePath: string
 }
 
-export function DashboardShell({
-  workspaceId,
-  workspaceName = 'Workspace',
-  workspaceSlug,
-  children,
-}: DashboardShellProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
-  const basePath = `/workspaces/${workspaceId}`
+export function useWorkspace(): WorkspaceContextValue {
+  const value = useContext(WorkspaceContext)
+  if (!value) throw new Error('useWorkspace must be used inside the workspace layout')
+  return value
+}
 
-  const navItems: NavItem[] = [
+// ---------------------------------------------------------------------------
+// Navigation
+// ---------------------------------------------------------------------------
+
+type NavItem = { readonly href: string; readonly label: string; readonly icon: LucideIcon; readonly exact?: boolean }
+
+function navFor(base: string): readonly { readonly label: string | null; readonly items: readonly NavItem[] }[] {
+  return [
+    { label: null, items: [{ href: base, label: 'Home', icon: Home, exact: true }] },
     {
-      href: basePath,
-      label: 'Overview',
-      exact: true,
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-        </svg>
-      ),
+      label: 'Sell',
+      items: [
+        { href: `${base}/products`, label: 'Products', icon: Package },
+        { href: `${base}/orders`, label: 'Orders', icon: Receipt },
+        { href: `${base}/customers`, label: 'Customers', icon: Users },
+        { href: `${base}/discounts`, label: 'Discounts', icon: Percent },
+      ],
     },
     {
-      href: `${basePath}/storefront`,
-      label: 'My Store',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a1.897 1.897 0 0 1-.61-1.276c-.04-.453.116-.9.44-1.224L9.58 1.126a1.13 1.13 0 0 1 1.588-.014l.007.007 6.002 5.723c.324.324.48.77.44 1.224a1.897 1.897 0 0 1-.61 1.276" />
-        </svg>
-      ),
+      label: 'Grow',
+      items: [
+        { href: `${base}/storefront`, label: 'Storefront', icon: Store },
+        { href: `${base}/affiliates`, label: 'Affiliates', icon: Waypoints },
+        { href: `${base}/analytics`, label: 'Analytics', icon: BarChart3 },
+      ],
     },
     {
-      href: `${basePath}/products`,
-      label: 'Products',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
-        </svg>
-      ),
-    },
-    {
-      href: `${basePath}/orders`,
-      label: 'Orders',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-        </svg>
-      ),
-    },
-    {
-      href: `${basePath}/customers`,
-      label: 'Customers',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-        </svg>
-      ),
-    },
-    {
-      href: `${basePath}/affiliates`,
-      label: 'Referral Program',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-        </svg>
-      ),
-    },
-    {
-      href: `${basePath}/payouts`,
-      label: 'Money & Payouts',
-      icon: (active) => (
-        <svg className={`h-5 w-5 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-200'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6H2.25m0 0v10.5m0-10.5h19.5m0 0v10.5m0-10.5v-.75A.75.75 0 0 0 21 4.5h-.75m-16.5 0h16.5m-16.5 0a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h16.5a3 3 0 0 0 3-3V7.5a3 3 0 0 0-3-3H3.75Z" />
-        </svg>
-      ),
+      label: 'Money',
+      items: [{ href: `${base}/payouts`, label: 'Payouts', icon: Wallet }],
     },
   ]
+}
 
-  const isRouteActive = (item: NavItem) => {
-    if (item.exact) {
-      return pathname === item.href
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'group flex h-9 items-center gap-3 rounded-lg px-2.5 text-body font-medium transition-colors',
+        active
+          ? 'bg-surface-raised text-content-primary shadow-elevation-1 ring-1 ring-border-subtle'
+          : 'text-content-secondary hover:bg-surface-raised/60 hover:text-content-primary',
+      )}
+    >
+      <Icon
+        className={cn('size-[17px] shrink-0', active ? 'text-accent' : 'text-content-tertiary group-hover:text-content-secondary')}
+        aria-hidden="true"
+      />
+      {item.label}
+    </Link>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Command palette
+// ---------------------------------------------------------------------------
+
+type Command = { readonly label: string; readonly hint?: string; readonly run: () => void; readonly icon: LucideIcon }
+
+function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: () => void; commands: readonly Command[] }) {
+  const [query, setQuery] = useState('')
+  const [index, setIndex] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? commands.filter((c) => c.label.toLowerCase().includes(q)) : commands
+  }, [commands, query])
+
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      setIndex(0)
+      window.setTimeout(() => inputRef.current?.focus(), 10)
     }
-    return pathname.startsWith(item.href)
-  }
+  }, [open])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-start justify-center bg-black/40 px-4 pt-[14vh] backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-subtle bg-surface-overlay shadow-elevation-3"
+        onClick={(e) => {
+          e.stopPropagation()
+        }}
+      >
+        <div className="flex items-center gap-3 border-b border-border-subtle px-4">
+          <Search className="size-4 text-content-tertiary" aria-hidden="true" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setIndex(0)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') onClose()
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setIndex((i) => Math.min(i + 1, filtered.length - 1))
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setIndex((i) => Math.max(i - 1, 0))
+              }
+              if (e.key === 'Enter') {
+                filtered[index]?.run()
+                onClose()
+              }
+            }}
+            placeholder="Go to, or create…"
+            aria-label="Search commands"
+            className="h-12 flex-1 bg-transparent text-body-lg text-content-primary placeholder:text-content-tertiary focus:outline-none"
+          />
+          <kbd className="rounded border border-border-subtle px-1.5 py-0.5 text-[11px] text-content-tertiary">esc</kbd>
+        </div>
+        <ul role="listbox" className="max-h-80 overflow-y-auto p-2">
+          {filtered.length === 0 && <li className="px-3 py-6 text-center text-body text-content-tertiary">No matches</li>}
+          {filtered.map((command, i) => {
+            const Icon = command.icon
+            return (
+              <li key={command.label} role="option" aria-selected={i === index}>
+                <button
+                  type="button"
+                  onMouseEnter={() => {
+                    setIndex(i)
+                  }}
+                  onClick={() => {
+                    command.run()
+                    onClose()
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-body',
+                    i === index ? 'bg-surface-sunken text-content-primary' : 'text-content-secondary',
+                  )}
+                >
+                  <Icon className="size-4 text-content-tertiary" aria-hidden="true" />
+                  <span className="flex-1">{command.label}</span>
+                  {command.hint && <span className="text-caption text-content-tertiary">{command.hint}</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Shell
+// ---------------------------------------------------------------------------
+
+export function DashboardShell({
+  workspace,
+  storefront,
+  role,
+  user,
+  children,
+}: {
+  readonly workspace: WorkspaceInfo
+  readonly storefront: StorefrontInfo
+  readonly role: string
+  readonly user: { readonly name: string; readonly email: string; readonly emailVerified: boolean }
+  readonly children: ReactNode
+}) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [verifySent, setVerifySent] = useState(false)
+
+  const base = `/workspaces/${workspace.id}`
+  const groups = navFor(base)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+    setMenuOpen(false)
+  }, [pathname])
+
+  const go = useCallback((href: string) => () => {
+    router.push(href)
+  }, [router])
+
+  const commands: Command[] = [
+    { label: 'New product', icon: Plus, run: go(`${base}/products/new`) },
+    ...groups.flatMap((g) => g.items.map((item) => ({ label: item.label, icon: item.icon, hint: 'Go to', run: go(item.href) }))),
+    { label: 'Files', icon: FolderOpen, hint: 'Go to', run: go(`${base}/files`) },
+    { label: 'Settings', icon: Settings, hint: 'Go to', run: go(`${base}/settings`) },
+    ...(storefront
+      ? [
+          {
+            label: 'Open my store',
+            icon: ExternalLink,
+            run: () => {
+              window.open(storefront.status === 'published' ? storefront.url : `${storefront.url}?preview=${workspace.id}`, '_blank', 'noopener')
+            },
+          },
+        ]
+      : []),
+  ]
 
   async function handleSignOut() {
     await signOut()
     router.push('/sign-in')
+    router.refresh()
   }
 
-  return (
-    <div className="min-h-screen bg-surface-base text-content-primary flex flex-col lg:flex-row">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 z-30 border-r border-border-subtle bg-surface-raised shadow-xs">
-        {/* Workspace Brand Header */}
-        <div className="flex h-16 items-center justify-between border-b border-border-subtle px-5">
-          <Link href={`/workspaces/${workspaceId}`} className="flex items-center gap-2.5 group min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-sm font-black text-white shadow-md shadow-indigo-500/20">
-              C
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="truncate text-sm font-bold text-content-primary group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                {workspaceName}
-              </span>
-              <span className="text-[10px] font-semibold text-content-tertiary">Creator OS</span>
-            </div>
-          </Link>
-          <ThemeToggle />
-        </div>
+  const sidebar = (
+    <div className="flex h-full flex-col">
+      <div className="px-3 pt-4 pb-3">
+        <Link
+          href={base}
+          className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-raised/60"
+        >
+          <LogoMark className="size-8" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-body font-semibold text-content-primary">{workspace.name}</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-content-tertiary">
+              <span
+                className={cn('size-1.5 rounded-full', storefront?.status === 'published' ? 'bg-positive' : 'bg-content-tertiary')}
+                aria-hidden="true"
+              />
+              {storefront?.status === 'published' ? 'Store live' : 'Store in draft'}
+            </span>
+          </span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setPaletteOpen(true)
+          }}
+          className="mt-3 flex h-9 w-full items-center gap-2.5 rounded-lg border border-border-subtle bg-surface-raised px-3 text-body text-content-tertiary shadow-elevation-1 transition-colors hover:text-content-secondary"
+        >
+          <Search className="size-4" aria-hidden="true" />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="inline-flex items-center gap-0.5 text-[11px]">
+            <Command className="size-3" aria-hidden="true" />K
+          </kbd>
+        </button>
+      </div>
 
-        {/* Navigation List */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {navItems.map((item) => {
-            const active = isRouteActive(item)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                  active
-                    ? 'bg-accent/10 text-accent font-bold shadow-xs'
-                    : 'text-content-secondary hover:bg-surface-sunken hover:text-content-primary'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {item.icon(active)}
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[9px] font-bold text-violet-600 dark:text-violet-400">
-                    {item.badge}
-                  </span>
-                )}
-                {active && (
-                  <motion.div
-                    layoutId="activeIndicator"
-                    className="absolute left-0 h-5 w-1 rounded-r-full bg-accent"
-                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                  />
-                )}
-              </Link>
-            )
-          })}
-        </nav>
+      <nav aria-label="Workspace" className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
+        {groups.map((group) => (
+          <div key={group.label ?? 'main'}>
+            {group.label && (
+              <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-wide text-content-tertiary uppercase">
+                {group.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
 
-        {/* Storefront Link & User Footer */}
-        <div className="border-t border-border-subtle p-4 space-y-3">
-          {workspaceSlug && (
-            <Link
-              href={`/s/${workspaceSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between rounded-xl border border-border-subtle bg-surface-sunken px-3 py-2 text-xs font-semibold text-content-secondary transition-all hover:border-accent hover:bg-surface-raised hover:text-accent"
+      <div className="space-y-0.5 px-3 pb-2">
+        <NavLink item={{ href: `${base}/files`, label: 'Files', icon: FolderOpen }} pathname={pathname} />
+        <NavLink item={{ href: `${base}/settings`, label: 'Settings', icon: Settings }} pathname={pathname} />
+        {storefront && (
+          <a
+            href={storefront.status === 'published' ? storefront.url : `${storefront.url}?preview=${workspace.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-9 items-center gap-3 rounded-lg px-2.5 text-body font-medium text-content-secondary transition-colors hover:bg-surface-raised/60 hover:text-content-primary"
+          >
+            <ExternalLink className="size-[17px] text-content-tertiary" aria-hidden="true" />
+            {storefront.status === 'published' ? 'View store' : 'Preview store'}
+          </a>
+        )}
+      </div>
+
+      <div className="relative border-t border-border-subtle p-3">
+        <button
+          type="button"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => {
+            setMenuOpen((v) => !v)
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-raised/60"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-[12px] font-semibold text-accent">
+            {user.name.trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-body font-medium text-content-primary">{user.name}</span>
+            <span className="block truncate text-[12px] text-content-tertiary">{user.email}</span>
+          </span>
+          <ChevronsUpDown className="size-4 text-content-tertiary" aria-hidden="true" />
+        </button>
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-3 bottom-[calc(100%-4px)] left-3 z-20 overflow-hidden rounded-xl border border-border-subtle bg-surface-overlay p-1 shadow-elevation-3"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+              }}
+              className="flex w-full items-center rounded-lg px-3 py-2 text-left text-body text-content-secondary hover:bg-surface-sunken hover:text-content-primary"
             >
-              <div className="flex items-center gap-2 truncate">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="truncate">View Storefront</span>
-              </div>
-              <svg className="h-3.5 w-3.5 text-content-tertiary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-            </Link>
-          )}
-
-          <div className="flex items-center justify-between pt-1">
+              {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
             <Link
+              role="menuitem"
               href="/workspaces/new"
-              className="text-[11px] font-medium text-content-tertiary hover:text-accent transition-colors"
+              className="flex w-full items-center rounded-lg px-3 py-2 text-body text-content-secondary hover:bg-surface-sunken hover:text-content-primary"
             >
-              + New Workspace
+              Create another store
             </Link>
             <button
               type="button"
-              onClick={() => {
-                void handleSignOut()
-              }}
-              className="text-[11px] font-semibold text-critical hover:opacity-80 transition-opacity"
+              role="menuitem"
+              onClick={() => void handleSignOut()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-body text-critical hover:bg-critical-subtle"
             >
+              <LogOut className="size-4" aria-hidden="true" />
               Sign out
             </button>
           </div>
-        </div>
-      </aside>
+        )}
+      </div>
+    </div>
+  )
 
-      {/* Mobile Top Navigation Header */}
-      <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border-subtle bg-surface-raised/90 px-4 backdrop-blur-md">
-        <Link href={`/workspaces/${workspaceId}`} className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 text-xs font-black text-white">
-            C
-          </div>
-          <span className="text-sm font-bold text-content-primary truncate max-w-[140px]">
-            {workspaceName}
-          </span>
-        </Link>
+  return (
+    <WorkspaceContext.Provider value={{ workspace, storefront, role, basePath: base }}>
+      <div className="min-h-dvh bg-surface-base">
+        {/* Desktop sidebar */}
+        <aside className="fixed inset-y-0 left-0 hidden w-[256px] border-r border-border-subtle bg-surface-sunken/50 lg:block">
+          {sidebar}
+        </aside>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        {/* Mobile top bar */}
+        <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-surface-base/90 px-4 backdrop-blur lg:hidden">
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-control text-content-secondary"
-            aria-label="Toggle navigation menu"
+            onClick={() => {
+              setMobileOpen(true)
+            }}
+            aria-label="Open navigation"
+            className="flex size-9 items-center justify-center rounded-lg text-content-secondary hover:bg-surface-sunken"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              )}
-            </svg>
+            <Menu className="size-5" aria-hidden="true" />
+          </button>
+          <span className="flex items-center gap-2 text-body font-semibold">
+            <LogoMark className="size-6" />
+            <span className="max-w-[180px] truncate">{workspace.name}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setPaletteOpen(true)
+            }}
+            aria-label="Search"
+            className="flex size-9 items-center justify-center rounded-lg text-content-secondary hover:bg-surface-sunken"
+          >
+            <Search className="size-5" aria-hidden="true" />
           </button>
         </div>
-      </header>
 
-      {/* Mobile Drawer Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="lg:hidden fixed inset-x-0 top-14 z-30 border-b border-border-subtle bg-surface-raised p-4 shadow-xl space-y-1"
-          >
-            {navItems.map((item) => {
-              const active = isRouteActive(item)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold ${
-                    active ? 'bg-accent/10 text-accent' : 'text-content-primary'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {item.icon(active)}
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[9px] font-bold text-violet-600 dark:text-violet-400">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              )
-            })}
-            <div className="pt-3 border-t border-border-subtle flex items-center justify-between">
-              <Link
-                href="/workspaces/new"
-                className="text-xs font-medium text-content-secondary"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                + Create Workspace
-              </Link>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => {
+                setMobileOpen(false)
+              }}
+            />
+            <aside className="absolute inset-y-0 left-0 w-[280px] border-r border-border-subtle bg-surface-base shadow-elevation-3">
               <button
                 type="button"
                 onClick={() => {
-                  void handleSignOut()
+                  setMobileOpen(false)
                 }}
-                className="text-xs font-bold text-critical"
+                aria-label="Close navigation"
+                className="absolute top-4 right-3 z-10 flex size-8 items-center justify-center rounded-lg text-content-tertiary hover:bg-surface-sunken"
               >
-                Sign out
+                <X className="size-4" aria-hidden="true" />
               </button>
-            </div>
-          </motion.div>
+              {sidebar}
+            </aside>
+          </div>
         )}
-      </AnimatePresence>
 
-      {/* Main Content Area */}
-      <main className="flex-1 lg:pl-64 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-          {children}
+        <div className="lg:pl-[256px]">
+          {!user.emailVerified && (
+            <div className="border-b border-border-subtle bg-accent-subtle/60 px-4 py-2.5 sm:px-8">
+              <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 text-body">
+                <p className="flex items-center gap-2 text-content-primary">
+                  <Mail className="size-4 text-accent" aria-hidden="true" />
+                  Confirm {user.email} to receive payouts and reset your password.
+                </p>
+                <button
+                  type="button"
+                  disabled={verifySent}
+                  onClick={() => {
+                    void authClient
+                      .sendVerificationEmail({ email: user.email, callbackURL: base })
+                      .then(() => {
+                        setVerifySent(true)
+                      })
+                  }}
+                  className="text-body font-medium text-accent hover:underline disabled:no-underline disabled:opacity-70"
+                >
+                  {verifySent ? 'Sent. Check your inbox' : 'Resend email'}
+                </button>
+              </div>
+            </div>
+          )}
+          <main id="main" className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
+            {children}
+          </main>
         </div>
-      </main>
-    </div>
+
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => {
+            setPaletteOpen(false)
+          }}
+          commands={commands}
+        />
+      </div>
+    </WorkspaceContext.Provider>
   )
 }

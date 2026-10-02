@@ -158,6 +158,8 @@ export const createAssetInputSchema = z.object({
 })
 
 export type CreateAssetInput = {
+  /** Set when the id is already in the storage key, as with a presigned upload. */
+  readonly id?: AssetId | undefined
   readonly workspaceId?: WorkspaceId | undefined
   readonly storageKey: string
   readonly originalFilename: string

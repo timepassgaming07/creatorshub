@@ -50,8 +50,8 @@ import {
   type ServerProductPriceInfo,
 } from '@creatorhub/domain'
 import {
-  MemoryPaymentProvider,
   PaymentProviderError,
+  type MemoryPaymentProvider,
   WebhookSignatureVerificationError,
   type PaymentProvider,
 } from '@creatorhub/payments'
@@ -568,7 +568,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<StartChe
     storeName: created.storeName,
     description: created.pricing.items.map((i) => i.title).join(', ').slice(0, 250),
     prefill: { name: input.name, email: input.email, contact: input.phone ?? '' },
-    testMode: provider instanceof MemoryPaymentProvider,
+    testMode: provider.name === 'memory',
   }
 }
 
@@ -606,7 +606,7 @@ async function confirmWith(
       signature: input.signature,
     })
   } catch (error) {
-    if (error instanceof WebhookSignatureVerificationError) {
+    if (error instanceof WebhookSignatureVerificationError || (error as Error | null)?.name === 'WebhookSignatureVerificationError') {
       return fail('PAYMENT_NOT_VERIFIED', 'We could not verify this payment. If money left your account, the seller will see it and refund it automatically.')
     }
     if (error instanceof PaymentProviderError) {
@@ -663,9 +663,11 @@ export async function completeTestPayment(input: {
   readonly orderId: string
 }): Promise<ConfirmPaymentResult> {
   const provider = getPaymentProvider()
-  if (!(provider instanceof MemoryPaymentProvider)) {
+  // By name, not instanceof: server bundles can hold separate copies of a class.
+  if (provider.name !== 'memory') {
     return fail('NOT_TEST_MODE', 'Test payments are turned off.')
   }
+  const testProvider = provider as MemoryPaymentProvider
 
   const store = await resolvePublishedStore(input.store)
   if (!store) return fail('STORE_NOT_FOUND', 'This store is not open right now.')
@@ -675,7 +677,7 @@ export async function completeTestPayment(input: {
   )
   if (!order?.checkoutSessionId) return fail('ORDER_NOT_FOUND', 'We could not find this order.')
 
-  const proof = provider.signTestPayment(order.checkoutSessionId)
+  const proof = testProvider.signTestPayment(order.checkoutSessionId)
   return confirmWith(provider, {
     store: input.store,
     orderId: input.orderId,

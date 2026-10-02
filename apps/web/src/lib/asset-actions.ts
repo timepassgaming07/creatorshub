@@ -31,6 +31,7 @@ import { getDatabase } from './db'
 import { getServerSession } from './server-session'
 import { getMalwareScanner, getStorageDriver, getStorageService } from './storage'
 import { auditOptions } from './env'
+import { generateUuidV7 } from './uuidv7'
 
 
 export type ActionError = {
@@ -185,7 +186,7 @@ export async function initiateAssetUploadAction(
     }
   }
 
-  const newAssetId = assetId(randomUUID())
+  const newAssetId = assetId(generateUuidV7())
   const byteSizeBigInt = BigInt(input.byteSize)
   const storageService = getStorageService()
 
@@ -209,6 +210,7 @@ export async function initiateAssetUploadAction(
     await db.withWorkspace(context, async (tx) => {
       const scope = { tx, context }
       await catalogue.createAsset(scope, {
+        id: newAssetId,
         storageKey: presigned.storageKey,
         originalFilename: input.filename,
         mimeType: input.mimeType || 'application/octet-stream',

@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server'
 
 import { getDatabase } from '@/lib/db'
 import { getStorageDriver } from '@/lib/storage'
+import { getWorkspaceAccess } from '@/lib/workspace-access'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'])
@@ -34,22 +35,30 @@ export async function GET(
     requestId: requestId(`req-media-${rawAsset.slice(-8)}`),
   })
 
-  const asset = await getDatabase().withWorkspace(context, async (tx) => {
+  const result = await getDatabase().withWorkspace(context, async (tx) => {
     const scope = { tx, context }
     const found = await catalogue.findAssetById(scope, toAssetId(rawAsset))
     if (!found || !IMAGE_TYPES.has(found.mimeType) || !isAssetDeliverable(found)) return null
 
-    if (await catalogue.isPublicProductImage(scope, found.id as never)) return found
+    if (await catalogue.isPublicProductImage(scope, found.id as never)) {
+      return { asset: found, isPublic: true }
+    }
 
     const store = await storefronts.findStorefrontByWorkspaceId(scope)
     const theme = store?.themeConfig
     const isStoreImage =
       store?.status === 'published' &&
       (theme?.logoAssetId === found.id || theme?.bannerAssetId === found.id)
-    return isStoreImage ? found : null
+    return { asset: found, isPublic: isStoreImage }
   })
 
-  if (!asset) return notFound()
+  if (!result) return notFound()
+  // Draft images are visible to the workspace's own members only.
+  if (!result.isPublic) {
+    const { access } = await getWorkspaceAccess(rawWs)
+    if (!access) return notFound()
+  }
+  const asset = result.asset
 
   const object = await getStorageDriver().getObject(asset.storageKey)
   if (!object) return notFound()
@@ -59,7 +68,9 @@ export async function GET(
     headers: {
       'Content-Type': asset.mimeType,
       'Content-Length': String(object.data.byteLength),
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      'Cache-Control': result.isPublic
+        ? 'public, max-age=86400, stale-while-revalidate=604800'
+        : 'private, max-age=300',
       'X-Content-Type-Options': 'nosniff',
       // An image, never a document: an uploaded SVG or HTML cannot run here.
       'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",

@@ -254,7 +254,7 @@ export function Stat({
   readonly value: ReactNode
   readonly hint?: ReactNode
   readonly icon?: ReactNode
-  readonly trend?: { readonly direction: 'up' | 'down' | 'flat'; readonly label: string }
+  readonly trend?: { readonly direction: 'up' | 'down' | 'flat'; readonly label: string } | undefined
   readonly className?: string
 }) {
   return (

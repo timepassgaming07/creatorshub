@@ -10,8 +10,14 @@
  * - Append audit logs for state changes (workspace.created, member.invited, member.role_changed, member.removed)
  * - Return not-found (404-like) for cross-workspace access attempts, preventing enumeration leaks.
  */
-import { requestId, userId, workspaceContext, workspaceId } from '@creatorhub/contracts'
-import { auditLog, workspaceMembers, workspaces } from '@creatorhub/db'
+import {
+  requestId,
+  subdomainSchema,
+  userId,
+  workspaceContext,
+  workspaceId,
+} from '@creatorhub/contracts'
+import { auditLog, storefronts, workspaceMembers, workspaces } from '@creatorhub/db'
 import {
   authorise,
   permissionsFor,
@@ -84,14 +90,17 @@ export async function createWorkspaceAction(
     }
   }
 
-  if (!/^[a-z0-9-]+$/.test(slug) || slug.length < 3 || slug.length > 48) {
+  const slugCheck = subdomainSchema.safeParse(slug)
+  if (!slugCheck.success || slug.length > 48) {
     return {
       success: false,
       error: {
         code: 'validation.invalid_slug',
-        title: 'Invalid subdomain slug',
-        detail: 'Slug must be 3-48 characters, lowercase alphanumeric and hyphens only.',
-        action: 'Choose a valid URL slug like "my-store".',
+        title: 'Choose a different store address',
+        detail:
+          slugCheck.error?.issues[0]?.message ??
+          'Use 3 to 48 lowercase letters, numbers, and hyphens.',
+        action: 'Try something like "asha-studio".',
         status: 400,
       },
     }
@@ -122,6 +131,14 @@ export async function createWorkspaceAction(
         role: 'owner',
       })
 
+      // The store exists from the first minute, as a draft, at the address the
+      // creator just chose. Publishing is a separate, deliberate step.
+      await storefronts.createStorefront(scope, {
+        workspaceId: newWorkspaceId,
+        subdomain: slug,
+        title: name,
+      })
+
       await auditLog.writeAuditLog(scope, auditOptions, {
         actorType: 'user',
         actorId: session.userId,
@@ -141,7 +158,8 @@ export async function createWorkspaceAction(
     }
   } catch (error) {
     const errMessage = error instanceof Error ? error.message : String(error)
-    if (errMessage.includes('unique') || errMessage.includes('uq_workspaces__slug')) {
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : ''
+    if (/unique|duplicate/i.test(`${errMessage} ${cause}`)) {
       return {
         success: false,
         error: {

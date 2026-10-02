@@ -9,7 +9,7 @@ import {
   AssetStorageService,
   createStorageDriver,
   HeuristicMalwareScanner,
-  LocalStorageDriver,
+  type LocalStorageDriver,
   loadStorageConfig,
   type MalwareScanner,
   type StorageDriver,
@@ -37,10 +37,17 @@ export function getStorageDriver(): StorageDriver {
   return globalForStorage.storageDriver
 }
 
-/** The local driver, when that is what is configured; the storage route needs it to verify URLs. */
+/**
+ * The local driver, when that is what is configured; the storage route needs it
+ * to verify URLs. Checked by shape, not `instanceof`: Next bundles route
+ * handlers and server actions separately, so the cached driver can come from a
+ * different copy of the class than the one this module imported.
+ */
 export function getLocalStorageDriver(): LocalStorageDriver | null {
   const driver = getStorageDriver()
-  return driver instanceof LocalStorageDriver ? driver : null
+  return driver.name === 'local' && typeof (driver as Partial<LocalStorageDriver>).verify === 'function'
+    ? (driver as LocalStorageDriver)
+    : null
 }
 
 export function getAssetStorageService(): AssetStorageService {
