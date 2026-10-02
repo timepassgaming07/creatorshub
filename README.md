@@ -82,21 +82,24 @@ The five decisions that shape everything else:
 
 ## Status
 
-Slice 0 complete. Slice 1 next. Live detail in [STATE.md](./STATE.md).
+Slices 0 to 11 are built, and a launch-readiness pass has walked every creator and buyer journey
+end to end against real Postgres. `pnpm verify`, the integration suite, and the Playwright suite
+are green. What still stands between this and a public launch is listed under "Before launch" in
+[STATE.md](./STATE.md): chiefly Razorpay Route onboarding and a legal review.
 
 | Slice | Status |
 |---|---|
 | 0 · Repo, CI, tooling, design tokens, money primitives, app shell | Complete |
-| 1 · Identity, workspace, tenancy, audit log | Next |
-| 2 · Ledger, outbox, idempotency | Planned |
-| 3 · Catalogue | Planned |
-| 4 · Storefront | Planned |
-| 5 · Checkout and payments | Planned |
-| 6 · Fulfilment | Planned |
-| 7 · Customers and orders | Planned |
-| 8–9 · Affiliate programme and commission | Planned |
-| 10 · Analytics and AI surfaces | Planned |
-| 11 · Payout execution (gated) | Planned |
+| 1 · Identity, workspace, tenancy, audit log | Complete |
+| 2 · Ledger, outbox, idempotency | Complete |
+| 3 · Catalogue | Complete |
+| 4 · Storefront | Complete |
+| 5 · Checkout and payments | Complete |
+| 6 · Fulfilment | Complete |
+| 7 · Customers and orders | Complete |
+| 8–9 · Affiliate programme and commission | Complete |
+| 10 · Analytics and AI surfaces | Complete |
+| 11 · Payout execution (gated) | Complete, settled by an operator ([ADR-0021](./docs/adr/0021-tenant-before-sign-in.md)) |
 
 Slice 2 before slice 5 is the most important ordering decision in the project: building checkout
 before the ledger would produce money code we'd then rewrite.
@@ -149,9 +152,14 @@ those two versions ever disagree. Reasoning in
 Requires a running Docker daemon.
 
 ```bash
-cp .env.example .env
+cp .env.example .env            # then set AUTH_SECRET and AUDIT_IP_SALT: openssl rand -hex 32
 pnpm db:up                      # starts Postgres, waits until it is healthy
+pnpm db:migrate                 # applies every migration as the migrator role
 ```
+
+Without payment, email, or storage keys, development uses safe stand-ins: test payments, emails
+printed to the server log, and files under `.data/storage`. `.env.example` explains each variable
+and what production requires.
 
 | Command | What it does |
 |---|---|
@@ -160,9 +168,8 @@ pnpm db:up                      # starts Postgres, waits until it is healthy
 | `pnpm db:reset` | Drops the volume and starts clean. Re-runs the role setup |
 | `pnpm db:psql` | Opens `psql` as the application role |
 
-`pnpm test:integration` is wired in Turbo but no package implements it yet. The harness arrives with
-the first integration test, in slice 1 item 1.1. A script that runs nothing would report green and
-prove nothing.
+`pnpm test:integration` starts its own Postgres in Testcontainers for each suite, so it needs the
+Docker daemon but not `pnpm db:up`.
 
 **There are two connection strings, and the difference matters.** `DATABASE_URL` is the application
 role, which cannot bypass row-level security. `DATABASE_MIGRATION_URL` is the migration role, which
@@ -173,6 +180,19 @@ container's role setup rather than left to convention. See
 
 Editing `docker/postgres/init/` has no effect on an existing volume. Those scripts run once, when
 the data directory is first created. Run `pnpm db:reset` to apply changes.
+
+### Settling payouts
+
+Payouts are approved in the dashboard under the two-person rule, then sent by bank transfer and
+recorded from the command line. The approval email to `OPERATOR_EMAIL` carries the workspace id.
+
+```bash
+pnpm operator payouts         --workspace <id>                    # approved, awaiting transfer
+pnpm operator payout-sent     --workspace <id> --payout <id> --utr <bank reference>
+pnpm operator payout-failed   --workspace <id> --payout <id> --reason "<text>"
+pnpm operator affiliates      --workspace <id>                    # vested commissions owed
+pnpm operator affiliate-paid  --workspace <id> --affiliate <id> --utr <bank reference>
+```
 
 ---
 

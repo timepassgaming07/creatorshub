@@ -31,6 +31,7 @@ their second week: *"why is it like this?"*
 | [0018](./0018-email-verification-two-columns.md) | Email verification is stored twice, and one copy is derived | Accepted |
 | [0019](./0019-csp-deferred.md) | Content Security Policy deferred until the real routes exist | Accepted |
 | [0020](./0020-sub-merchant-onboarding.md) | Sub-merchant onboarding via Razorpay Route, not API keys | Accepted |
+| [0021](./0021-tenant-before-sign-in.md) | Finding the tenant before anyone signs in, without bypassing RLS | Accepted |
 
 
 ## Format

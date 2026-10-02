@@ -1,9 +1,7 @@
 # STATE
 
-**Last updated:** 2026-08-31
-**Branch:** `main` (clean, all packages build, test, and typecheck green)
-**Committed:** Slices 0 through 11 complete and verified.
-
+**Last updated:** 2026-10-02
+**Branch:** `claude/dreamy-darwin-klduun` (launch-readiness pass, not yet merged)
 
 This file is the live position of the project. `README.md` says what CreatorHub is, `CLAUDE.md` says
 how to work here, the ADRs say why the architecture is what it is. This says where we are.
@@ -12,36 +10,38 @@ how to work here, the ADRs say why the architecture is what it is. This says whe
 
 # Current Status
 
-**Slices 0 through 11 are complete and verified end-to-end.**
-Tenant isolation is enforced twice at application repository and PostgreSQL Row Level Security (RLS) layers.
-Financial integrity is guarded by balanced double-entry ledger postings (`verify_ledger_transaction_balanced`), append-only triggers, and zero-float `bigint` minor unit arithmetic.
+The slices below were built first. A launch-readiness pass on this branch then walked every creator
+and buyer journey in a real browser against real Postgres, and rebuilt what did not work end to end:
+the buyer path (checkout, verified payment, signed downloads, receipts), the dashboard (home,
+products, orders, refunds, customers, storefront editor, discounts, settings, affiliates, payouts,
+analytics), the AI copilot on Claude, the public site (landing, pricing, legal, errors), and the
+operator commands that settle payouts.
 
-Payout execution, Indian bank account & UPI VPA management, Two-Person Rule / Maker-Checker governance (ADR-0019), double-entry ledger integration (`creator_payable`/`affiliate_payable` $\rightarrow$ `processor_clearing`), failure reversals, anomaly & velocity safety cooldowns, database migration `0025_payouts_and_settlements.sql`, and modern creator UI surfaces are fully complete and tested against real PostgreSQL 18.
-
-| Gate | Result |
+| Gate | Result on this branch |
 |---|---|
-| `pnpm turbo build test typecheck` | 33/33 turbo tasks green across all 12 monorepo packages |
-| `pnpm test` | 1,279+ unit tests across 46+ files |
-| `pnpm test:integration` | 376 integration tests across 27 files, against real Postgres 18 |
-| `pnpm check:tenancy` | Passes: every table scoped and protected by an RLS policy |
-| `pnpm check:exports` | Passes: every advertised entry point exists after a build |
-| `pnpm test:e2e` | 44 Playwright tests, axe clean in light and dark across all screens |
+| `pnpm verify` (typecheck, lint, unit tests, build, exports, format) | Green. Lint was 573 errors before this pass |
+| Unit tests | 1,053 across 75 files |
+| `pnpm test:integration` (db) | 401 across 27 files, against Postgres 18 in Testcontainers |
+| `pnpm test:e2e` | 56 Playwright tests, desktop and mobile, axe clean in light and dark on home, auth, pricing, legal, and 404 |
 
+## Before launch
 
-| Package | State |
-|---|---|
-| `packages/config` | TypeScript presets, ESLint flat configs, Vitest unit and integration configs |
-| `packages/contracts` | `Money`, branded identifiers (`PayoutId`, `BeneficiaryAccountId`), `WorkspaceContext`, payouts & beneficiary DTO schemas. 106+ tests |
-| `packages/domain` | `Result<T, E>`, `DomainError`, RBAC authorization (`payout.view`, `payout.request`, `payout.approve`, `payout.manage_beneficiaries`), catalogue pricing, discount engine, order/payment state machines, GST tax calculation, affiliate attribution rules, commission & clawback state machines, pure analytics metric calculations, payout state machine and Maker-Checker validator (ADR-0019). 244 tests across 13 files |
-| `packages/ai` | AI Gateway, `MemoryAiProvider` (deterministic, zero external API key requirements for tests/CI), versioned prompt registry (`product_copy_v1`, `storefront_copy_v1`, `seo_metadata_v1`, `analytics_insights_v1`, `email_campaign_v1`), Zod structured output validation with 1-retry fallback. 6 tests |
-| `packages/telemetry` | Log redaction, tenant scrubbing. 35 tests |
-| `packages/ui` | Design tokens, Tailwind v4, accessible primitives (Button, Input, Select, Dialog, Toast, Skeleton), contrast harness. 330 tests |
-| `packages/db` | Connection pool, RLS policies, migrations 0000–0025 (`payouts_and_settlements`), 24 repository modules (`payouts`, `beneficiary-accounts`, `ai-usage`, `analytics`, `commissions`, `affiliates`, `customers`, `orders`, `refunds`, `disputes`, `fulfillment`, `payments`, `ledger`, `outbox`, `jobs`, `idempotency`, `reconciliation`, `catalogue`, `discounts`, `storefronts`, `webhooks`, `audit-log`, `workspace-members`, `workspaces`), isolation suite, tenancy checker. 51 unit + 376 integration tests |
-| `packages/auth` | Better Auth against dedicated third database role, Argon2id hashing, sessions, passkeys (@better-auth/passkey), password reset, rate limiting. 47 unit + 45 integration tests |
-| `packages/payments` | `PaymentProvider` abstraction port, `MemoryPaymentProvider`, `RazorpayPaymentProvider` adapter with UPI/cards/netbanking and Route split settlements |
-| `packages/storage` | `StorageDriver` abstraction port, `MemoryStorageDriver`, `S3StorageDriver` AWS SigV4 presigned upload and malware scanning |
-| `packages/email` | `EmailProvider` port, `MemoryEmailProvider`, creator-branded HTML receipt & fulfillment templates |
-| `apps/web` | Next 16 App Router (37 routes), auth screens (/sign-in, /sign-up), passkeys UI, onboarding (/workspaces/new), member management (/workspaces/[id]), products (/workspaces/[id]/products, /new, /[productId]), storefront editor (/workspaces/[id]/storefront), checkout (/checkout/[orderId]), fulfillment download portal (/fulfillment/[token]), customer CRM (/workspaces/[id]/customers), order inspection (/workspaces/[id]/orders/[orderId]), affiliate dashboard (/workspaces/[id]/affiliates), public promoter portal (/affiliate/[code]), analytics dashboard (/workspaces/[id]/analytics), AI Copilot modal drawer, payouts dashboard (/workspaces/[id]/payouts), security headers, Playwright + axe |
+These are open, and each one is a decision or a task, not a bug report:
+
+1. **Money still collects in the platform account.** ADR-0020's Route onboarding is not built, so
+   creators are paid through operator-settled payouts. Get legal advice on holding merchant funds
+   (RBI payment-aggregator rules) before taking live payments at volume. See
+   [ADR-0021](./docs/adr/0021-tenant-before-sign-in.md).
+2. **Settlement is operator-run, one workspace at a time** (`pnpm operator`). A cross-tenant queue
+   needs a separate privileged role, which is the owner's call (ADR-0021).
+3. **Plans are not billed or enforced.** Pricing lists Starter, Pro, and Team, but nothing charges
+   the subscription or switches the fee rate.
+4. **Legal pages are a starting text.** Fill `LEGAL_ENTITY_NAME`, `LEGAL_ADDRESS`, `SUPPORT_EMAIL`,
+   and have a lawyer review them.
+5. **Money-path changes on this branch need the second reviewer** the definition of done requires:
+   payouts and their ledger postings, refunds, affiliate settlement, and the analytics rewrite.
+6. **Production configuration.** `.env.example` lists every variable; production refuses to start
+   without the required ones.
 
 ---
 
@@ -161,8 +161,8 @@ Slice 10 (Analytics, telemetry, and AI copywriting surfaces):
 
 # Active Task
 
-**Slice 11: Multi-Currency & International Tax (VAT/GST Compliance).**
-Next up: Implement global multi-currency checkout conversions, real-time exchange rate engine, EU VAT reverse charge, UK/US/global digital tax calculations, and cross-border balanced ledger settlements.
+Merge the launch-readiness branch, then work through "Before launch" above, starting with the
+Route onboarding decision.
 
 ---
 
@@ -193,10 +193,11 @@ ADRs: [0015](./docs/adr/0015-local-postgres.md),
 [0016](./docs/adr/0016-razorpay-first-adapter.md),
 [0017](./docs/adr/0017-authentication-database-role.md),
 [0018](./docs/adr/0018-email-verification-two-columns.md),
-[0019](./docs/adr/0019-two-person-rule-ledger.md),
-[0020](./docs/adr/0020-sub-merchant-onboarding.md).
+[0019](./docs/adr/0019-csp-deferred.md),
+[0020](./docs/adr/0020-sub-merchant-onboarding.md),
+[0021](./docs/adr/0021-tenant-before-sign-in.md).
 
-### Two-Person Maker-Checker Rule for Payout Disbursements (Slice 11 §11.4, ADR-0019)
+### Two-Person Maker-Checker Rule for Payout Disbursements (Slice 11 §11.4)
 In multi-member workspaces ($N \ge 2$), no creator can approve their own requested payout ($\text{requestedBy} \ne \text{approvedBy}$). Only an Admin or Owner who did not initiate the request may approve the disbursement. In single-member workspaces ($N = 1$), self-approval is bounded by a ₹5,00,000 velocity threshold.
 
 ### Double-Entry Balanced Payout Postings & Compensating Reversals (Slice 11 §11.1)
@@ -230,5 +231,11 @@ Every table is scoped by `workspace_id` and protected by both explicit repositor
 
 1. **CSP Nonce Automation (Deferred)**:
    - Evaluated in ADR-0019; deferred to edge proxy hardening milestone.
-2. **Dynamic Route Middleware Deprecation Notice**:
+2. **Unused pre-tenant resolvers**: `resolveDownloadGrantByTokenHash` and
+   `resolveAffiliateLinkByCode` on the database client are no longer called and return nothing
+   under `FORCE` RLS. Remove them (ADR-0021).
+3. **Superseded file names in the slice history**: the launch-readiness pass replaced several
+   files the task list above names (`AiCopilotModal`, `commission-actions.ts`, the old storefront
+   components). The list records what each slice delivered at the time.
+4. **Dynamic Route Middleware Deprecation Notice**:
    - Next.js 16 emits a deprecation advisory to rename `middleware.ts` to `proxy.ts`. Kept backward-compatible until Next.js 17.
