@@ -131,7 +131,7 @@ export const updateAffiliateProgramSchema = z.object({
 export type UpdateAffiliateProgramInput = z.infer<typeof updateAffiliateProgramSchema>
 
 export const createAffiliateSchema = z.object({
-  email: z.string().email('Invalid email address.').toLowerCase().trim(),
+  email: z.email('Invalid email address.').toLowerCase().trim(),
   name: z.string().min(1).max(255).trim().optional(),
   customCommissionBps: z.number().int().min(0).max(10000).optional(),
   payoutAccount: z.record(z.string(), z.unknown()).optional(),
@@ -148,7 +148,7 @@ export const createAffiliateLinkSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/, 'Affiliate code can only contain alphanumeric characters, dashes, and underscores.')
     .toLowerCase()
     .trim(),
-  destinationUrl: z.string().url('Invalid destination URL.').optional(),
+  destinationUrl: z.url('Invalid destination URL.').optional(),
 })
 
 export type CreateAffiliateLinkInput = z.infer<typeof createAffiliateLinkSchema>

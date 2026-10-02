@@ -10,14 +10,13 @@
  */
 import type {
   AssetId,
-  DownloadEventId,
   DownloadGrantId,
   EntitlementId,
   EntitlementStatus,
   OrderId,
   ProductId,
 } from '@creatorhub/contracts'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'

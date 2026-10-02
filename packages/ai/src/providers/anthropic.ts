@@ -108,7 +108,7 @@ export class AnthropicAiProvider implements AiProvider {
       const promptTokens = response.usage.input_tokens
       const completionTokens = response.usage.output_tokens
       return ok({
-        data: parsed as T,
+        data: parsed,
         rawJson: JSON.stringify(parsed),
         promptTokens,
         completionTokens,

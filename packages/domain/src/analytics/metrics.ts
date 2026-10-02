@@ -14,7 +14,7 @@
 export function calculateNetSales(
   grossSalesMinor: bigint,
   refundsMinor: bigint,
-  disputesMinor: bigint = 0n,
+  disputesMinor = 0n,
 ): bigint {
   const deductions = refundsMinor + disputesMinor
   if (deductions >= grossSalesMinor) {

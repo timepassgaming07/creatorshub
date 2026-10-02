@@ -13,13 +13,10 @@ import {
   type PayeeType,
   type PayoutFilter,
   type PayoutId,
-  type PayoutStatus,
   type UserId,
-  beneficiaryAccountId,
-  currency,
-  payoutId,
+  ledgerAccountId,
 } from '@creatorhub/contracts'
-import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
+import { desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'
@@ -90,7 +87,7 @@ export async function approvePayout(
     .where(scoped(scope, payouts, eq(payouts.id, params.payoutId)))
     .limit(1)
 
-  if (!existing || existing.status !== 'requested') {
+  if (existing?.status !== 'requested') {
     return undefined
   }
 
@@ -116,13 +113,13 @@ export async function approvePayout(
     description: `Disbursement payout of ${existing.amount.toString()} paise`,
     entries: [
       {
-        accountId: creatorPayableAcc.id as any,
+        accountId: ledgerAccountId(creatorPayableAcc.id),
         direction: 'debit',
         amount: existing.amount,
         currency: existing.currency as CurrencyCode,
       },
       {
-        accountId: processorClearingAcc.id as any,
+        accountId: ledgerAccountId(processorClearingAcc.id),
         direction: 'credit',
         amount: existing.amount,
         currency: existing.currency as CurrencyCode,
@@ -137,7 +134,7 @@ export async function approvePayout(
       status: 'approved',
       approvedBy: params.approvedBy,
       approvedAt: new Date(),
-      ledgerTransactionId: ledgerTxId as any,
+      ledgerTransactionId: ledgerTxId,
       notes: params.notes ?? existing.notes,
       updatedAt: new Date(),
     })
@@ -255,13 +252,13 @@ export async function recordPayoutFailure(
       description: `Compensating reversal for failed payout ${existing.id}`,
       entries: [
         {
-          accountId: processorClearingAcc.id as any,
+          accountId: ledgerAccountId(processorClearingAcc.id),
           direction: 'debit',
           amount: existing.amount,
           currency: existing.currency as CurrencyCode,
         },
         {
-          accountId: creatorPayableAcc.id as any,
+          accountId: ledgerAccountId(creatorPayableAcc.id),
           direction: 'credit',
           amount: existing.amount,
           currency: existing.currency as CurrencyCode,
@@ -323,7 +320,7 @@ export async function findPayoutById(
 
 export async function listPayouts(
   scope: RepositoryScope,
-  filter?: PayoutFilter | undefined,
+  filter?: PayoutFilter  ,
 ): Promise<PayoutWithBeneficiary[]> {
   const conditions = []
 
@@ -361,7 +358,7 @@ export async function listPayouts(
       scoped(
         scope,
         beneficiaryAccounts,
-        inArray(beneficiaryAccounts.id, beneficiaryIds as any),
+        inArray(beneficiaryAccounts.id, beneficiaryIds),
       ),
     )
 
@@ -369,7 +366,7 @@ export async function listPayouts(
 
   return rows.map((payout) => ({
     ...payout,
-    beneficiary: beneficiaryMap.get(payout.beneficiaryAccountId as any),
+    beneficiary: beneficiaryMap.get(payout.beneficiaryAccountId),
   }))
 }
 
@@ -413,7 +410,7 @@ export async function getPayoutBalanceOverview(
   // sale net of fees, tax, and commission; debited by refunds and approved
   // payouts. Requests still awaiting approval are set aside on top.
   const creatorPayable = await ledgerRepo.findOrCreateWorkspaceAccount(scope, 'creator_payable', curr)
-  const ledgerBalance = (await ledgerRepo.getAccountBalance(scope, creatorPayable.id as any)).amount
+  const ledgerBalance = (await ledgerRepo.getAccountBalance(scope, ledgerAccountId(creatorPayable.id))).amount
   const netAvailable = ledgerBalance > pendingApproval ? ledgerBalance - pendingApproval : 0n
 
   return {

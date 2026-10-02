@@ -12,7 +12,7 @@
  * back to the server, which verifies it with Razorpay before delivering
  * anything. Free products skip payment entirely.
  */
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -53,6 +53,7 @@ type RazorpayInstance = { open: () => void; on: (event: string, cb: (r: unknown)
 type RazorpayConstructor = new (options: Record<string, unknown>) => RazorpayInstance
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- adding to Window needs interface merging
   interface Window {
     Razorpay?: RazorpayConstructor
   }
@@ -237,7 +238,7 @@ export function CheckoutClient(props: CheckoutClientProps) {
     window.location.assign(`${props.basePath}/order/${id}`)
   }
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError(null)
     if (!validate()) return

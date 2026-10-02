@@ -42,8 +42,8 @@ function pct(bps: number): string {
 }
 
 function suggestCode(name: string, email: string): string {
-  const base = (name || email.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
-  return base.slice(0, 20) || ''
+  const source = name.trim() ? name : (email.split('@')[0] ?? '')
+  return source.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20)
 }
 
 function ProgramCard({ program }: { readonly program: AffiliatesData['program'] }) {
@@ -361,7 +361,7 @@ export function AffiliatesView({ data }: { readonly data: AffiliatesData }) {
                             <span className="font-mono text-[13px]">?ref={a.code}</span>
                             <CopyButton
                               value={a.referralUrl}
-                              label={`Copy ${a.code} link`}
+                              label={`Copy ${a.code ?? ''} link`}
                               iconOnly
                               className="size-7 border-transparent"
                             />

@@ -7,11 +7,18 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import type { EmailProvider, SendEmailInput, SendEmailResult } from '../port.js'
+import type { EmailAddress, EmailProvider, SendEmailInput, SendEmailResult } from '../port.js'
 
 export type RecordedEmail = SendEmailInput & {
   readonly messageId: string
   readonly timestamp: Date
+}
+
+// Array.isArray narrows a readonly array to any[]; this guard keeps the type.
+function isRecipientList(
+  to: SendEmailInput['to'],
+): to is readonly (string | EmailAddress)[] {
+  return Array.isArray(to)
 }
 
 export class MemoryEmailProvider implements EmailProvider {
@@ -19,6 +26,7 @@ export class MemoryEmailProvider implements EmailProvider {
   private sent: RecordedEmail[] = []
 
   async send(input: SendEmailInput): Promise<SendEmailResult> {
+    await Promise.resolve()
     const messageId = `msg_${randomUUID()}`
     const timestamp = new Date()
 
@@ -52,21 +60,11 @@ export class MemoryEmailProvider implements EmailProvider {
 
   findSentEmailTo(recipientEmail: string): RecordedEmail | undefined {
     const target = recipientEmail.toLowerCase().trim()
+    const addressOf = (item: string | EmailAddress): string =>
+      (typeof item === 'string' ? item : item.email).toLowerCase().trim()
     return this.sent.find((email) => {
-      if (typeof email.to === 'string') {
-        return email.to.toLowerCase().trim() === target
-      }
-      if (Array.isArray(email.to)) {
-        return email.to.some((item) =>
-          typeof item === 'string'
-            ? item.toLowerCase().trim() === target
-            : item.email.toLowerCase().trim() === target,
-        )
-      }
-      if (typeof email.to === 'object' && email.to !== null && 'email' in email.to) {
-        return email.to.email.toLowerCase().trim() === target
-      }
-      return false
+      const recipients = isRecipientList(email.to) ? email.to : [email.to]
+      return recipients.some((item) => addressOf(item) === target)
     })
   }
 

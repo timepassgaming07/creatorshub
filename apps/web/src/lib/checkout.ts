@@ -155,6 +155,12 @@ export type ConfirmPaymentResult =
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** A blank GSTIN means the buyer has none. */
+function normaliseGstin(raw: string | null | undefined): string | null {
+  const gstin = raw?.trim().toUpperCase()
+  return gstin?.length ? gstin : null
+}
+
 function fail(code: string, message: string): CheckoutFailure {
   return { ok: false, code, message }
 }
@@ -312,7 +318,7 @@ async function priceCheckout(
   const taxable = unitPrice - (evaluated?.discountAmount.amount ?? 0n)
   const settings = ws.taxSettings
   const buyerCountry = input.buyer.country.toUpperCase()
-  const buyerGstin = input.buyer.gstin?.trim().toUpperCase() || null
+  const buyerGstin = normaliseGstin(input.buyer.gstin)
   const buyerState = buyerGstin ? gstStateCode(buyerGstin) : (input.buyer.stateCode ?? null)
 
   let rateBps = 0
@@ -479,7 +485,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<StartChe
         discountId: appliedDiscountId,
         buyerCountry: input.buyer.country.toUpperCase(),
         buyerStateCode: input.buyer.stateCode ?? null,
-        buyerGstin: input.buyer.gstin?.trim().toUpperCase() || null,
+        buyerGstin: normaliseGstin(input.buyer.gstin),
         taxLines: quote.taxLines,
         ...(input.referral
           ? { referralCode: input.referral.code, referralClickedAt: input.referral.clickedAt }
@@ -592,7 +598,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<StartChe
     await orders.setCheckoutSession(scope, created.order.id, session.id)
     await payments.createPayment(scope, {
       orderId: created.order.id,
-      provider: provider.name as 'razorpay' | 'memory',
+      provider: provider.name,
       providerPaymentId: session.id,
       providerOrderId: session.id,
       amount: created.order.totalAmount,
@@ -680,7 +686,7 @@ async function confirmWith(
         { tx, context },
         {
           orderId: order.id,
-          provider: snapshot.provider as 'razorpay' | 'memory',
+          provider: snapshot.provider,
           providerPaymentId: snapshot.providerPaymentId,
           amount: snapshot.amount.amount,
           currency: snapshot.amount.currency,

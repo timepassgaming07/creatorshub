@@ -68,7 +68,7 @@ export async function saveAffiliateProgramAction(
 }
 
 const inviteSchema = z.object({
-  email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(254),
+  email: z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address.').max(254)),
   name: z.string().trim().max(120),
   code: z
     .string()
@@ -164,7 +164,7 @@ export async function setAffiliateStatusAction(
   status: 'approved' | 'suspended',
 ): Promise<ActionResult<{ readonly status: string }>> {
   if (
-    !z.string().uuid().safeParse(rawAffiliateId).success ||
+    !z.uuid().safeParse(rawAffiliateId).success ||
     !['approved', 'suspended'].includes(status)
   ) {
     return { ok: false, error: 'That affiliate does not exist.' }

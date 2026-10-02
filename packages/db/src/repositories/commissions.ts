@@ -11,14 +11,13 @@ import {
   type AffiliateId,
   type AffiliateLedgerBreakdown,
   type AttributionId,
-  type ClawbackId,
   type CommissionId,
   type CommissionStatus,
   type CreateClawbackInput,
   type CreateCommissionInput,
   type OrderId,
 } from '@creatorhub/contracts'
-import { and, desc, eq, lte, sql } from 'drizzle-orm'
+import { desc, eq, lte, sql } from 'drizzle-orm'
 
 import {
   affiliates,

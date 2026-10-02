@@ -29,9 +29,10 @@ export class MemoryAiProvider implements AiProvider {
   async generateStructured<T>(
     options: AiGenerateOptions<T>,
   ): Promise<Result<AiResponse<T>, AiError>> {
+    await Promise.resolve()
     const rawData = this.generateSampleDataForPrompt(options.promptId, options.userPrompt)
     const parseResult = options.schema.safeParse(rawData)
-    const validData = parseResult.success ? (parseResult.data as T) : (rawData as T)
+    const validData = parseResult.success ? parseResult.data : (rawData as T)
 
     const rawJson = JSON.stringify(validData, null, 2)
     const promptTokens = Math.max(50, Math.round(options.userPrompt.length / 4))
@@ -55,6 +56,7 @@ export class MemoryAiProvider implements AiProvider {
   async generateText(
     options: AiGenerateTextOptions,
   ): Promise<Result<AiTextResponse, AiError>> {
+    await Promise.resolve()
     const text = `High quality AI response generated for prompt: ${options.userPrompt.slice(0, 100)}...`
     const promptTokens = Math.max(30, Math.round(options.userPrompt.length / 4))
     const completionTokens = Math.max(30, Math.round(text.length / 4))

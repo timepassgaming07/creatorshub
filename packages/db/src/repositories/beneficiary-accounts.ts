@@ -11,7 +11,7 @@ import type {
   BeneficiaryAccountType,
   PayeeType,
 } from '@creatorhub/contracts'
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 import type { RepositoryScope } from '../repository.js'
 import { insertValues, scoped } from '../repository.js'

@@ -270,12 +270,12 @@ export async function recordReferralClick(host: string, code: string): Promise<v
   if (!isValidReferralCode(code)) return
 
   const store = await getDatabase().resolveStorefrontByHostname(host)
-  if (!store || store.status !== 'published') return
+  if (store?.status !== 'published') return
 
   const h = await headers()
   const userAgent = h.get('user-agent') ?? ''
-  const ip =
-    (h.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  const forwarded = (h.get('x-forwarded-for') ?? '').split(',')[0]?.trim()
+  const ip = forwarded?.length ? forwarded : (h.get('x-real-ip') ?? 'unknown')
   const day = new Date().toISOString().slice(0, 10)
   const salt = auditSalt()
   const ipHash = createHash('sha256').update(`${ip}:${salt}`).digest('hex')

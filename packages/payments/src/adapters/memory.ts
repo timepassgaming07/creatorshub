@@ -252,7 +252,7 @@ export class MemoryPaymentProvider implements PaymentProvider {
       payload?: Record<string, unknown>
     }
 
-    const payload: Record<string, unknown> = parsed.payload ?? (parsed as Record<string, unknown>)
+    const payload: Record<string, unknown> = parsed.payload ?? (parsed)
     const entity = (key: string): Record<string, unknown> => {
       const wrapper = payload[key]
       if (typeof wrapper !== 'object' || wrapper === null) return {}

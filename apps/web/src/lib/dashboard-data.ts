@@ -62,7 +62,7 @@ export async function asMember<T>(
   const wsId = toWorkspaceId(access.workspace.id)
   if (permission) {
     const decision = authorise(
-      { userId: session.userId, workspaceId: wsId, role: access.role as WorkspaceRole },
+      { userId: session.userId, workspaceId: wsId, role: access.role },
       wsId,
       permission,
     )
@@ -463,7 +463,7 @@ export async function loadSettings(rawWorkspaceId: string): Promise<SettingsData
       }))
       .sort((a, b) => order[a.role] - order[b.role] || a.joinedAt.localeCompare(b.joinedAt)),
     currentUserId: loaded.access.session.userId,
-    role: loaded.access.role as WorkspaceRole,
+    role: loaded.access.role,
   }
 }
 
@@ -559,7 +559,7 @@ export async function loadAffiliates(rawWorkspaceId: string): Promise<Affiliates
         payable: agg.payable.toString(),
         paid: agg.paid.toString(),
         hasPayoutAccount:
-          Object.keys((a.payoutAccount as Record<string, unknown> | null) ?? {}).length > 0,
+          Object.keys(a.payoutAccount).length > 0,
       }
     })
 
@@ -685,7 +685,7 @@ export async function loadPayouts(rawWorkspaceId: string): Promise<PayoutsData> 
         failureReason: p.failureReason,
       })),
       currentUserId: scope.access.session.userId,
-      role: scope.access.role as WorkspaceRole,
+      role: scope.access.role,
       memberCount: members.length,
       emailVerified: scope.access.session.user.emailVerified ?? false,
     }

@@ -191,7 +191,7 @@ try {
       })
       if (rows.length === 0) console.log('No affiliate commissions are payable.')
       for (const { a, payable } of rows) {
-        const acct = (a.payoutAccount ?? {}) as Record<string, string>
+        const acct = a.payoutAccount as Record<string, string>
         console.log(`\n${a.id}  ${a.name ?? a.email}  payable ${rupees(payable)}`)
         console.log(
           acct['method'] === 'upi'

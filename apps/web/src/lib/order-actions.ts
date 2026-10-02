@@ -10,7 +10,6 @@
 'use server'
 
 import {
-  downloadGrantId,
   orderId as toOrderId,
   requestId as toRequestId,
   userId as toUserId,
@@ -21,16 +20,14 @@ import {
 } from '@creatorhub/contracts'
 import {
   auditLog,
-  catalogue,
   customers,
-  disputes,
   fulfillment,
   orders,
   payments,
   refunds,
   workspaceMembers,
 } from '@creatorhub/db'
-import { authorise, type Membership } from '@creatorhub/domain'
+import { authorise } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { issueDownloadGrants, sendPurchaseEmails, type IssuedDownload } from './delivery'
@@ -173,7 +170,7 @@ export async function listOrdersAction(
 
   const wsId = toWorkspaceId(rawWorkspaceId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-list-ord-${Date.now()}`)
+  const reqId = toRequestId(`req-list-ord-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 
@@ -185,7 +182,7 @@ export async function listOrdersAction(
     }
 
     const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
+      { userId: actorId, workspaceId: wsId, role: member.role },
       wsId,
       'order.view',
     )
@@ -256,7 +253,7 @@ export async function getOrderDetailsAction(
   const wsId = toWorkspaceId(rawWorkspaceId)
   const ordId = toOrderId(rawOrderId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-ord-detail-${Date.now()}`)
+  const reqId = toRequestId(`req-ord-detail-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 
@@ -268,7 +265,7 @@ export async function getOrderDetailsAction(
     }
 
     const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
+      { userId: actorId, workspaceId: wsId, role: member.role },
       wsId,
       'order.view',
     )
@@ -398,7 +395,7 @@ export async function resendFulfillmentEmailAction(
   const wsId = toWorkspaceId(rawWorkspaceId)
   const ordId = toOrderId(rawOrderId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-resend-${Date.now()}`)
+  const reqId = toRequestId(`req-resend-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
   let resend: { downloads: IssuedDownload[]; orderId: string } | null = null
@@ -467,7 +464,7 @@ export async function exportOrdersCsvAction(
 
   const wsId = toWorkspaceId(rawWorkspaceId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-csv-ord-${Date.now()}`)
+  const reqId = toRequestId(`req-csv-ord-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 

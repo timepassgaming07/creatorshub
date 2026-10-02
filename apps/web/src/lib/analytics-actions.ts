@@ -25,7 +25,7 @@ import {
   auditLog,
   workspaceMembers,
 } from '@creatorhub/db'
-import { authorise, type Membership } from '@creatorhub/domain'
+import { authorise } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
@@ -47,7 +47,7 @@ export type AnalyticsActionResult<T> =
  */
 export async function getWorkspaceAnalyticsAction(
   workspaceIdRaw: string,
-  timeframeRaw: string = '30d',
+  timeframeRaw = '30d',
 ): Promise<AnalyticsActionResult<AnalyticsSummaryDTO>> {
   try {
     const session = await getServerSession()
@@ -63,11 +63,11 @@ export async function getWorkspaceAnalyticsAction(
     const tfParsed = analyticsTimeframeSchema.safeParse(timeframeRaw)
     const timeframe: AnalyticsTimeframe = tfParsed.success ? tfParsed.data : '30d'
 
-    const db = await getDatabase()
+    const db = getDatabase()
     const ctx = workspaceContext({
       workspaceId: wsId,
       actorId: usrId,
-      requestId: toRequestId(`req-analytics-${Date.now()}`),
+      requestId: toRequestId(`req-analytics-${String(Date.now())}`),
     })
 
     return await db.withWorkspace(ctx, async (tx) => {
@@ -81,7 +81,7 @@ export async function getWorkspaceAnalyticsAction(
       }
 
       const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
+        { userId: usrId, workspaceId: wsId, role: member.role },
         wsId,
         'analytics.view',
       )
@@ -111,7 +111,7 @@ export async function getWorkspaceAnalyticsAction(
  */
 export async function getProductPerformanceAction(
   workspaceIdRaw: string,
-  timeframeRaw: string = '30d',
+  timeframeRaw = '30d',
 ): Promise<AnalyticsActionResult<readonly ProductPerformanceDTO[]>> {
   try {
     const session = await getServerSession()
@@ -127,11 +127,11 @@ export async function getProductPerformanceAction(
     const tfParsed = analyticsTimeframeSchema.safeParse(timeframeRaw)
     const timeframe: AnalyticsTimeframe = tfParsed.success ? tfParsed.data : '30d'
 
-    const db = await getDatabase()
+    const db = getDatabase()
     const ctx = workspaceContext({
       workspaceId: wsId,
       actorId: usrId,
-      requestId: toRequestId(`req-prod-perf-${Date.now()}`),
+      requestId: toRequestId(`req-prod-perf-${String(Date.now())}`),
     })
 
     return await db.withWorkspace(ctx, async (tx) => {
@@ -145,7 +145,7 @@ export async function getProductPerformanceAction(
       }
 
       const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
+        { userId: usrId, workspaceId: wsId, role: member.role },
         wsId,
         'analytics.view',
       )
@@ -175,7 +175,7 @@ export async function getProductPerformanceAction(
  */
 export async function getAffiliatePerformanceAction(
   workspaceIdRaw: string,
-  timeframeRaw: string = '30d',
+  timeframeRaw = '30d',
 ): Promise<AnalyticsActionResult<readonly AffiliatePerformanceDTO[]>> {
   try {
     const session = await getServerSession()
@@ -191,11 +191,11 @@ export async function getAffiliatePerformanceAction(
     const tfParsed = analyticsTimeframeSchema.safeParse(timeframeRaw)
     const timeframe: AnalyticsTimeframe = tfParsed.success ? tfParsed.data : '30d'
 
-    const db = await getDatabase()
+    const db = getDatabase()
     const ctx = workspaceContext({
       workspaceId: wsId,
       actorId: usrId,
-      requestId: toRequestId(`req-aff-perf-${Date.now()}`),
+      requestId: toRequestId(`req-aff-perf-${String(Date.now())}`),
     })
 
     return await db.withWorkspace(ctx, async (tx) => {
@@ -209,7 +209,7 @@ export async function getAffiliatePerformanceAction(
       }
 
       const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
+        { userId: usrId, workspaceId: wsId, role: member.role },
         wsId,
         'analytics.view',
       )
@@ -239,7 +239,7 @@ export async function getAffiliatePerformanceAction(
  */
 export async function exportAnalyticsCsvAction(
   workspaceIdRaw: string,
-  timeframeRaw: string = '30d',
+  timeframeRaw = '30d',
 ): Promise<AnalyticsActionResult<{ readonly csv: string; readonly filename: string }>> {
   try {
     const session = await getServerSession()
@@ -255,11 +255,11 @@ export async function exportAnalyticsCsvAction(
     const tfParsed = analyticsTimeframeSchema.safeParse(timeframeRaw)
     const timeframe: AnalyticsTimeframe = tfParsed.success ? tfParsed.data : '30d'
 
-    const db = await getDatabase()
+    const db = getDatabase()
     const ctx = workspaceContext({
       workspaceId: wsId,
       actorId: usrId,
-      requestId: toRequestId(`req-export-analytics-${Date.now()}`),
+      requestId: toRequestId(`req-export-analytics-${String(Date.now())}`),
     })
 
     return await db.withWorkspace(ctx, async (tx) => {
@@ -273,7 +273,7 @@ export async function exportAnalyticsCsvAction(
       }
 
       const authRes = authorise(
-        { userId: usrId, workspaceId: wsId, role: member.role } as Membership,
+        { userId: usrId, workspaceId: wsId, role: member.role },
         wsId,
         'analytics.view',
       )
@@ -296,7 +296,7 @@ export async function exportAnalyticsCsvAction(
       ])
 
       const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-      const filename = `analytics-${workspaceIdRaw}-${timeframe}-${new Date().toISOString().split('T')[0]}.csv`
+      const filename = `analytics-${workspaceIdRaw}-${timeframe}-${new Date().toISOString().slice(0, 10)}.csv`
 
       await auditLog.writeAuditLog(scope, auditOptions, {
         actorType: 'user',

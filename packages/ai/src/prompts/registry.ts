@@ -21,6 +21,11 @@ import {
 } from '@creatorhub/contracts'
 import type { ZodType } from 'zod'
 
+/** An omitted or blank field reads as the fallback, so the prompt never says "undefined". */
+function orDefault(value: string | undefined, fallback: string): string {
+  return value?.trim() ? value : fallback
+}
+
 export type PromptTemplate<TInput, TOutput> = {
   readonly id: AiPromptId
   readonly version: string
@@ -53,11 +58,11 @@ Your goal is to write high-converting, honest, and exciting product copy that cl
 Always format descriptions with clean markdown (bullet points, bold highlights, concise paragraphs).`,
   buildUserPrompt: (input: ProductCopyInput) => {
     return `Generate product copy for the following digital product:
-- Working Title / Idea: ${input.title || 'Untitled Digital Product'}
-- Product Category: ${input.category || 'Digital Asset / Download'}
-- Key Topics / Materials: ${input.keyPoints || 'Comprehensive resources, templates, and actionable guides.'}
-- Target Audience: ${input.targetAudience || 'Creators, designers, entrepreneurs, and digital professionals.'}
-- Desired Tone: ${input.tone || 'persuasive'}
+- Working Title / Idea: ${orDefault(input.title, 'Untitled Digital Product')}
+- Product Category: ${orDefault(input.category, 'Digital Asset / Download')}
+- Key Topics / Materials: ${orDefault(input.keyPoints, 'Comprehensive resources, templates, and actionable guides.')}
+- Target Audience: ${orDefault(input.targetAudience, 'Creators, designers, entrepreneurs, and digital professionals.')}
+- Desired Tone: ${orDefault(input.tone, 'persuasive')}
 
 Respond with valid JSON matching the schema with title, tagline, descriptionMarkdown, keyBenefits, targetAudience, and suggestedPriceInr.`
   },
@@ -87,8 +92,8 @@ Keep headlines under 8 words, punchy, and confident. Value propositions must hig
     return `Generate storefront branding copy for:
 - Creator Name: ${input.creatorName}
 - Brand Niche / Domain: ${input.brandNiche}
-- Main Product Focus: ${input.mainProductFocus || 'Digital templates, courses, and premium assets'}
-- Brand Tone: ${input.tone || 'modern and premium'}
+- Main Product Focus: ${orDefault(input.mainProductFocus, 'Digital templates, courses, and premium assets')}
+- Brand Tone: ${orDefault(input.tone, 'modern and premium')}
 
 Respond with valid JSON matching the schema.`
   },
@@ -122,7 +127,7 @@ Enforce strict character lengths:
 - Page Type: ${input.pageType}
 - Title / Name: ${input.pageTitle}
 - Summary: ${input.descriptionSummary}
-- Focus Keywords: ${input.primaryKeywords || 'creator templates, digital downloads, premium guides'}
+- Focus Keywords: ${orDefault(input.primaryKeywords, 'creator templates, digital downloads, premium guides')}
 
 Respond with valid JSON matching the schema.`
   },
@@ -160,12 +165,12 @@ Provide 1 clear executive summary, the single most important growth driver, 3 co
     return `Analyze the following creator business metrics for the period (${input.timeframe}):
 - Gross Sales: ${input.grossRevenue}
 - Net Revenue: ${input.netRevenue}
-- Total Orders: ${input.totalOrders}
-- Unique Visitors: ${input.uniqueVisitors}
-- Storefront Conversion Rate: ${convPercent}% (${input.conversionRateBps} bps)
-- Refund Rate: ${refundPercent}% (${input.refundRateBps} bps)
-- Top Product: ${input.topProduct || 'N/A'}
-- Top Promoter / Affiliate: ${input.topAffiliate || 'N/A'}
+- Total Orders: ${String(input.totalOrders)}
+- Unique Visitors: ${String(input.uniqueVisitors)}
+- Storefront Conversion Rate: ${convPercent}% (${String(input.conversionRateBps)} bps)
+- Refund Rate: ${refundPercent}% (${String(input.refundRateBps)} bps)
+- Top Product: ${orDefault(input.topProduct, 'N/A')}
+- Top Promoter / Affiliate: ${orDefault(input.topAffiliate, 'N/A')}
 
 Respond with valid JSON matching the schema with executiveSummary, keyDriver, growthActions, and riskAlert.`
   },
@@ -197,8 +202,8 @@ Use a conversational, personal tone with high-CTR subject lines and clear, singl
 - Creator Name: ${input.creatorName}
 - Product Title: ${input.productTitle}
 - Offer Goal / Hook: ${input.offerGoal}
-- Discount: ${input.discountPercentage ? `${input.discountPercentage}% off` : 'Standard launch price'}
-- Deadline / Urgency: ${input.deadlineText || 'Available immediately'}
+- Discount: ${input.discountPercentage ? `${String(input.discountPercentage)}% off` : 'Standard launch price'}
+- Deadline / Urgency: ${orDefault(input.deadlineText, 'Available immediately')}
 
 Respond with valid JSON matching the schema with subject, previewText, bodyMarkdown, and callToActionText.`
   },

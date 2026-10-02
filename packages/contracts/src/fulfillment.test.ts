@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   createDownloadGrantInputSchema,
   createEntitlementInputSchema,
-  downloadEventId,
   downloadGrantId,
   downloadGrantRecordSchema,
   entitlementId,
@@ -20,7 +19,6 @@ describe('fulfillment contracts', () => {
   const asstId = assetId('018f9e2b-7c5e-7a2e-8c3b-000000000004')
   const entId = entitlementId('018f9e2b-7c5e-7a2e-8c3b-000000000005')
   const grantId = downloadGrantId('018f9e2b-7c5e-7a2e-8c3b-000000000006')
-  const evtId = downloadEventId('018f9e2b-7c5e-7a2e-8c3b-000000000007')
 
   it('validates create entitlement input correctly', () => {
     const valid = createEntitlementInputSchema.safeParse({

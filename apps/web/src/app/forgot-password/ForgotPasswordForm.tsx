@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { MailCheck } from 'lucide-react'
@@ -18,7 +18,7 @@ export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -31,7 +31,7 @@ export function ForgotPasswordForm() {
       redirectTo: `/reset-password?next=${encodeURIComponent(next)}`,
     })
     setLoading(false)
-    if (result.error && result.error.code === 'TOO_MANY_REQUESTS') {
+    if (result.error?.code === 'TOO_MANY_REQUESTS') {
       setError(authErrorMessage(result.error.code, ''))
       return
     }

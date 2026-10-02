@@ -7,10 +7,10 @@
  * 3. Zod schema parsing and 1-time retry on schema mismatch.
  * 4. Error mapping into domain-level Result<T, AiError>.
  */
-import { err, ok, type Result } from '@creatorhub/domain'
+import { err, type Result } from '@creatorhub/domain'
 
 import {
-  AiError,
+  type AiError,
   AiModelUnavailableError,
   AiSchemaValidationError,
 } from './errors.js'

@@ -56,7 +56,7 @@ export function renderReceiptEmail(input: RenderReceiptEmailInput): RenderedEmai
       <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; text-align: left;">
         <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #0f172a;">${escapeHtml(link.productTitle)}</h3>
         <p style="margin: 0 0 16px 0; font-size: 13px; color: #64748b; line-height: 1.4;">
-          Includes ${link.maxDownloads} downloads. Link valid until <strong>${escapeHtml(link.expiresAtFormatted)}</strong>.
+          Includes ${String(link.maxDownloads)} downloads. Link valid until <strong>${escapeHtml(link.expiresAtFormatted)}</strong>.
         </p>
         <a href="${escapeHtml(link.downloadUrl)}" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);">
           Download File &rarr;
@@ -71,7 +71,7 @@ export function renderReceiptEmail(input: RenderReceiptEmailInput): RenderedEmai
       (item) => `
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-size: 14px;">
-          ${escapeHtml(item.title)} <span style="color: #64748b; font-size: 12px;">&times; ${item.quantity}</span>
+          ${escapeHtml(item.title)} <span style="color: #64748b; font-size: 12px;">&times; ${String(item.quantity)}</span>
         </td>
         <td style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px; font-weight: 600; text-align: right;">
           ${escapeHtml(item.totalFormatted)}
@@ -190,12 +190,12 @@ export function renderReceiptEmail(input: RenderReceiptEmailInput): RenderedEmai
   // Fallback plain-text representation
   const textDownloadLinks = input.downloadLinks
     .map(
-      (l) => `* ${l.productTitle}\n  Download: ${l.downloadUrl}\n  (Limit: ${l.maxDownloads} downloads, expires ${l.expiresAtFormatted})\n`,
+      (l) => `* ${l.productTitle}\n  Download: ${l.downloadUrl}\n  (Limit: ${String(l.maxDownloads)} downloads, expires ${l.expiresAtFormatted})\n`,
     )
     .join('\n')
 
   const textItems = input.items
-    .map((i) => `${i.title} x ${i.quantity} - ${i.totalFormatted}`)
+    .map((i) => `${i.title} x ${String(i.quantity)} - ${i.totalFormatted}`)
     .join('\n')
 
   const text = `

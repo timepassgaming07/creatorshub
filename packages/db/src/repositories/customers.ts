@@ -10,9 +10,8 @@ import {
   type CustomerFilter,
   type CustomerId,
   type CustomerSummary,
-  type WorkspaceId,
 } from '@creatorhub/contracts'
-import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm'
+import { desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm'
 
 import { insertValues, scoped, type RepositoryScope } from '../repository.js'
 import { customers, type CustomerRecord, type NewCustomerRecord } from '../schema/customers.js'
@@ -81,7 +80,7 @@ export async function upsertCustomer(
         email: normalizedEmail,
         name: input.name ?? null,
         phone: input.phone ?? null,
-        metadata: (input.metadata ?? {}) as Record<string, unknown>,
+        metadata: (input.metadata ?? {}),
         totalSpend: input.incrementSpend ?? 0n,
         ordersCount: input.incrementOrders ?? (input.incrementSpend ? 1 : 0),
         firstSeenAt: new Date(),
@@ -242,7 +241,7 @@ export async function updateCustomer(
     .set({
       ...(input.name !== undefined && { name: input.name }),
       ...(input.phone !== undefined && { phone: input.phone }),
-      ...(input.metadata !== undefined && { metadata: input.metadata as Record<string, unknown> }),
+      ...(input.metadata !== undefined && { metadata: input.metadata }),
       updatedAt: new Date(),
     })
     .where(scoped(scope, customers, eq(customers.id, id)))

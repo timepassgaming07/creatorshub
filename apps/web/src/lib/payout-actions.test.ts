@@ -43,8 +43,6 @@ import {
   approvePayoutAction,
   createBeneficiaryAccountAction,
   exportPayoutsCsvAction,
-  getPayoutBalanceSummaryAction,
-  listBeneficiaryAccountsAction,
   listPayoutsAction,
   requestPayoutAction,
 } from './payout-actions'
@@ -77,7 +75,7 @@ describe('Payout Server Actions (Slice 11)', () => {
   it('creates beneficiary account for authorized workspace owner', async () => {
     vi.spyOn(workspaces, 'findCurrentWorkspace').mockResolvedValue({
       name: 'Creator Studio',
-    } as any)
+    } as never)
     mockGetServerSession.mockResolvedValue({
       userId: uId,
       user: { id: uId, email: 'owner@example.com', name: 'Owner User' },
@@ -90,7 +88,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       joinedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any)
+    } as never)
 
     vi.spyOn(beneficiaryAccountsRepo, 'createBeneficiaryAccount').mockResolvedValue({
       id: bId,
@@ -110,7 +108,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       updatedAt: new Date(),
     })
 
-    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as any)
+    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as never)
 
     const result = await createBeneficiaryAccountAction(wsId, {
       // A client naming someone else's payee is ignored.
@@ -150,7 +148,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       workspaceId: wsId,
       userId: uId,
       role: 'owner',
-    } as any)
+    } as never)
 
     vi.spyOn(beneficiaryAccountsRepo, 'findBeneficiaryAccountById').mockResolvedValue({
       id: bId,
@@ -165,10 +163,10 @@ describe('Payout Server Actions (Slice 11)', () => {
       isDefault: true,
       createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000), // 48h old account
       updatedAt: new Date(),
-    } as any)
+    } as never)
 
     vi.spyOn(payoutsRepo, 'getPayoutBalanceOverview').mockResolvedValue({
-      currency: 'INR' as any,
+      currency: 'INR' as never,
       availableBalanceMinor: '500000', // ₹5,000.00
       inTransitBalanceMinor: '0',
       lifetimeSettledMinor: '0',
@@ -190,9 +188,9 @@ describe('Payout Server Actions (Slice 11)', () => {
       notes: 'Test payout',
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any)
+    } as never)
 
-    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as any)
+    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as never)
 
     const result = await requestPayoutAction(wsId, {
       beneficiaryAccountId: bId,
@@ -218,7 +216,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       workspaceId: wsId,
       userId: uId2,
       role: 'admin',
-    } as any)
+    } as never)
 
     vi.spyOn(payoutsRepo, 'findPayoutById').mockResolvedValue({
       id: pId,
@@ -232,12 +230,12 @@ describe('Payout Server Actions (Slice 11)', () => {
       requestedBy: uId, // Requested by uId, approved by uId2
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any)
+    } as never)
 
     vi.spyOn(workspaceMembers, 'listMembers').mockResolvedValue([
       { userId: uId, role: 'owner' },
       { userId: uId2, role: 'admin' },
-    ] as any)
+    ] as never)
 
     vi.spyOn(payoutsRepo, 'approvePayout').mockResolvedValue({
       id: pId,
@@ -253,9 +251,9 @@ describe('Payout Server Actions (Slice 11)', () => {
       approvedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as any)
+    } as never)
 
-    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as any)
+    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue(undefined as never)
 
     const result = await approvePayoutAction(wsId, {
       payoutId: pId,
@@ -279,7 +277,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       workspaceId: wsId,
       userId: uId,
       role: 'owner',
-    } as any)
+    } as never)
 
     vi.spyOn(payoutsRepo, 'listPayouts').mockResolvedValue([
       {
@@ -300,7 +298,7 @@ describe('Payout Server Actions (Slice 11)', () => {
           maskedAccountNumber: '••••••••7890',
           ifscCode: 'HDFC0000060',
         },
-      } as any,
+      } as never,
     ])
 
     const result = await exportPayoutsCsvAction(wsId)
@@ -322,7 +320,7 @@ describe('Payout Server Actions (Slice 11)', () => {
       workspaceId: wsId,
       userId: uId,
       role: 'owner',
-    } as any)
+    } as never)
     const request = vi.spyOn(payoutsRepo, 'requestPayout')
 
     const result = await requestPayoutAction(wsId, {
@@ -343,15 +341,15 @@ describe('Payout Server Actions (Slice 11)', () => {
       workspaceId: wsId,
       userId: uId,
       role: 'owner',
-    } as any)
+    } as never)
     vi.spyOn(beneficiaryAccountsRepo, 'findBeneficiaryAccountById').mockResolvedValue({
       id: bId,
       workspaceId: wsId,
       accountType: 'vpa',
       createdAt: new Date(Date.now() - 60 * 60 * 1000),
-    } as any)
+    } as never)
     vi.spyOn(payoutsRepo, 'getPayoutBalanceOverview').mockResolvedValue({
-      currency: 'INR' as any,
+      currency: 'INR' as never,
       availableBalanceMinor: '20000000',
       inTransitBalanceMinor: '0',
       lifetimeSettledMinor: '0',

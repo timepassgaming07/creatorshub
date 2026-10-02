@@ -24,10 +24,10 @@ const createDiscountSchema = z.object({
   type: z.enum(['percentage', 'fixed_amount']),
   value: z.string().trim().min(1, 'Enter how much the code takes off.'),
   maxUses: z.number().int().positive().nullable(),
-  startsAt: z.string().datetime().nullable(),
-  expiresAt: z.string().datetime().nullable(),
+  startsAt: z.iso.datetime().nullable(),
+  expiresAt: z.iso.datetime().nullable(),
   minOrder: z.string().trim().nullable(),
-  productIds: z.array(z.string().uuid()).max(100),
+  productIds: z.array(z.uuid()).max(100),
 })
 
 export type CreateDiscountFormInput = z.input<typeof createDiscountSchema>
@@ -120,7 +120,7 @@ export async function setDiscountActiveAction(
   rawDiscountId: string,
   active: boolean,
 ): Promise<ActionResult<{ readonly isActive: boolean }>> {
-  if (!z.string().uuid().safeParse(rawDiscountId).success) {
+  if (!z.uuid().safeParse(rawDiscountId).success) {
     return { ok: false, error: 'That discount does not exist.' }
   }
   return memberAction(

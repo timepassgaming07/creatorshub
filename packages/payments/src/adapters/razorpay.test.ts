@@ -149,7 +149,7 @@ describe('RazorpayPaymentProvider', () => {
 
     const [url, init] = fetcher.mock.calls[0] ?? []
     expect(url).toBe('https://api.razorpay.com/v1/orders')
-    const sent = JSON.parse(String(init?.body)) as Record<string, unknown>
+    const sent = JSON.parse(init?.body as string) as Record<string, unknown>
     expect(sent['amount']).toBe(99900)
     expect(sent['receipt']).toBe(ORDER.replaceAll('-', ''))
     expect(sent['notes']).toEqual({ workspace_id: WS, order_id: ORDER })
@@ -181,7 +181,7 @@ describe('RazorpayPaymentProvider', () => {
     })
 
     expect(snapshot.status).toBe('captured')
-    expect(fetcher.mock.calls.some(([url]) => String(url).endsWith('/pay_1/capture'))).toBe(true)
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith('/pay_1/capture'))).toBe(true)
   })
 
   it('rejects a forged checkout signature without calling Razorpay', async () => {
@@ -341,7 +341,7 @@ describe('RazorpayPaymentProvider', () => {
 
     expect(result.providerRefundId).toBe('rfnd_1')
     const [, init] = fetcher.mock.calls[0] ?? []
-    expect((JSON.parse(String(init?.body)) as { receipt: string }).receipt).toBe(
+    expect((JSON.parse(init?.body as string) as { receipt: string }).receipt).toBe(
       refundId.replaceAll('-', ''),
     )
   })

@@ -13,7 +13,7 @@ import {
   type WorkspaceContext,
 } from '@creatorhub/contracts'
 import type { RepositoryScope } from '@creatorhub/db'
-import { authorise, type Permission, type WorkspaceRole } from '@creatorhub/domain'
+import { authorise, type Permission } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getWorkspaceAccess, type WorkspaceAccess } from './workspace-access'
@@ -41,7 +41,7 @@ export async function authoriseMember(
   if (!access) throw new ActionFailure('You are not a member of this workspace.')
   const wsId = toWorkspaceId(access.workspace.id)
   const decision = authorise(
-    { userId: session.userId, workspaceId: wsId, role: access.role as WorkspaceRole },
+    { userId: session.userId, workspaceId: wsId, role: access.role },
     wsId,
     permission,
   )

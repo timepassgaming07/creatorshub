@@ -6,63 +6,83 @@
  * Supports 'light', 'dark', and 'system' modes, synchronizing with
  * `data-theme` on the root <html> element and persisting to localStorage.
  */
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
-interface ThemeContextType {
+type ThemeContextType = {
   theme: Theme
   resolvedTheme: 'light' | 'dark'
   setTheme: (theme: Theme) => void
 }
 
+const STORAGE_KEY = 'creatorhub-theme'
+
 const ThemeContext = createContext<ThemeContextType>({
   theme: 'system',
   resolvedTheme: 'dark',
-  setTheme: () => {},
+  setTheme: () => undefined,
 })
 
-export function ThemeProvider({ children }: { readonly children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system')
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
+// The saved choice and the OS preference live outside React, so they are read
+// as external stores. The server snapshot matches what the server rendered;
+// the pre-hydration script in app/layout.tsx has already set the real theme on
+// <html>, and React re-renders with the client value right after hydrating.
+const themeListeners = new Set<() => void>()
+// Used when storage is unavailable (private mode): the choice then lasts this page only.
+let unsavedTheme: Theme = 'system'
 
-  useEffect(() => {
-    // Read saved preference from localStorage
-    const saved = localStorage.getItem('creatorhub-theme') as Theme | null
-    if (saved && (saved === 'light' || saved === 'dark' || saved === 'system')) {
-      setThemeState(saved)
-    }
-  }, [])
+function readSavedTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved === 'light' || saved === 'dark' ? saved : 'system'
+  } catch {
+    return unsavedTheme
+  }
+}
+
+function subscribeToSavedTheme(onChange: () => void): () => void {
+  themeListeners.add(onChange)
+  window.addEventListener('storage', onChange)
+  return () => {
+    themeListeners.delete(onChange)
+    window.removeEventListener('storage', onChange)
+  }
+}
+
+const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+function subscribeToSystemTheme(onChange: () => void): () => void {
+  const query = window.matchMedia(DARK_QUERY)
+  query.addEventListener('change', onChange)
+  return () => {
+    query.removeEventListener('change', onChange)
+  }
+}
+
+export function ThemeProvider({ children }: { readonly children: ReactNode }) {
+  const theme = useSyncExternalStore(subscribeToSavedTheme, readSavedTheme, () => 'system' as const)
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    () => window.matchMedia(DARK_QUERY).matches,
+    () => true,
+  )
+  const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
 
   useEffect(() => {
     const root = document.documentElement
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    root.setAttribute('data-theme', resolvedTheme)
+    root.classList.toggle('dark', resolvedTheme === 'dark')
+  }, [resolvedTheme])
 
-    const applyTheme = () => {
-      let resolved: 'light' | 'dark'
-      if (theme === 'system') {
-        resolved = mediaQuery.matches ? 'dark' : 'light'
-      } else {
-        resolved = theme
-      }
-
-      setResolvedTheme(resolved)
-      root.setAttribute('data-theme', resolved)
-      if (resolved === 'dark') {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
+  const setTheme = (next: Theme) => {
+    unsavedTheme = next
+    try {
+      localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // Kept in unsavedTheme instead.
     }
-
-    applyTheme()
-    mediaQuery.addEventListener('change', applyTheme)
-    return () => mediaQuery.removeEventListener('change', applyTheme)
-  }, [theme])
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme)
-    localStorage.setItem('creatorhub-theme', newTheme)
+    for (const listener of themeListeners) listener()
   }
 
   return (

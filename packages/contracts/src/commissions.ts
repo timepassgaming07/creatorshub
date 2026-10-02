@@ -11,18 +11,14 @@ import { z } from 'zod'
 import {
   type AffiliateId,
   type AttributionId,
-  type ClawbackId,
   type CommissionId,
   type OrderId,
   type RefundId,
-  type WorkspaceId,
   affiliateIdSchema,
   attributionIdSchema,
-  clawbackIdSchema,
   commissionIdSchema,
   orderIdSchema,
   refundIdSchema,
-  workspaceIdSchema,
 } from './identifiers.js'
 import { type CurrencyCode } from './money.js'
 import { currencySchema, moneyAmountSchema } from './catalogue.js'

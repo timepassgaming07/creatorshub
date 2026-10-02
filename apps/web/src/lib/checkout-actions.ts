@@ -43,6 +43,11 @@ const buyerSchema = z.object({
     .or(z.literal('')),
 })
 
+/** The form sends '' for an optional field left empty. */
+function blankToNull(value: string | null | undefined): string | null {
+  return value?.length ? value : null
+}
+
 const lineSchema = z.object({
   productId: idSchema,
   variantId: idSchema.nullish(),
@@ -91,7 +96,7 @@ export async function getCheckoutQuoteAction(
     store: { host },
     line,
     discountCode,
-    buyer: { country: buyer.country, stateCode: buyer.stateCode, gstin: buyer.gstin || null },
+    buyer: { country: buyer.country, stateCode: buyer.stateCode, gstin: blankToNull(buyer.gstin) },
   })
 }
 
@@ -113,11 +118,11 @@ export async function startCheckoutAction(
       buyer: {
         country: input.buyer.country,
         stateCode: input.buyer.stateCode,
-        gstin: input.buyer.gstin || null,
+        gstin: blankToNull(input.buyer.gstin),
       },
       email: input.email.toLowerCase(),
       name: input.name,
-      phone: input.phone || null,
+      phone: blankToNull(input.phone),
       referral,
     })
   } catch (error) {

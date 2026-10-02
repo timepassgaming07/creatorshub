@@ -11,16 +11,14 @@
 'use server'
 
 import {
-  type ApprovePayoutInput,
   type BeneficiaryAccountDTO,
-  type CreateBeneficiaryAccountInput,
+  type BeneficiaryAccountType,
+  type BeneficiaryStatus,
   type CurrencyCode,
   type PayeeType,
   type PayoutBalanceOverviewDTO,
   type PayoutDTO,
-  type PayoutFilter,
-  type RejectPayoutInput,
-  type RequestPayoutInput,
+  type PayoutStatus,
   approvePayoutSchema,
   beneficiaryAccountId as toBeneficiaryAccountId,
   createBeneficiaryAccountSchema,
@@ -71,16 +69,16 @@ export type PayoutActionResult<T> =
 
 function mapBeneficiaryDTO(b: BeneficiaryAccount): BeneficiaryAccountDTO {
   return {
-    id: b.id as any,
-    workspaceId: b.workspaceId as any,
-    payeeType: b.payeeType as any,
+    id: toBeneficiaryAccountId(b.id),
+    workspaceId: toWorkspaceId(b.workspaceId),
+    payeeType: b.payeeType as PayeeType,
     payeeId: b.payeeId,
     accountHolderName: b.accountHolderName,
-    accountType: b.accountType as any,
+    accountType: b.accountType as BeneficiaryAccountType,
     maskedAccountNumber: b.maskedAccountNumber,
     ifscCode: b.ifscCode,
     vpa: b.vpa,
-    status: b.status as any,
+    status: b.status as BeneficiaryStatus,
     isDefault: b.isDefault,
     verifiedAt: b.verifiedAt?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),
@@ -89,19 +87,19 @@ function mapBeneficiaryDTO(b: BeneficiaryAccount): BeneficiaryAccountDTO {
 
 function mapPayoutDTO(p: PayoutWithBeneficiary): PayoutDTO {
   return {
-    id: p.id as any,
-    workspaceId: p.workspaceId as any,
-    payeeType: p.payeeType as any,
+    id: toPayoutId(p.id),
+    workspaceId: toWorkspaceId(p.workspaceId),
+    payeeType: p.payeeType as PayeeType,
     payeeId: p.payeeId,
-    beneficiaryAccountId: p.beneficiaryAccountId as any,
+    beneficiaryAccountId: toBeneficiaryAccountId(p.beneficiaryAccountId),
     amountMinor: p.amount.toString(),
     currency: p.currency as CurrencyCode,
-    status: p.status as any,
+    status: p.status as PayoutStatus,
     provider: p.provider,
     providerPayoutId: p.providerPayoutId,
     ledgerTransactionId: p.ledgerTransactionId,
-    requestedBy: p.requestedBy as any,
-    approvedBy: p.approvedBy as any,
+    requestedBy: toUserId(p.requestedBy),
+    approvedBy: p.approvedBy ? toUserId(p.approvedBy) : null,
     requestedAt: p.createdAt.toISOString(),
     approvedAt: p.approvedAt?.toISOString() ?? null,
     completedAt: p.completedAt?.toISOString() ?? null,
@@ -119,7 +117,7 @@ async function authenticateAndAuthorise(
     | 'payout.manage_beneficiaries',
 ) {
   const session = await getServerSession()
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     return { error: { code: 'UNAUTHENTICATED' as const, message: 'Sign in to continue.' } }
   }
 
@@ -131,7 +129,7 @@ async function authenticateAndAuthorise(
     workspaceContext({
       workspaceId,
       actorId: actorUserId,
-      requestId: toRequestId(`req-auth-${Date.now()}`),
+      requestId: toRequestId(`req-auth-${String(Date.now())}`),
     }),
     async (tx) => {
       return workspaceMembers.findMemberByUserId(
@@ -140,7 +138,7 @@ async function authenticateAndAuthorise(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-auth-${Date.now()}`),
+            requestId: toRequestId(`req-auth-${String(Date.now())}`),
           }),
         },
         actorUserId,
@@ -196,7 +194,7 @@ export async function createBeneficiaryAccountAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-beneficiary-create-${Date.now()}`),
+        requestId: toRequestId(`req-beneficiary-create-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -204,7 +202,7 @@ export async function createBeneficiaryAccountAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-beneficiary-create-${Date.now()}`),
+            requestId: toRequestId(`req-beneficiary-create-${String(Date.now())}`),
           }),
         }
 
@@ -287,7 +285,7 @@ export async function listBeneficiaryAccountsAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-beneficiary-list-${Date.now()}`),
+        requestId: toRequestId(`req-beneficiary-list-${String(Date.now())}`),
       }),
       async (tx) => {
         return beneficiaryAccountsRepo.listBeneficiaryAccounts(
@@ -296,7 +294,7 @@ export async function listBeneficiaryAccountsAction(
             context: workspaceContext({
               workspaceId,
               actorId: actorUserId,
-              requestId: toRequestId(`req-beneficiary-list-${Date.now()}`),
+              requestId: toRequestId(`req-beneficiary-list-${String(Date.now())}`),
             }),
           },
           params,
@@ -326,7 +324,7 @@ export async function setDefaultBeneficiaryAccountAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-beneficiary-default-${Date.now()}`),
+        requestId: toRequestId(`req-beneficiary-default-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -334,7 +332,7 @@ export async function setDefaultBeneficiaryAccountAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-beneficiary-default-${Date.now()}`),
+            requestId: toRequestId(`req-beneficiary-default-${String(Date.now())}`),
           }),
         }
 
@@ -380,7 +378,7 @@ export async function deleteBeneficiaryAccountAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-beneficiary-delete-${Date.now()}`),
+        requestId: toRequestId(`req-beneficiary-delete-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -388,7 +386,7 @@ export async function deleteBeneficiaryAccountAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-beneficiary-delete-${Date.now()}`),
+            requestId: toRequestId(`req-beneficiary-delete-${String(Date.now())}`),
           }),
         }
 
@@ -452,7 +450,7 @@ export async function requestPayoutAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-request-${Date.now()}`),
+        requestId: toRequestId(`req-payout-request-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -460,7 +458,7 @@ export async function requestPayoutAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-payout-request-${Date.now()}`),
+            requestId: toRequestId(`req-payout-request-${String(Date.now())}`),
           }),
         }
 
@@ -556,7 +554,7 @@ export async function approvePayoutAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-approve-${Date.now()}`),
+        requestId: toRequestId(`req-payout-approve-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -564,7 +562,7 @@ export async function approvePayoutAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-payout-approve-${Date.now()}`),
+            requestId: toRequestId(`req-payout-approve-${String(Date.now())}`),
           }),
         }
 
@@ -668,7 +666,7 @@ export async function rejectPayoutAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-reject-${Date.now()}`),
+        requestId: toRequestId(`req-payout-reject-${String(Date.now())}`),
       }),
       async (tx) => {
         const scope = {
@@ -676,7 +674,7 @@ export async function rejectPayoutAction(
           context: workspaceContext({
             workspaceId,
             actorId: actorUserId,
-            requestId: toRequestId(`req-payout-reject-${Date.now()}`),
+            requestId: toRequestId(`req-payout-reject-${String(Date.now())}`),
           }),
         }
 
@@ -732,7 +730,7 @@ export async function listPayoutsAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-list-${Date.now()}`),
+        requestId: toRequestId(`req-payout-list-${String(Date.now())}`),
       }),
       async (tx) => {
         return payoutsRepo.listPayouts(
@@ -741,7 +739,7 @@ export async function listPayoutsAction(
             context: workspaceContext({
               workspaceId,
               actorId: actorUserId,
-              requestId: toRequestId(`req-payout-list-${Date.now()}`),
+              requestId: toRequestId(`req-payout-list-${String(Date.now())}`),
             }),
           },
           parsed.data,
@@ -770,7 +768,7 @@ export async function getPayoutBalanceSummaryAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-balance-${Date.now()}`),
+        requestId: toRequestId(`req-payout-balance-${String(Date.now())}`),
       }),
       async (tx) => {
         return payoutsRepo.getPayoutBalanceOverview(
@@ -779,7 +777,7 @@ export async function getPayoutBalanceSummaryAction(
             context: workspaceContext({
               workspaceId,
               actorId: actorUserId,
-              requestId: toRequestId(`req-payout-balance-${Date.now()}`),
+              requestId: toRequestId(`req-payout-balance-${String(Date.now())}`),
             }),
           },
           currencyCode,
@@ -807,7 +805,7 @@ export async function exportPayoutsCsvAction(
       workspaceContext({
         workspaceId,
         actorId: actorUserId,
-        requestId: toRequestId(`req-payout-export-${Date.now()}`),
+        requestId: toRequestId(`req-payout-export-${String(Date.now())}`),
       }),
       async (tx) => {
         return payoutsRepo.listPayouts(
@@ -816,7 +814,7 @@ export async function exportPayoutsCsvAction(
             context: workspaceContext({
               workspaceId,
               actorId: actorUserId,
-              requestId: toRequestId(`req-payout-export-${Date.now()}`),
+              requestId: toRequestId(`req-payout-export-${String(Date.now())}`),
             }),
           },
           { limit: 1000, offset: 0 },

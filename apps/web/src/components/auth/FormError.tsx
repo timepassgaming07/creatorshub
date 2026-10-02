@@ -15,7 +15,7 @@ export function FormError({ message }: { readonly message: string | null | undef
 
 /** Better Auth error codes, in words a person can act on. */
 export function authErrorMessage(code: string | undefined, fallback: string): string {
-  switch (code) {
+  switch (code ?? '') {
     case 'INVALID_EMAIL_OR_PASSWORD':
       return 'That email and password do not match. Check both, or reset your password.'
     case 'USER_ALREADY_EXISTS':

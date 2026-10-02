@@ -40,7 +40,7 @@ export const entitlementRecordSchema = z.object({
   workspaceId: workspaceIdSchema,
   orderId: orderIdSchema,
   productId: productIdSchema,
-  customerEmail: z.string().email(),
+  customerEmail: z.email(),
   status: entitlementStatusSchema,
   grantedAt: z.date(),
   revokedAt: z.date().nullable().optional(),
@@ -70,7 +70,7 @@ export const createEntitlementInputSchema = z.object({
   workspaceId: workspaceIdSchema,
   orderId: orderIdSchema,
   productId: productIdSchema,
-  customerEmail: z.string().email(),
+  customerEmail: z.email(),
   status: entitlementStatusSchema.default('active'),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })

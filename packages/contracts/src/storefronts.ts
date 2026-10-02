@@ -114,7 +114,8 @@ function linkUrl(protocols: readonly string[]) {
     .string()
     .trim()
     .max(500)
-    .url('Must be a valid URL.')
+    // pipe, so the URL check sees the trimmed value
+    .pipe(z.url('Must be a valid URL.'))
     .refine(
       (value) => protocols.some((protocol) => value.toLowerCase().startsWith(protocol)),
       'Links must start with https://.',

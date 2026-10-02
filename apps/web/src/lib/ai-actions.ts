@@ -158,7 +158,7 @@ export async function generateSeoMetadataAction(
 
 export async function generateAnalyticsInsightsAction(
   workspaceIdRaw: string,
-  timeframeRaw: string = '30d',
+  timeframeRaw = '30d',
 ): Promise<AiActionResult<AnalyticsInsightsOutput>> {
   const timeframe: AnalyticsTimeframe =
     ANALYTICS_TIMEFRAMES.find((t) => t === timeframeRaw) ?? '30d'

@@ -74,7 +74,7 @@ export function AreaChart({
 
   if (data.length === 0) return null
 
-  const baseline = HEIGHT - PAD.bottom
+  const baseline = (HEIGHT - PAD.bottom).toFixed(1)
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   const area = `${line} L${(points[points.length - 1]?.x ?? 0).toFixed(1)},${baseline} L${(points[0]?.x ?? 0).toFixed(1)},${baseline} Z`
   const last = points[points.length - 1]

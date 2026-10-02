@@ -23,7 +23,7 @@ import {
   orders,
   workspaceMembers,
 } from '@creatorhub/db'
-import { authorise, type Membership } from '@creatorhub/domain'
+import { authorise } from '@creatorhub/domain'
 
 import { getDatabase } from './db'
 import { getServerSession } from './server-session'
@@ -115,7 +115,7 @@ export async function listCustomersAction(
 
   const wsId = toWorkspaceId(rawWorkspaceId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-list-cust-${Date.now()}`)
+  const reqId = toRequestId(`req-list-cust-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 
@@ -127,7 +127,7 @@ export async function listCustomersAction(
     }
 
     const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
+      { userId: actorId, workspaceId: wsId, role: member.role },
       wsId,
       'customer.view',
     )
@@ -190,7 +190,7 @@ export async function getCustomerDetailsAction(
   const wsId = toWorkspaceId(rawWorkspaceId)
   const custId = toCustomerId(rawCustomerId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-cust-detail-${Date.now()}`)
+  const reqId = toRequestId(`req-cust-detail-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 
@@ -202,7 +202,7 @@ export async function getCustomerDetailsAction(
     }
 
     const authCheck = authorise(
-      { userId: actorId, workspaceId: wsId, role: member.role } as Membership,
+      { userId: actorId, workspaceId: wsId, role: member.role },
       wsId,
       'customer.view',
     )
@@ -265,7 +265,7 @@ export async function exportCustomersCsvAction(
 
   const wsId = toWorkspaceId(rawWorkspaceId)
   const actorId = toUserId(session.user.id)
-  const reqId = toRequestId(`req-csv-cust-${Date.now()}`)
+  const reqId = toRequestId(`req-csv-cust-${String(Date.now())}`)
   const context = workspaceContext({ workspaceId: wsId, actorId, requestId: reqId })
   const db = getDatabase()
 

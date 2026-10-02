@@ -440,7 +440,13 @@ function SecuritySection() {
   }
 
   useEffect(() => {
-    void loadPasskeys()
+    let live = true
+    void authClient.passkey.listUserPasskeys().then((result) => {
+      if (live) setPasskeys((result.data as Passkey[] | null) ?? [])
+    })
+    return () => {
+      live = false
+    }
   }, [])
 
   async function changePassword() {
@@ -476,10 +482,10 @@ function SecuritySection() {
   async function addPasskey() {
     setPasskeyBusy(true)
     const result = await authClient.passkey.addPasskey({
-      name: `${navigator.platform || 'This device'}`,
+      name: navigator.platform || 'This device',
     })
     setPasskeyBusy(false)
-    if (result?.error) {
+    if (result.error) {
       toast.show({
         title: 'Passkey not added',
         description: 'The request was cancelled or this device does not support passkeys.',
@@ -556,7 +562,7 @@ function SecuritySection() {
               <li key={p.id} className="flex items-center gap-3 py-3">
                 <KeyRound className="size-4 text-content-tertiary" aria-hidden="true" />
                 <span className="flex-1 text-body">
-                  {p.name || 'Passkey'}
+                  {p.name?.trim() ? p.name : 'Passkey'}
                   <span className="ml-2 text-caption text-content-tertiary">
                     added{' '}
                     {formatDate(p.createdAt instanceof Date ? p.createdAt : new Date(p.createdAt))}

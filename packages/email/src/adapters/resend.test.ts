@@ -31,7 +31,7 @@ describe('ResendEmailProvider', () => {
     const [url, init] = fetcher.mock.calls[0] ?? []
     expect(url).toBe('https://api.resend.com/emails')
     expect((init?.headers as Record<string, string>)['Authorization']).toBe('Bearer re_test')
-    const body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    const body = JSON.parse(init?.body as string) as Record<string, unknown>
     // A comma in the brand must not create a second recipient.
     expect(body['from']).toBe(`"Studio, 'Nova' via CreatorHub" <no-reply@creatorhub.online>`)
     expect(body['to']).toEqual(['"Asha" <buyer@example.com>'])

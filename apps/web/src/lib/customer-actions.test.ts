@@ -140,7 +140,7 @@ describe('Customer Management Server Actions (Slice 7)', () => {
     vi.spyOn(customers, 'findCustomerById').mockResolvedValue(sampleCustomer)
     vi.spyOn(orders, 'findOrdersByCustomerId').mockResolvedValue([
       {
-        id: 'ord_1' as any,
+        id: 'ord_1',
         workspaceId: wsId,
         customerId: custId,
         customerEmail: 'buyer@example.com',
@@ -161,11 +161,11 @@ describe('Customer Management Server Actions (Slice 7)', () => {
     ])
     vi.spyOn(fulfillment, 'findEntitlementsByCustomerEmail').mockResolvedValue([
       {
-        id: 'ent_1' as any,
+        id: 'ent_1',
         workspaceId: wsId,
-        orderId: 'ord_1' as any,
+        orderId: 'ord_1',
         customerEmail: 'buyer@example.com',
-        productId: 'prod_1' as any,
+        productId: 'prod_1',
         status: 'active' as const,
         metadata: {},
         grantedAt: new Date(),
@@ -213,7 +213,7 @@ describe('Customer Management Server Actions (Slice 7)', () => {
         updatedAt: new Date(),
       },
     ])
-    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue({} as any)
+    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue({} as never)
 
     const result = await exportCustomersCsvAction(wsId)
     expect(result.ok).toBe(true)

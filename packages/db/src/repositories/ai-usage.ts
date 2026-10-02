@@ -6,7 +6,7 @@
  * 2. Aggregate monthly token usage against workspace quotas.
  * 3. Multi-tenant RLS query scoping via RepositoryScope.
  */
-import { and, desc, eq, gte, lt, sql } from 'drizzle-orm'
+import { and, desc, gte, lt, sql } from 'drizzle-orm'
 import type {
   AiPromptId,
   AiUsageRecordDTO,
@@ -87,12 +87,12 @@ export async function getMonthlyUsageSummary(
   } = {},
 ): Promise<AiUsageSummaryDTO> {
   const now = new Date()
-  const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+  const currentMonth = `${String(now.getUTCFullYear())}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
   const billingMonth = options.billingMonth ?? currentMonth
 
   const [yearStr, monthStr] = billingMonth.split('-')
-  const year = parseInt(yearStr || `${now.getUTCFullYear()}`, 10)
-  const month = parseInt(monthStr || `${now.getUTCMonth() + 1}`, 10)
+  const year = yearStr ? parseInt(yearStr, 10) : now.getUTCFullYear()
+  const month = monthStr ? parseInt(monthStr, 10) : now.getUTCMonth() + 1
 
   const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0))
   const startOfNextMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0))

@@ -5,8 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   exportAnalyticsCsvAction,
-  getAffiliatePerformanceAction,
-  getProductPerformanceAction,
   getWorkspaceAnalyticsAction,
 } from './analytics-actions'
 
@@ -54,13 +52,13 @@ describe('Analytics Server Actions (Slice 10)', () => {
     vi.mocked(getServerSession).mockResolvedValue({
       user: { id: USER_ID, email: 'owner@example.com' },
       session: { id: 's-1' },
-    } as any)
+    } as never)
 
     vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
       userId: USER_ID,
       workspaceId: WS_ID,
       role: 'owner',
-    } as any)
+    } as never)
 
     const mockSummary = {
       timeframe: '30d' as const,
@@ -83,9 +81,9 @@ describe('Analytics Server Actions (Slice 10)', () => {
 
     vi.mocked(analytics.getWorkspaceAnalyticsSummary).mockResolvedValue(mockSummary)
 
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
+    vi.mocked(getDatabase).mockReturnValue({
+      withWorkspace: vi.fn((_ctx: unknown, fn: (tx: unknown) => unknown) => fn({ tx: {} })),
+    } as never)
 
     const res = await getWorkspaceAnalyticsAction(WS_ID, '30d')
     expect(res.ok).toBe(true)
@@ -99,13 +97,13 @@ describe('Analytics Server Actions (Slice 10)', () => {
     vi.mocked(getServerSession).mockResolvedValue({
       user: { id: USER_ID, email: 'owner@example.com' },
       session: { id: 's-1' },
-    } as any)
+    } as never)
 
     vi.mocked(workspaceMembers.findMemberByUserId).mockResolvedValue({
       userId: USER_ID,
       workspaceId: WS_ID,
       role: 'admin',
-    } as any)
+    } as never)
 
     vi.mocked(analytics.getWorkspaceAnalyticsSummary).mockResolvedValue({
       timeframe: '30d',
@@ -133,11 +131,11 @@ describe('Analytics Server Actions (Slice 10)', () => {
         },
       ],
       funnel: [],
-    } as any)
+    } as never)
 
-    vi.mocked(getDatabase).mockResolvedValue({
-      withWorkspace: vi.fn().mockImplementation((_, fn) => fn({ tx: {} })),
-    } as any)
+    vi.mocked(getDatabase).mockReturnValue({
+      withWorkspace: vi.fn((_ctx: unknown, fn: (tx: unknown) => unknown) => fn({ tx: {} })),
+    } as never)
 
     const res = await exportAnalyticsCsvAction(WS_ID, '30d')
     expect(res.ok).toBe(true)

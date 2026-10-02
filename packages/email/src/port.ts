@@ -30,7 +30,7 @@ export type SendEmailResult = {
   readonly timestamp: Date
 }
 
-export interface EmailProvider {
+export type EmailProvider = {
   readonly name: string
   send(input: SendEmailInput): Promise<SendEmailResult>
   sendBatch?(inputs: readonly SendEmailInput[]): Promise<readonly SendEmailResult[]>

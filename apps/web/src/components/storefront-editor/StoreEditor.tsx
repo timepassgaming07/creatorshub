@@ -33,7 +33,6 @@ import { Button, Input, Select, useToast } from '@creatorhub/ui'
 import {
   Badge,
   Card,
-  CardHeader,
   CopyButton,
   cn,
   Notice,
@@ -81,6 +80,17 @@ const LAYOUTS: readonly {
   { value: 'minimal', label: 'Minimal', hint: 'A list, like link-in-bio' },
   { value: 'editorial', label: 'Editorial', hint: 'Dark, magazine feel' },
 ]
+
+/** A copy of the list with two positions exchanged; out-of-range positions leave it as is. */
+function swap<T>(items: readonly T[], from: number, to: number): T[] {
+  const next = [...items]
+  const a = next[from]
+  const b = next[to]
+  if (a === undefined || b === undefined) return next
+  next[from] = b
+  next[to] = a
+  return next
+}
 
 function Field({
   label,
@@ -672,9 +682,7 @@ export function StoreEditor({
                                 label="Move up"
                                 disabled={index === 0}
                                 onClick={() => {
-                                  const next = [...theme.customLinks]
-                                  ;[next[index - 1], next[index]] = [next[index]!, next[index - 1]!]
-                                  setTheme({ customLinks: next })
+                                  setTheme({ customLinks: swap(theme.customLinks, index, index - 1) })
                                 }}
                               >
                                 <ArrowUp className="size-4" aria-hidden="true" />
@@ -683,9 +691,7 @@ export function StoreEditor({
                                 label="Move down"
                                 disabled={index === theme.customLinks.length - 1}
                                 onClick={() => {
-                                  const next = [...theme.customLinks]
-                                  ;[next[index + 1], next[index]] = [next[index]!, next[index + 1]!]
-                                  setTheme({ customLinks: next })
+                                  setTheme({ customLinks: swap(theme.customLinks, index, index + 1) })
                                 }}
                               >
                                 <ArrowDown className="size-4" aria-hidden="true" />
@@ -787,7 +793,7 @@ export function StoreEditor({
                 <Field label="Layout">
                   <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Layout">
                     {LAYOUTS.map((layout) => {
-                      const selected = (theme.layoutPreset ?? 'showcase') === layout.value
+                      const selected = theme.layoutPreset === layout.value
                       return (
                         <button
                           key={layout.value}
@@ -817,7 +823,7 @@ export function StoreEditor({
                 <Field label="Heading font">
                   <Segmented<'sans' | 'serif' | 'mono'>
                     label="Heading font"
-                    value={theme.fontPreset ?? 'sans'}
+                    value={theme.fontPreset}
                     onChange={(value) => {
                       setTheme({ fontPreset: value })
                     }}

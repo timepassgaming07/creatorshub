@@ -12,9 +12,6 @@ import { z } from 'zod'
 import {
   beneficiaryAccountIdSchema,
   payoutIdSchema,
-  payoutItemIdSchema,
-  userIdSchema,
-  workspaceIdSchema,
 } from './identifiers.js'
 import type {
   BeneficiaryAccountId,
@@ -87,10 +84,7 @@ export const createBeneficiaryAccountSchema = z
       if (data.accountType === 'bank_account') {
         return !!data.accountNumber && !!data.ifscCode
       }
-      if (data.accountType === 'vpa') {
-        return !!data.vpa
-      }
-      return false
+      return !!data.vpa
     },
     {
       message: 'Bank account requires account number & IFSC; UPI requires valid VPA.',
@@ -149,8 +143,8 @@ export type RejectPayoutInput = z.infer<typeof rejectPayoutSchema>
 export const payoutFilterSchema = z.object({
   status: payoutStatusSchema.optional(),
   payeeType: payeeTypeSchema.optional(),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
   limit: z.number().int().min(1).max(100).default(20),
   offset: z.number().int().min(0).default(0),
 })

@@ -96,7 +96,7 @@ describe('Order Management Server Actions (Slice 7)', () => {
     const sampleOrder = {
       id: ordId,
       workspaceId: wsId,
-      customerId: 'cust_1' as any,
+      customerId: 'cust_1' as never,
       customerEmail: 'buyer@example.com',
       customerName: 'Buyer',
       customerPhone: '+919876543210',
@@ -150,7 +150,7 @@ describe('Order Management Server Actions (Slice 7)', () => {
       {
         id: ordId,
         workspaceId: wsId,
-        customerId: 'cust_1' as any,
+        customerId: 'cust_1',
         customerEmail: 'buyer@example.com',
         customerName: 'Buyer Name',
         customerPhone: null,
@@ -167,7 +167,7 @@ describe('Order Management Server Actions (Slice 7)', () => {
         updatedAt: new Date('2026-08-30T10:00:00Z'),
       },
     ])
-    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue({} as any)
+    vi.spyOn(auditLog, 'writeAuditLog').mockResolvedValue({} as never)
 
     const result = await exportOrdersCsvAction(wsId)
     expect(result.ok).toBe(true)

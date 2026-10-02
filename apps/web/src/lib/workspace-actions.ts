@@ -389,7 +389,7 @@ export async function inviteMemberAction(
   }
 
   const email = input.email.trim().toLowerCase()
-  if (!z.string().email().max(254).safeParse(email).success) {
+  if (!z.email().max(254).safeParse(email).success) {
     return {
       success: false,
       error: {
@@ -548,7 +548,7 @@ export async function inviteMemberAction(
       })
 
     return { success: true, data: result.data }
-  } catch (err) {
+  } catch {
     return {
       success: false,
       error: {
@@ -665,7 +665,7 @@ export async function updateMemberRoleAction(
         data: { updated },
       }
     })
-  } catch (err) {
+  } catch {
     return {
       success: false,
       error: {
@@ -779,7 +779,7 @@ export async function removeMemberAction(
         data: { removed },
       }
     })
-  } catch (err) {
+  } catch {
     return {
       success: false,
       error: {

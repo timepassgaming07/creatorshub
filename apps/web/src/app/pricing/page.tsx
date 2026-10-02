@@ -81,14 +81,14 @@ export default function PricingPage() {
                 key={plan.name}
                 className={cn(
                   'flex flex-col rounded-2xl border p-7',
-                  'featured' in plan && plan.featured
+                  'featured' in plan
                     ? 'border-content-primary bg-surface-raised shadow-elevation-3'
                     : 'border-border-subtle bg-surface-raised',
                 )}
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-[17px] font-semibold">{plan.name}</h2>
-                  {'featured' in plan && plan.featured && (
+                  {'featured' in plan && (
                     <span className="rounded-full bg-accent-subtle px-2.5 py-0.5 text-caption font-medium text-accent">
                       Most creators start here
                     </span>
@@ -112,7 +112,7 @@ export default function PricingPage() {
                   href={plan.cta.href}
                   className={cn(
                     'mt-8 inline-flex h-11 items-center justify-center rounded-xl text-body font-medium transition-opacity hover:opacity-90',
-                    'featured' in plan && plan.featured
+                    'featured' in plan
                       ? 'bg-content-primary text-surface-base'
                       : 'border border-border-default text-content-primary',
                   )}

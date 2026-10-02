@@ -42,7 +42,7 @@ export const VALID_PAYOUT_TRANSITIONS: Readonly<Record<PayoutStatus, readonly Pa
 // ---------------------------------------------------------------------------
 
 export function canTransitionPayout(current: PayoutStatus, next: PayoutStatus): boolean {
-  const allowed = VALID_PAYOUT_TRANSITIONS[current] ?? []
+  const allowed = VALID_PAYOUT_TRANSITIONS[current]
   return allowed.includes(next)
 }
 

@@ -23,7 +23,7 @@ import { domainError, err, ok, type Result } from '../result.js'
 export function calculateHeldUntil(
   orderDate: Date,
   holdPeriodDays: number,
-  refundWindowDays: number = 14,
+  refundWindowDays = 14,
 ): Date {
   const safeHoldDays = Math.max(holdPeriodDays, refundWindowDays, 0)
   const MS_PER_DAY = 86_400_000
@@ -48,7 +48,7 @@ export function isValidCommissionStatusTransition(
   from: CommissionStatus,
   to: CommissionStatus,
 ): boolean {
-  return VALID_TRANSITIONS[from]?.includes(to) ?? false
+  return VALID_TRANSITIONS[from].includes(to)
 }
 
 /**

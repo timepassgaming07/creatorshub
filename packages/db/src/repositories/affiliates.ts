@@ -8,7 +8,7 @@
  * - Order attribution records with immutable rejection/approval decisions.
  * - Strict multi-tenant scoping on workspace_id.
  */
-import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
+import { count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 
 import { insertValues, scoped, type RepositoryScope } from '../repository.js'
 import {
@@ -23,6 +23,12 @@ import {
   type AffiliateRow,
   type AttributionRow,
 } from '../schema/affiliates.js'
+
+/** A write with `.returning()` yields one row; an empty result is a bug, not a state. */
+function returned<T>(row: T | undefined): T {
+  if (!row) throw new Error('The database write returned no row.')
+  return row
+}
 
 export type UpsertAffiliateProgramInput = {
   readonly isActive?: boolean | undefined
@@ -121,7 +127,7 @@ export async function upsertAffiliateProgram(
       .where(scoped(scope, affiliatePrograms, eq(affiliatePrograms.id, existing.id)))
       .returning()
 
-    return updated!
+    return returned(updated)
   }
 
   const [created] = await scope.tx
@@ -137,7 +143,7 @@ export async function upsertAffiliateProgram(
     )
     .returning()
 
-  return created!
+  return returned(created)
 }
 
 /**
@@ -161,7 +167,7 @@ export async function createAffiliate(
     )
     .returning()
 
-  return created!
+  return returned(created)
 }
 
 /**
@@ -310,11 +316,11 @@ export async function getAffiliateProgramSummary(scope: RepositoryScope): Promis
     .where(scoped(scope, attributions, eq(attributions.status, 'attributed')))
 
   return {
-    totalAffiliates: Number(affiliateStats?.total ?? 0),
-    activeAffiliatesCount: Number(affiliateStats?.active ?? 0),
+    totalAffiliates: affiliateStats?.total ?? 0,
+    activeAffiliatesCount: affiliateStats?.active ?? 0,
     totalReferredRevenueMinor: 0n, // Can be joined with orders or derived
     totalCommissionAccruedMinor: attributionStats?.totalCommission ?? 0n,
-    totalConversionsCount: Number(affiliateStats?.conversions ?? 0),
+    totalConversionsCount: affiliateStats?.conversions ?? 0,
   }
 }
 
@@ -336,7 +342,7 @@ export async function createAffiliateLink(
     )
     .returning()
 
-  return created!
+  return returned(created)
 }
 
 /**
@@ -407,7 +413,7 @@ export async function recordAffiliateClick(
       .where(scoped(scope, affiliateLinks, eq(affiliateLinks.id, input.affiliateLinkId)))
   }
 
-  return click!
+  return returned(click)
 }
 
 /**
@@ -454,7 +460,7 @@ export async function createAttribution(
       .where(scoped(scope, affiliateLinks, eq(affiliateLinks.id, input.affiliateLinkId)))
   }
 
-  return attribution!
+  return returned(attribution)
 }
 
 /**

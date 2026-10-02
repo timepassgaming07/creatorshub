@@ -8,7 +8,6 @@
  */
 import type { Money } from '@creatorhub/contracts'
 import {
-  CurrencyMismatchError,
   IFSC_PATTERN,
   UPI_VPA_PATTERN,
   greaterThan,

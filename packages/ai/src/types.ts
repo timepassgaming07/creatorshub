@@ -46,7 +46,7 @@ export type AiTextResponse = {
   readonly provider: AiProviderType
 }
 
-export interface AiProvider {
+export type AiProvider = {
   readonly providerType: AiProviderType
   readonly defaultModel: string
 

@@ -40,17 +40,18 @@ function loadEnvFile() {
 async function main() {
   loadEnvFile()
   const config = loadDatabaseConfig(process.env)
-  console.log(`[db:migrate] Running migrations on ${config.databaseMigrationUrl}...`)
+  // The URL carries the password, so it is never printed.
+  process.stdout.write('[db:migrate] Running migrations...\n')
 
   const result = await runMigrations({
     migrationUrl: config.databaseMigrationUrl,
     migrationsFolder: MIGRATIONS_FOLDER,
   })
 
-  console.log(`[db:migrate] Successfully applied migrations in ${result.durationMs}ms.`)
+  process.stdout.write(`[db:migrate] Applied migrations in ${String(result.durationMs)}ms.\n`)
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error('[db:migrate] Migration error:', err)
   process.exit(1)
 })

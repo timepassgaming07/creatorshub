@@ -748,7 +748,7 @@ export function TabPanel({
   readonly children: ReactNode
 }) {
   const ctx = useContext(TabsContext)
-  if (!ctx || ctx.value !== value) return null
+  if (ctx?.value !== value) return null
   return (
     <div role="tabpanel" id={`${ctx.id}-panel-${value}`} aria-labelledby={`${ctx.id}-tab-${value}`}>
       {children}

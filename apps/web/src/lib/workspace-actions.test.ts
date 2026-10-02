@@ -157,7 +157,7 @@ describe('workspace actions - the owner is permanent', () => {
     mockGetServerSession.mockResolvedValue({
       userId: userId(actor),
       user: { id: actor, email: 'admin@example.com' },
-    } as ServerSession)
+    })
     vi.spyOn(workspaceMembers, 'findMemberByUserId').mockImplementation((_scope, id) =>
       Promise.resolve({
         id: `m-${String(id)}`,

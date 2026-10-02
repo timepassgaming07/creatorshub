@@ -7,7 +7,7 @@ import { AnthropicAiProvider } from './anthropic.js'
 const schema = z.object({ title: z.string() })
 
 function fakeClient(response: Record<string, unknown> | Error) {
-  const call = vi.fn(() =>
+  const call = vi.fn((_params: unknown) =>
     response instanceof Error ? Promise.reject(response) : Promise.resolve(response),
   )
   const client = { beta: { messages: { parse: call, create: call } } } as unknown as Anthropic
@@ -37,7 +37,7 @@ describe('AnthropicAiProvider', () => {
     expect(result.value.totalTokens).toBe(1200)
     // 1000 × 400 + 200 × 2000 micro-cents
     expect(result.value.costMicroCents).toBe(800_000n)
-    const params = call.mock.calls[0]?.[0] as unknown as Record<string, unknown>
+    const params = call.mock.calls[0]?.[0] as Record<string, unknown>
     expect(params['fallbacks']).toBe('default')
     expect(params).not.toHaveProperty('temperature')
   })

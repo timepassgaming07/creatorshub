@@ -113,7 +113,7 @@ export function Plasma({
     const vs = compile(gl, gl.VERTEX_SHADER, VERTEX)
     const fs = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT)
     const program = gl.createProgram()
-    if (!vs || !fs || !program) {
+    if (!vs || !fs) {
       setFallback(true)
       return
     }
