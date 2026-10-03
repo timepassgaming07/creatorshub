@@ -12,4 +12,4 @@
 -- ON DELETE SET NULL so removing a workspace never strands a user on it.
 
 ALTER TABLE users
-  ADD COLUMN default_workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS default_workspace_id uuid REFERENCES workspaces(id) ON DELETE SET NULL;

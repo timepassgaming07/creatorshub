@@ -11,4 +11,4 @@
 -- otherwise. Prices are exclusive of GST, which checkout states plainly.
 
 ALTER TABLE workspaces
-  ADD COLUMN tax_settings jsonb NOT NULL DEFAULT '{"gstRegistered": false}'::jsonb;
+  ADD COLUMN IF NOT EXISTS tax_settings jsonb NOT NULL DEFAULT '{"gstRegistered": false}'::jsonb;

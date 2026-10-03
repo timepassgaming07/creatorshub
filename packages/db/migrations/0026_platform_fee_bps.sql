@@ -5,7 +5,7 @@
 -- negotiate lower rates by updating this column.
 
 ALTER TABLE workspaces
-  ADD COLUMN platform_fee_bps INTEGER NOT NULL DEFAULT 500;
+  ADD COLUMN IF NOT EXISTS platform_fee_bps INTEGER NOT NULL DEFAULT 500;
 
 COMMENT ON COLUMN workspaces.platform_fee_bps IS
   'Platform fee in basis points. 500 = 5.00%. Deducted from every sale before creator payout.';
