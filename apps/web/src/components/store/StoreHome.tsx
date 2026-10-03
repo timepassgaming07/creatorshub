@@ -6,6 +6,7 @@
  * each a large card. Everything collapses to one column on a phone, which is
  * where most link-in-bio traffic arrives.
  */
+import type { CSSProperties } from 'react'
 import { ArrowUpRight, PackageOpen } from 'lucide-react'
 
 import { SocialIcon, PLATFORM_LABELS } from '@/components/storefront/SocialIcons'
@@ -55,14 +56,14 @@ export function StoreHome({
         ) : (
           <div
             aria-hidden="true"
-            className="h-32 rounded-3xl @xl:h-44"
+            className="store-banner-drift h-32 rounded-3xl @xl:h-44"
             style={{
               background:
                 'radial-gradient(80% 140% at 15% 0%, color-mix(in oklch, var(--store-accent) 55%, transparent), transparent 70%), radial-gradient(90% 120% at 100% 100%, color-mix(in oklch, var(--store-accent) 30%, var(--surface-sunken)), var(--surface-sunken))',
             }}
           />
         )}
-        <div className="-mt-12 flex flex-col items-center text-center @xl:-mt-14">
+        <div className="store-rise -mt-12 flex flex-col items-center text-center @xl:-mt-14">
           <div className="rounded-full bg-surface-base p-1.5">
             <StoreAvatar store={store} className="size-24 text-3xl @xl:size-28" />
           </div>
@@ -148,8 +149,12 @@ export function StoreHome({
           </div>
         ) : layout === 'minimal' ? (
           <ul className="mx-auto flex max-w-xl flex-col gap-3">
-            {products.map((product) => (
-              <li key={product.id}>
+            {products.map((product, index) => (
+              <li
+                key={product.id}
+                className="store-rise"
+                style={{ '--rise-index': index + 2 } as CSSProperties}
+              >
                 <ProductCard
                   product={product}
                   href={`${basePath}/p/${product.slug}`}
@@ -166,8 +171,12 @@ export function StoreHome({
                 : 'grid grid-cols-1 gap-6 @xl:grid-cols-2'
             }
           >
-            {products.map((product) => (
-              <li key={product.id} className="flex">
+            {products.map((product, index) => (
+              <li
+                key={product.id}
+                className="store-rise flex"
+                style={{ '--rise-index': index + 2 } as CSSProperties}
+              >
                 <div className="flex w-full">
                   <ProductCard product={product} href={`${basePath}/p/${product.slug}`} />
                 </div>

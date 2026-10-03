@@ -170,9 +170,11 @@ export function AreaChart({
           ) : null,
         )}
 
-        <path d={area} fill={`url(#${id}-fill)`} />
+        <path d={area} fill={`url(#${id}-fill)`} className="chart-area" />
         <path
           d={line}
+          pathLength={1}
+          className="chart-line"
           fill="none"
           stroke="var(--accent)"
           strokeWidth="2"

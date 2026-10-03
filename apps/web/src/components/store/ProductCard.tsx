@@ -94,7 +94,7 @@ export function ProductCard({
     return (
       <Link
         href={href}
-        className="group flex items-center gap-4 rounded-2xl border border-border-subtle bg-surface-raised p-3 pr-5 shadow-elevation-1 transition-all hover:-translate-y-0.5 hover:shadow-elevation-2"
+        className="store-card group flex items-center gap-4 rounded-2xl border border-border-subtle bg-surface-raised p-3 pr-5 shadow-elevation-1"
       >
         <div className="size-16 shrink-0 overflow-hidden rounded-xl">
           <ProductCover product={product} className="aspect-square h-full" />
@@ -117,10 +117,10 @@ export function ProductCard({
   return (
     <Link
       href={href}
-      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-elevation-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-elevation-3"
+      className="store-card group flex w-full flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface-raised shadow-elevation-1"
     >
       <div className="overflow-hidden">
-        <div className="transition-transform duration-500 group-hover:scale-[1.03]">
+        <div className="store-cover">
           <ProductCover product={product} />
         </div>
       </div>

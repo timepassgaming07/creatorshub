@@ -11,7 +11,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useId,
+  useRef,
   useState,
   type HTMLAttributes,
   type ReactNode,
@@ -247,6 +249,47 @@ export function OrderStatusBadge({ status }: { readonly status: string }) {
 // Numbers
 // ---------------------------------------------------------------------------
 
+/**
+ * A figure that counts up to the value already printed, once, when it mounts.
+ * The final text is what the server rendered, so hydration and screen readers
+ * see the real number; the animation only rewrites it on the way there.
+ */
+export function CountUp({ text }: { readonly text: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const match = /[\d,]+(\.\d+)?/.exec(text)
+    if (!match) return
+    const target = Number(match[0].replace(/,/g, ''))
+    if (!Number.isFinite(target) || target === 0) return
+    const decimals = match[1] ? match[1].length - 1 : 0
+    const locale = text.includes('₹') ? 'en-IN' : 'en-US'
+    const before = text.slice(0, match.index)
+    const after = text.slice(match.index + match[0].length)
+    const started = performance.now()
+    let frame = 0
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / 900)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      el.textContent =
+        before +
+        (target * eased).toLocaleString(locale, {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        }) +
+        after
+      if (progress < 1) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(frame)
+      el.textContent = text
+    }
+  }, [text])
+  return <span ref={ref}>{text}</span>
+}
+
 export function Stat({
   label,
   value,
@@ -270,7 +313,7 @@ export function Stat({
         {icon && <span className="text-content-tertiary [&_svg]:size-4">{icon}</span>}
       </div>
       <p className="mt-3 text-[28px] leading-9 font-semibold tracking-tight text-content-primary tabular-nums">
-        {value}
+        {typeof value === 'string' ? <CountUp text={value} /> : value}
       </p>
       {(hint ?? trend) && (
         <div className="mt-1.5 flex items-center gap-2 text-caption text-content-tertiary">
