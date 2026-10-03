@@ -1,0 +1,7 @@
+# Findings reviewed and accepted. Each line is a gitleaks fingerprint
+# (commit:file:rule:line). Gitleaks scans every commit in a pull request, so a
+# false positive stays in history; listing it here is the supported way out.
+#
+# Invented HMAC secrets for webhook signature tests, never used anywhere real.
+5e4b4e390396856f05afe5a160fe4dbc277b5a4c:apps/web/src/lib/webhook-route.test.ts:generic-api-key:43
+a89ebe430a355853769423a8ca4ad80342229447:packages/payments/src/adapters/razorpay.test.ts:generic-api-key:24
