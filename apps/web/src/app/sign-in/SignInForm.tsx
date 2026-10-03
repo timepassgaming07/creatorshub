@@ -42,6 +42,26 @@ export function SignInForm() {
     router.refresh()
   }
 
+  async function onDemoSignIn() {
+    setEmail('creator_demo@studionova.com')
+    setPassword('SuperSecretPassword123!')
+    setLoading(true)
+    setError(null)
+    const result = await signIn.email({
+      email: 'creator_demo@studionova.com',
+      password: 'SuperSecretPassword123!',
+    })
+    if (result.error) {
+      setLoading(false)
+      setError(
+        authErrorMessage(result.error.code, result.error.message ?? 'Demo sign-in failed.'),
+      )
+      return
+    }
+    router.push(next)
+    router.refresh()
+  }
+
   async function onPasskey() {
     setError(null)
     setPasskeyLoading(true)
@@ -87,6 +107,28 @@ export function SignInForm() {
         </p>
       )}
       <FormError message={error} />
+      <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-xs">
+        <div className="flex items-center justify-between font-semibold text-content-primary">
+          <span className="flex items-center gap-1.5 text-accent">
+            <span>⚡</span> Quick Demo Creator
+          </span>
+          <span className="text-[11px] text-content-secondary">Studio Nova</span>
+        </div>
+        <p className="mt-1 font-mono text-[11px] text-content-secondary">
+          creator_demo@studionova.com
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          size="medium"
+          fullWidth
+          loading={loading}
+          onClick={() => void onDemoSignIn()}
+          className="mt-3 cursor-pointer"
+        >
+          ⚡ 1-Click Demo Sign In
+        </Button>
+      </div>
       <form onSubmit={(e) => void onSubmit(e)} className="space-y-4" noValidate>
         <Input
           label="Email"

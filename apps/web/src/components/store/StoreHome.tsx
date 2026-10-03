@@ -41,8 +41,8 @@ export function StoreHome({
   const layout = storeLayout(store.theme)
   const headline = store.theme.heroHeadline ?? store.tagline
   const bio = store.theme.bio ?? store.theme.heroSubheadline ?? store.description
-  const socials = store.theme.socialLinks.filter((link) => safeHref(link.url))
-  const links = store.theme.customLinks.filter((link) => safeHref(link.url))
+  const socials = (store.theme.socialLinks ?? []).filter((link) => safeHref(link.url))
+  const links = (store.theme.customLinks ?? []).filter((link) => safeHref(link.url))
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5">

@@ -298,7 +298,15 @@ export function StoreEditor({
   const toast = useToast()
 
   const initial: Draft = useMemo(
-    () => ({ title: data.store.title, tagline: data.store.tagline ?? '', theme: data.store.theme }),
+    () => ({
+      title: data.store.title,
+      tagline: data.store.tagline ?? '',
+      theme: {
+        ...data.store.theme,
+        socialLinks: data.store.theme.socialLinks ?? [],
+        customLinks: data.store.theme.customLinks ?? [],
+      },
+    }),
     [data.store],
   )
   const [draft, setDraft] = useState<Draft>(initial)

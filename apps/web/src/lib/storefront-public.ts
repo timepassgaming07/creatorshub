@@ -119,7 +119,11 @@ export async function storeRecord(
     title: sf.title,
     tagline: sf.tagline,
     description: sf.description,
-    theme: sf.themeConfig,
+    theme: {
+      ...sf.themeConfig,
+      socialLinks: sf.themeConfig.socialLinks ?? [],
+      customLinks: sf.themeConfig.customLinks ?? [],
+    },
     logoUrl: sf.themeConfig.logoAssetId ? mediaUrl(ws, sf.themeConfig.logoAssetId) : null,
     bannerUrl: sf.themeConfig.bannerAssetId ? mediaUrl(ws, sf.themeConfig.bannerAssetId) : null,
     isPreview,
