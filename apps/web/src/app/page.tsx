@@ -26,6 +26,7 @@ import { SiteFooter, SiteHeader } from '@/components/site/SiteChrome'
 import { Motion } from '@/components/site/Motion'
 import { StoreHome } from '@/components/store/StoreHome'
 import { StoreShell } from '@/components/store/StoreShell'
+import { HeroSceneLazy } from '@/components/visual/HeroSceneLazy'
 import { Plasma } from '@/components/visual/Plasma'
 import type { PublicProductCard, PublicStore } from '@/lib/storefront-public'
 
@@ -132,15 +133,22 @@ const FEATURES = [
   },
 ]
 
-const STEPS = [
+const BUILD_STEPS = [
   {
     title: 'Make your store',
-    body: 'Pick a name and an address. Add your photo, your links, and a colour.',
+    body: 'Pick a name and an address. Add your photo, a line about you, and a colour.',
   },
-  { title: 'Add a product', body: 'Upload the file, set a price or make it free, publish.' },
   {
-    title: 'Share one link',
-    body: 'Put it in your bio. Sales, files, receipts, and GST happen without you.',
+    title: 'Bring your links',
+    body: 'Instagram, YouTube, your booking page. One place for everything you share.',
+  },
+  {
+    title: 'Add a product',
+    body: 'Upload the file, set a price or make it free, publish. Covers and GST included.',
+  },
+  {
+    title: 'Share one link, get paid',
+    body: 'Put it in your bio. Payment, delivery, receipts, and GST happen without you.',
   },
 ]
 
@@ -177,11 +185,17 @@ export default function LandingPage() {
     <Motion>
       <div className="bg-surface-base">
         {/* Hero ---------------------------------------------------------- */}
-        <section className="store-dark relative isolate overflow-hidden">
-          <Plasma className="absolute inset-0 -z-10 size-full" intensity={1} />
+        <section data-tilt-zone className="relative isolate overflow-hidden">
+          <div aria-hidden="true" className="hero-aurora absolute inset-0 -z-30" />
+          <HeroSceneLazy className="absolute inset-0 -z-20" />
+          <div aria-hidden="true" className="hero-veil absolute inset-0 -z-10 hidden lg:block" />
           <div
             aria-hidden="true"
-            className="absolute inset-0 -z-10 bg-[radial-gradient(120%_80%_at_50%_120%,var(--surface-base)_30%,transparent_70%)]"
+            className="absolute inset-x-0 top-0 -z-10 h-[62%] bg-gradient-to-b from-surface-base via-surface-base/85 to-transparent lg:hidden"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-b from-transparent to-surface-base"
           />
           <SiteHeader overlay />
           <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-36 pb-24 lg:grid-cols-[1.15fr_0.85fr] lg:pt-44 lg:pb-32">
@@ -199,7 +213,7 @@ export default function LandingPage() {
                 </span>
                 <span data-hero-line className="block">
                   Your products.{' '}
-                  <em className="font-display font-normal tracking-[-0.02em] text-content-secondary">
+                  <em className="text-brand-gradient font-display font-normal tracking-[-0.02em]">
                     One link.
                   </em>
                 </span>
@@ -228,9 +242,12 @@ export default function LandingPage() {
             <div data-hero-line className="relative mx-auto w-full max-w-[340px]">
               <div
                 aria-hidden="true"
-                className="absolute -inset-10 -z-10 rounded-[3rem] bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--content-primary)_14%,transparent),transparent)] blur-2xl"
+                className="absolute -inset-12 -z-10 rounded-[3rem] bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-ember)_40%,transparent),color-mix(in_oklch,var(--brand-violet)_25%,transparent)_55%,transparent)] blur-3xl"
               />
-              <figure className="overflow-hidden rounded-[2.4rem] border-[6px] border-content-primary/10 bg-surface-base shadow-elevation-3 ring-1 ring-border-default">
+              <figure
+                data-tilt
+                className="overflow-hidden rounded-[2.4rem] border-[6px] border-content-primary/10 bg-surface-base shadow-[0_40px_80px_-30px_color-mix(in_oklch,var(--brand-ink)_55%,transparent)] ring-1 ring-border-default"
+              >
                 <div
                   className="store-light h-[600px] overflow-hidden [clip-path:inset(0_round_2rem)]"
                   inert
@@ -242,8 +259,10 @@ export default function LandingPage() {
                   </div>
                 </div>
               </figure>
-              <figcaption className="mt-3 text-center text-caption text-content-secondary">
-                An example store
+              <figcaption className="mt-4 text-center">
+                <span className="inline-block rounded-full border border-border-subtle bg-surface-raised px-3 py-1 text-caption text-content-secondary shadow-elevation-1">
+                  An example store
+                </span>
               </figcaption>
             </div>
           </div>
@@ -309,30 +328,145 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Steps --------------------------------------------------------- */}
+        {/* Build: the store assembles itself as you scroll ----------- */}
         <section
+          data-build
           aria-labelledby="steps-title"
-          className="border-y border-border-subtle bg-surface-sunken/40 py-24"
+          className="relative border-y border-border-subtle bg-surface-sunken/40"
         >
-          <div className="mx-auto max-w-6xl px-5">
-            <h2
-              id="steps-title"
-              data-reveal
-              className="text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold tracking-[-0.03em]"
-            >
-              Live before your coffee goes cold.
-            </h2>
-            <ol data-reveal-group className="mt-12 grid gap-8 md:grid-cols-3">
-              {STEPS.map((step, index) => (
-                <li key={step.title} className="relative">
-                  <span className="font-display text-[3.5rem] leading-none text-content-tertiary">
-                    0{index + 1}
+          <div
+            data-build-pin
+            className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-24 lg:min-h-dvh lg:grid-cols-[1fr_0.9fr] lg:py-16"
+          >
+            <div>
+              <p className="text-caption font-semibold tracking-wide text-accent uppercase">
+                From zero to selling
+              </p>
+              <h2
+                id="steps-title"
+                className="mt-3 text-[clamp(2rem,4.5vw,3.25rem)] leading-[1.05] font-semibold tracking-[-0.03em]"
+              >
+                Live before your <em className="font-display font-normal">coffee goes cold.</em>
+              </h2>
+              <ol data-build-steps className="mt-10 space-y-2">
+                {BUILD_STEPS.map((step, index) => (
+                  <li
+                    key={step.title}
+                    data-build-step={index}
+                    className="flex gap-4 rounded-2xl border border-transparent p-5"
+                  >
+                    <span className="mt-0.5 font-mono text-caption text-content-tertiary tabular-nums">
+                      0{index + 1}
+                    </span>
+                    <span>
+                      <span className="block text-[17px] font-semibold">{step.title}</span>
+                      <span className="mt-1 block text-body text-content-secondary">
+                        {step.body}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div aria-hidden="true" className="relative mx-auto w-full max-w-[320px]">
+              <div className="absolute -inset-16 -z-10 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-violet)_28%,transparent),color-mix(in_oklch,var(--brand-ember)_18%,transparent)_60%,transparent)] blur-3xl" />
+              <div
+                data-b="url"
+                className="mx-auto mb-4 flex w-fit items-center gap-2 rounded-full border border-border-subtle bg-surface-raised px-4 py-2 text-caption font-medium shadow-elevation-2"
+              >
+                <span className="size-2 rounded-full bg-positive" />
+                asha.creatorhub.store
+              </div>
+              <div className="store-light relative overflow-hidden rounded-[2.4rem] border-[6px] border-content-primary/10 bg-surface-base shadow-[0_40px_80px_-30px_color-mix(in_oklch,var(--brand-ink)_55%,transparent)] ring-1 ring-border-default">
+                <div className="h-[540px] overflow-hidden px-4 pt-4 text-content-primary">
+                  <div
+                    data-b="banner"
+                    className="h-24 rounded-2xl bg-[linear-gradient(120deg,var(--brand-saffron),var(--brand-ember)_55%,var(--brand-rose))]"
+                  />
+                  <div
+                    data-b="avatar"
+                    className="mx-auto -mt-9 flex size-[72px] items-center justify-center rounded-full border-4 border-surface-base bg-[linear-gradient(135deg,var(--brand-ember),var(--brand-violet))] text-2xl font-semibold text-white"
+                  >
+                    A
+                  </div>
+                  <p data-b="name" className="mt-2 text-center font-display text-2xl">
+                    Asha Rao Studio
+                  </p>
+                  <p data-b="tagline" className="text-center text-caption text-content-secondary">
+                    Presets for golden-hour weddings
+                  </p>
+                  <div className="mt-3 flex justify-center gap-2">
+                    {['IG', 'YT', 'X'].map((label) => (
+                      <span
+                        key={label}
+                        data-b="social"
+                        className="flex size-8 items-center justify-center rounded-full border border-border-default text-[11px] font-semibold text-content-secondary"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  <div
+                    data-b="link"
+                    className="mt-3 rounded-xl border border-border-default bg-surface-raised px-3 py-2.5 text-caption font-medium"
+                  >
+                    📅 Book a portfolio review
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
+                    {[
+                      {
+                        title: 'Golden Hour Presets',
+                        price: '₹999',
+                        tone: 'var(--brand-saffron),var(--brand-ember)',
+                      },
+                      {
+                        title: 'Skin-Tone Guide',
+                        price: 'Free',
+                        tone: 'var(--brand-rose),var(--brand-violet)',
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.title}
+                        data-b="product"
+                        className="overflow-hidden rounded-xl border border-border-subtle bg-surface-raised"
+                      >
+                        <div
+                          className="h-20"
+                          style={{ background: `linear-gradient(135deg,${item.tone})` }}
+                        />
+                        <div className="p-2.5">
+                          <p className="text-[12px] leading-tight font-semibold">{item.title}</p>
+                          <p className="mt-1 text-[12px] font-semibold tabular-nums">
+                            {item.price}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div
+                  data-b="toast"
+                  className="absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border border-border-subtle bg-surface-raised/95 p-3 shadow-elevation-3 backdrop-blur"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-positive-subtle text-positive">
+                    <BadgeIndianRupee className="size-5" />
                   </span>
-                  <h3 className="mt-3 text-[17px] font-semibold">{step.title}</h3>
-                  <p className="mt-1.5 text-body text-content-secondary">{step.body}</p>
-                </li>
-              ))}
-            </ol>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-caption font-semibold">New sale · ₹999</span>
+                    <span className="block truncate text-[12px] text-content-secondary">
+                      Golden Hour Presets, delivered
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-[11px] text-content-tertiary">Today</span>
+                    <span data-b="today" className="block text-caption font-semibold tabular-nums">
+                      ₹2,997
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -390,16 +524,42 @@ export default function LandingPage() {
                 ).map(([label, value, tone]) => (
                   <div key={label} className="flex justify-between py-3">
                     <dt className="text-content-secondary">{label}</dt>
-                    <dd className={`font-medium tabular-nums ${tone}`}>{value}</dd>
+                    <dd data-count className={`font-medium tabular-nums ${tone}`}>
+                      {value}
+                    </dd>
                   </div>
                 ))}
                 <div className="flex items-baseline justify-between pt-4">
                   <dt className="font-semibold">You receive</dt>
-                  <dd className="text-[1.75rem] font-semibold tracking-tight tabular-nums">
+                  <dd
+                    data-count
+                    className="text-[1.75rem] font-semibold tracking-tight tabular-nums"
+                  >
                     ₹749.25
                   </dd>
                 </div>
               </dl>
+              <div className="mt-6">
+                <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface-sunken">
+                  <span data-grow className="w-[75%] rounded-l-full bg-[var(--brand-ember)]" />
+                  <span data-grow className="w-[20%] bg-[var(--brand-saffron)]" />
+                  <span data-grow className="w-[5%] rounded-r-full bg-[var(--brand-violet)]" />
+                </div>
+                <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-caption text-content-secondary">
+                  {(
+                    [
+                      ['You', '75%', 'bg-[var(--brand-ember)]'],
+                      ['Affiliate', '20%', 'bg-[var(--brand-saffron)]'],
+                      ['CreatorHub', '5%', 'bg-[var(--brand-violet)]'],
+                    ] as const
+                  ).map(([who, share, dot]) => (
+                    <li key={who} className="inline-flex items-center gap-1.5">
+                      <span className={`size-2 rounded-full ${dot}`} />
+                      {who} <span className="font-medium text-content-primary">{share}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <p className="mt-5 text-caption text-content-tertiary">
                 Razorpay charges its own processing fee, usually about 2%. With no affiliate, you
                 would receive ₹949.05.
